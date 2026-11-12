@@ -1,13 +1,13 @@
-"""イベントストア。
+"""Event store.
 
-レイアウト:
-    <store>/events/<session_id>.jsonl            子セッション自身が書くイベント
-    <store>/events/<session_id>@<writer>.jsonl   他者（親など）がそのセッション宛てに書くイベント
+Layout:
+    <store>/events/<session_id>.jsonl            events the child session writes itself
+    <store>/events/<session_id>@<writer>.jsonl   events another writer (such as the parent) writes to that session
 
-1 ファイルの書き手は常に 1 人で、追記しかしない。
-そのため <store> を `hub/status` ブランチのクローンにして Git で共有しても、
-pull --rebase で衝突しない。seq はファイルごとの連番で、イベント ID は
-`<ファイル名>#<seq>`。セッション内の並びは (ts, 書き手, seq) で決める。
+Each file has exactly one writer, and that writer only appends.
+Therefore, sharing <store> through Git as a clone of the `hub/status` branch causes no conflicts
+on pull --rebase. seq numbers events per file, and an event ID is `<file name>#<seq>`.
+Events within a session sort by (ts, writer, seq).
 """
 
 from __future__ import annotations
@@ -35,7 +35,7 @@ def current_session_id() -> str | None:
         return sid
     remote = os.environ.get("CLAUDE_CODE_REMOTE_SESSION_ID")
     if remote:
-        # CCR の内部 ID (cse_...) を get_session で使う session_... 形式に揃える
+        # Normalize a CCR internal ID (cse_...) to the session_... form that get_session takes
         return "session_" + remote[4:] if remote.startswith("cse_") else remote
     return os.environ.get("CLAUDE_CODE_SESSION_ID")
 
@@ -55,7 +55,7 @@ class EventStore:
         self.root = Path(root).expanduser() if root else default_store()
         self.events_dir = self.root / "events"
 
-    # ---- 書き込み -------------------------------------------------------
+    # ---- Writing -------------------------------------------------------
     def _path(self, session_id: str, writer: str | None) -> Path:
         _check_id(session_id, "session_id")
         if writer:
@@ -64,9 +64,10 @@ class EventStore:
         return self.events_dir / f"{session_id}.jsonl"
 
     def _next_ts(self) -> str:
-        """ストア全体で単調増加する時刻（ミリ秒）を払い出す。
+        """Issue a timestamp (milliseconds) that increases monotonically across the whole store.
 
-        同じミリ秒に複数の書き手（子と親など）が書いても、時刻だけで順序が一意に決まるようにする。
+        Even when several writers (a child and its parent, say) write in the same millisecond,
+        the timestamp alone fixes a unique order.
         """
         clock = self.root / ".clock"
         with open(clock, "a+", encoding="utf-8") as f:
@@ -86,10 +87,10 @@ class EventStore:
         return ts
 
     def append(self, session_id: str, fields: dict, writer: str | None = None) -> dict:
-        """seq と ts を採番してイベントを追記し、正規化済みイベントを返す。
+        """Assign seq and ts, append the event, and return the normalized event.
 
-        writer を省略すると子セッション自身のファイルに書く。
-        親が回答・指示を書くときは writer="parent" などを指定する。
+        Without writer, the event goes to the child session's own file.
+        When the parent writes an answer or an instruction, it passes writer="parent" or similar.
         """
         self.events_dir.mkdir(parents=True, exist_ok=True)
         path = self._path(session_id, writer)
@@ -112,7 +113,7 @@ class EventStore:
                 fcntl.flock(f, fcntl.LOCK_UN)
         return self._decorate(ev, path)
 
-    # ---- 読み込み -------------------------------------------------------
+    # ---- Reading -------------------------------------------------------
     @staticmethod
     def _decorate(ev: dict, path: Path) -> dict:
         stem = path.stem
@@ -138,8 +139,8 @@ class EventStore:
                 try:
                     ev = schema.normalize_event(json.loads(line))
                 except (json.JSONDecodeError, schema.SchemaError, TypeError, AttributeError):
-                    continue  # 壊れた行・不正な行は捨てて、残りを活かす
-                if ev["seq"] in seen:  # Git 由来の重複行
+                    continue  # Skip a corrupt or invalid line and keep the rest
+                if ev["seq"] in seen:  # Duplicate line from a Git merge
                     continue
                 seen.add(ev["seq"])
                 out.append(self._decorate(ev, path))
@@ -157,7 +158,7 @@ class EventStore:
         return {sid: self.read(sid) for sid in self.session_ids()}
 
     def signature(self) -> tuple:
-        """変更検知用。ファイルごとの (名前, サイズ, mtime)。"""
+        """Return (name, size, mtime) per file, for change detection."""
         sig = []
         for p in self._files():
             try:
@@ -167,7 +168,7 @@ class EventStore:
             sig.append((p.name, st.st_size, st.st_mtime_ns))
         return tuple(sig)
 
-    # ---- Git 同期 -------------------------------------------------------
+    # ---- Git sync ------------------------------------------------------
     def is_git(self) -> bool:
         return (self.root / ".git").exists()
 
@@ -181,7 +182,7 @@ class EventStore:
         return self._git("pull", "--rebase", "--quiet").returncode == 0
 
     def sync(self, message: str = "hub: update", retries: int = 4, backoff: float = 2.0) -> bool:
-        """commit → pull --rebase → push。push 失敗時は指数バックオフで再試行。"""
+        """Run commit, pull --rebase, and push; retry a failed push with exponential backoff."""
         if not self.is_git():
             return False
         self._git("add", "events")

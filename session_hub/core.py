@@ -1,4 +1,4 @@
-"""イベント記録の共通処理。CLI（ローカル書き込み）とサーバー（push 受信）の両方が使う。"""
+"""Shared event recording, used by the CLI (local writes) and the server (push receipt)."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ PROTOCOL = "HUB/1"
 
 
 def escalation_line(st: dict) -> str:
-    """親へ send_message でそのまま送れる 1 行（DESIGN.md §3.3）。"""
+    """Build one line the parent can receive as-is through send_message (DESIGN.md §3.3)."""
     if st["state"] == "needs_human" and st.get("attention"):
         a = st["attention"]
         opts = "/".join(a.get("options") or [])
@@ -25,7 +25,7 @@ def escalation_line(st: dict) -> str:
 
 
 def merge_tasks(current: list[dict], specs: list[str]) -> list[dict]:
-    """'name=status[:size]' の指定で既存のタスクを更新・追加する。status を '-' にすると削除。"""
+    """Update or add tasks from 'name=status[:size]' specs; a status of '-' deletes the task."""
     tasks = [dict(t) for t in current]
     for spec in specs:
         name, _, rest = spec.partition("=")
@@ -46,12 +46,12 @@ def merge_tasks(current: list[dict], specs: list[str]) -> list[dict]:
 
 
 def record(store: EventStore, session_id: str, fields: dict, writer: str | None = None) -> dict:
-    """イベントを追記し、記録結果と「親へ知らせるべきか」を返す。
+    """Append an event and return the recorded result and whether to notify the parent.
 
-    fields に "task_updates"（'name=status[:size]' の配列）を入れると、
-    現在のタスク一覧に適用した結果を tasks として記録する。
+    When fields holds "task_updates" (an array of 'name=status[:size]'), we apply the updates
+    to the current task list and record the result as tasks.
 
-    戻り値: {"event", "status", "escalate": str|None, "message": str}
+    Returns: {"event", "status", "escalate": str|None, "message": str}
     """
     events = store.read(session_id)
     before = schema.fold(events) if events else schema.empty_status(session_id)

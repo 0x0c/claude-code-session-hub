@@ -5,7 +5,7 @@
     {
       "name": "session-hub",
       "source": "./",
-      "description": "サブセッションの状況共有（報告スキル、自動報告 hook、ダッシュボード）"
+      "description": "Sub-session status sharing (reporting skills, auto-reporting hooks, and a dashboard)"
     }
   ]
 }

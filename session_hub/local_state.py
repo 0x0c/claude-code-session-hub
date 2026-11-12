@@ -1,7 +1,7 @@
-"""子セッション側の小さなローカル状態（最後に報告した state、タスク ID と名前の対応など）。
+"""Small local state on the child-session side (the last reported state, task ID-to-name map, and so on).
 
-push 型ではストアがリモートにあるため、hook が「最後に何を報告したか」を
-ネットワークなしで判断できるよう、送信のたびにここへ記録する。
+In push mode the store is remote. We record each send here so that a hook can tell what it
+last reported without a network call.
 """
 
 from __future__ import annotations
@@ -35,7 +35,7 @@ def save(sid: str, st: dict) -> None:
 
 
 def note(sid: str, fields: dict, res: dict | None) -> None:
-    """自セッションのイベントを送った（または outbox に積んだ）ことを記録する。"""
+    """Record that this session sent an event (or queued it in the outbox)."""
     st = load(sid)
     if fields.get("actor", "child") == "child":
         st["started"] = True

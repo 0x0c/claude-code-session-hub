@@ -1,74 +1,105 @@
 # claude-code-session-hub
 
-親セッションが走らせている複数のサブセッションの状況を、**少ないトークンで・リアルタイムに**一覧するためのツールです。
+Session Hub lets a parent Claude Code session follow many sub-sessions in real time while spending
+few tokens on it. Sub-sessions push short status updates to a local hub server, and the hub shows
+them on a browser dashboard.
 
-- サブセッションは状態が変わるたびに `session-hub` コマンドでハブへ **push** し、ハブはそれを**即座に**ブラウザのダッシュボードへ配信します（SSE。ポーリングなし）。
-- ダッシュボードでは、要対応（人間待ち・失敗・レビュー可・停滞）を先頭に一覧し、作業中のセッションにはスピナーを表示します。届いた報告は**タイムライン**（フィード / スイムレーン）で時系列にたどれます。
-- 親セッションはトランスクリプトを読まず、`session-hub attention` の数行だけで判断します。
-- サブセッションが作業で判明した知見・注意点・決定事項は `session-hub learn` で **1 か所（ナレッジ）に集まり**、同じ発見は 1 件にまとまります。どこにどうためて、どう見せるかは**コレクション**として宣言的に定義でき（`collections.json`）、ダッシュボードにタブとして表示され、Markdown などへの書き出しもできます。
-- Claude Code プラグインとして、報告手順のスキルと、報告漏れを防ぐ hook（heartbeat・トークン使用量・進捗の自動送信、作業中のまま終了しようとしたときの確認）を同梱しています。
+- **Push, not polling.** Each sub-session runs the `session-hub` command whenever its state changes.
+  The hub streams that update to the browser dashboard at once over Server-Sent Events (SSE).
+- **Attention first.** The dashboard lists the sessions that need attention at the top: waiting for a
+  human, failed, ready for review, or stalled. A spinner marks a session that is working. A
+  **timeline** (a feed or swimlanes) replays every report in order.
+- **A few lines for the parent.** The parent session reads no transcripts. It decides from the few
+  lines that `session-hub attention` prints.
+- **One place for what sub-sessions learn.** A sub-session records findings, caveats, and decisions
+  with `session-hub learn`. They gather in one **knowledge base**, and repeated reports of the same
+  finding merge into one entry. A **collection** declares where updates accumulate and how they are
+  shown (`collections.json`). Each collection appears as a dashboard tab and can be exported as
+  Markdown and other formats.
+- **A Claude Code plugin.** The plugin ships skills that describe how to report, and hooks that keep
+  reports from being missed. The hooks send heartbeats, token usage, and task progress
+  automatically, and they ask for a report when a session tries to stop while still marked as
+  working.
 
-設計の背景・プロトコル・用語は [docs/DESIGN.md](docs/DESIGN.md) を参照してください。
+[docs/DESIGN.md](docs/DESIGN.md) covers the design rationale and the protocol, and its
+[glossary](docs/DESIGN.md#appendix-a-glossary) defines the terms.
 
-## 必要なもの
+## Requirements
 
-Python 3.10 以上（標準ライブラリのみ）。インストールせずに `bin/session-hub` で動きます。`pip install .` で `session-hub` コマンドとして入れることもできます。
+Session Hub needs Python 3.10 or later and uses the standard library alone. It runs without
+installation as `bin/session-hub`. To install it as the `session-hub` command, run `pip install .`.
 
-## クイックスタート（デモ）
+## Quick start (demo)
 
-```bash
-python3 scripts/demo.py --store /tmp/hub-demo
+1. Generate a demo store that holds three hours of history.
+
+   ```bash
+   python3 scripts/demo.py --store /tmp/hub-demo
+   ```
+
+2. Start the hub server on that store.
+
+   ```bash
+   HUB_STORE=/tmp/hub-demo bin/session-hub serve
+   ```
+
+3. Open http://127.0.0.1:8765/ in a browser. The dashboard shows the demo sessions.
+
+4. In another terminal, push an update every few seconds as if you were a child session.
+
+   ```bash
+   python3 scripts/demo.py --push http://127.0.0.1:8765
+   ```
+
+   Each update appears on the dashboard immediately.
+
+## Usage (local setup)
+
+In the local setup, sub-sessions run on your own machine and every session shares one store
+(`HUB_STORE`). The hub server listens on `127.0.0.1` alone, so it never exposes your machine to the
+network.
+
+```
+Sub-session A ─┐ POST (127.0.0.1)
+Sub-session B ─┼──────────► Hub server ──SSE──► Browser (http://127.0.0.1:8765/)
+Sub-session C ─┘                 │
+        └ while the server is down, write to the shared store ─► ~/.session-hub/events/*.jsonl ◄─ loaded at startup
 ```
 
-```bash
-HUB_STORE=/tmp/hub-demo bin/session-hub serve
-```
+### 1. Install the skills and hooks
 
-ブラウザで http://127.0.0.1:8765/ を開きます。別のターミナルで子セッションのふりをして push すると、即座に反映されます。
-
-```bash
-python3 scripts/demo.py --push http://127.0.0.1:8765
-```
-
-## 使い方（ローカル運用）
-
-サブセッションを手元の PC で動かし、全セッションで同じストア（`HUB_STORE`）を共有する構成です。
-ハブサーバーは `127.0.0.1` でのみ待ち受けるので、PC を外部に公開しません。
-
-```
-サブセッション A ─┐ POST（127.0.0.1）
-サブセッション B ─┼──────────► ハブサーバー ──SSE──► ブラウザ（http://127.0.0.1:8765/）
-サブセッション C ─┘                 │
-        └ サーバー停止中は共有ストアへ直接書く ─► ~/.session-hub/events/*.jsonl ◄─ 起動時に読み込み
-```
-
-### 1. スキルと hook を入れる
-
-**APM（Agent Package Manager）で入れる場合**（プロジェクト単位）:
+**With APM (Agent Package Manager)**, per project:
 
 ```bash
 apm install 0x0c/claude-code-session-hub --target claude
 ```
 
-- `.claude/skills/session-hub-report/` と `.claude/skills/session-hub-orchestrate/` にスキルが、`.claude/settings.json` に hook が入ります。
-  本体は `apm_modules/0x0c/claude-code-session-hub/` に置かれ、hook は自動でそこを見つけます。
-- 依存は `apm.yml` に記録されるので、他の人は `apm install` だけで同じ状態にできます（`apm_modules/` は git 管理外）。
-- スキルを 1 つだけ入れるなら `--skill session-hub-report`（子セッション用）または `--skill session-hub-orchestrate`（親用）を付けます。
-- `session-hub` コマンドは、最初のセッション開始時に hook が `~/.local/bin/session-hub` を作ります。どこからでも使いたい場合は
-  `pip install git+https://github.com/0x0c/claude-code-session-hub` でも入れられます。
+- APM installs the skills into `.claude/skills/session-hub-report/` and
+  `.claude/skills/session-hub-orchestrate/`, and the hooks into `.claude/settings.json`.
+  The package itself lives in `apm_modules/0x0c/claude-code-session-hub/`, and the hooks find it there
+  automatically.
+- APM records the dependency in `apm.yml`, so a teammate reproduces the same setup with `apm install`
+  alone (`apm_modules/` stays out of git).
+- To install one skill, add `--skill session-hub-report` (for child sessions) or
+  `--skill session-hub-orchestrate` (for the parent).
+- The SessionStart hook creates the `session-hub` command at `~/.local/bin/session-hub` when the first
+  session starts. To use the command from anywhere, you can also install it with
+  `pip install git+https://github.com/0x0c/claude-code-session-hub`.
 
-**Claude Code プラグインとして入れる場合**（全プロジェクト共通）:
+**As a Claude Code plugin**, for every project:
 
 ```text
 /plugin marketplace add 0x0c/claude-code-session-hub
 /plugin install session-hub@session-hub
 ```
 
-プラグインとして入れた場合、スキル名には `session-hub:` が前に付きます（例 `session-hub:session-hub-report`）。
+A plugin install prefixes the skill names with `session-hub:` (for example,
+`session-hub:session-hub-report`).
 
-### 2. 全セッション共通の設定を書く
+### 2. Configure every session
 
-`~/.claude/settings.json`（ユーザー設定。全プロジェクトのセッションに効く）に次を追加します。
+Add the following to `~/.claude/settings.json`. This user-level file applies to sessions in every
+project.
 
 ```json
 {
@@ -80,90 +111,109 @@ apm install 0x0c/claude-code-session-hub --target claude
 }
 ```
 
-- `HUB_AUTOSTART=1` にすると、最初に始まったセッションがハブサーバーを裏で起動します（ログは `~/.session-hub/.server.log`）。自分で起動する場合は外して `session-hub serve` を実行します。
-- サーバーが止まっている間のメッセージは共有ストアに直接書かれ、サーバーが起動すると画面に出ます。失われることはありません。
-- 特定のプロジェクトだけで使うなら、そのプロジェクトの `.claude/settings.local.json` に書きます。
+- With `HUB_AUTOSTART=1`, the first session to start launches the hub server in the background (log:
+  `~/.session-hub/.server.log`). To run the server yourself, remove the variable and run
+  `session-hub serve`.
+- While the server is down, messages go straight to the shared store and appear on the dashboard once
+  the server starts. No message is lost.
+- To enable Session Hub for one project, put the settings in that project's
+  `.claude/settings.local.json` instead.
 
-### 3. 確認する
+### 3. Check the setup
 
 ```bash
 session-hub doctor
 ```
 
-URL・サーバーの応答・ストアの書き込み可否・コマンドの場所・未送信の有無を確認できます。ブラウザで http://127.0.0.1:8765/ を開けばダッシュボードです。
+`session-hub doctor` checks the URL, whether the server responds, whether the store is writable,
+where the command lives, and whether unsent events remain. Open http://127.0.0.1:8765/ in a browser
+to see the dashboard.
 
-### 4. サブセッションを動かす
+### 4. Run sub-sessions
 
-ローカルでは各サブセッションが別々の Claude Code セッション（別のセッション ID）である必要があります。
+Locally, each sub-session must be a separate Claude Code session with its own session ID.
 
-- **人間が並行して起動する**: 別のターミナルや worktree、デスクトップアプリの並行セッションで `claude` を起動する。指示の冒頭に [prompts/child-append-system-prompt.md](prompts/child-append-system-prompt.md) の内容を含めるか、次のように渡す。
-- **親がバックグラウンドで起動する**:
+- **A human starts them in parallel.** Start `claude` in another terminal, in a worktree, or as a
+  parallel session in the desktop app. Begin the instructions with the contents of
+  [prompts/child-append-system-prompt.md](prompts/child-append-system-prompt.md), or pass that file as
+  shown below.
+- **The parent starts them in the background:**
 
 ```bash
-claude -p "<作業内容>" --append-system-prompt "$(sed -e 's/{{PARENT_SESSION_ID}}/<親のID>/' -e 's/{{TITLE}}/<作業名>/' prompts/child-append-system-prompt.md)"
+claude -p "<task>" --append-system-prompt "$(sed -e 's/{{PARENT_SESSION_ID}}/<parent-id>/' -e 's/{{TITLE}}/<task-title>/' prompts/child-append-system-prompt.md)"
 ```
 
-Agent ツールのサブエージェントは親と同じセッション ID になるため、別のサブセッションとしては表示されません（区別したい場合はサブエージェントの指示で `session-hub --session <固有のID> ...` を使わせます）。
+A subagent of the Agent tool shares its parent's session ID, so the dashboard does not show it as a
+separate sub-session. To tell subagents apart, instruct each subagent to run
+`session-hub --session <unique-id> ...`.
 
-### 入るもの（APM・プラグイン共通）
+### What gets installed (APM and plugin alike)
 
-`HUB_URL` も `HUB_STORE` もないセッションでは、hook は何もしません。
+The hooks do nothing in a session that has neither `HUB_URL` nor `HUB_STORE`.
 
-| 種類 | 内容 |
+| Component | What it does |
 |---|---|
-| スキル `session-hub-report` | いつ・何を報告するか（子用） |
-| スキル `session-hub-orchestrate` | 子の起動・`[HUB/1]` への対応・回答の仕方（親用） |
-| SessionStart hook | `~/.local/bin/session-hub` を用意し、`HUB_AUTOSTART=1` ならサーバーを起動し、未登録なら `start` を促す 2 行を注入 |
-| PostToolUse hook | TodoWrite / TaskCreate / TaskUpdate → タスク進捗と作業中タスク名を自動送信 |
-| Stop hook | ターン終了ごとに heartbeat とトークン使用量を自動送信。作業中のまま終えようとしたら 1 回だけ報告を促す（`HUB_STOP_GUARD=0` で無効） |
+| Skill `session-hub-report` | When to report and what to report (for children) |
+| Skill `session-hub-orchestrate` | How to start children, handle `[HUB/1]` lines, and answer questions (for the parent) |
+| SessionStart hook | Creates `~/.local/bin/session-hub`, starts the server when `HUB_AUTOSTART=1`, and injects two lines asking an unregistered session to run `start` |
+| PostToolUse hook | On TodoWrite / TaskCreate / TaskUpdate, sends task progress and the name of the active task |
+| Stop hook | Sends a heartbeat and token usage at the end of every turn. Prompts once for a report when a session tries to stop while still working (disable with `HUB_STOP_GUARD=0`) |
 
-### （参考）クラウドのサブセッションで使う場合
+### Using cloud sub-sessions (for reference)
 
-クラウドのセッションから届く常設サーバーにハブを置き、`HUB_TOKEN` を設定して `session-hub serve --host 0.0.0.0` で起動します。
-子の環境で `HUB_URL` を設定し、ハブのホストをネットワーク許可リストに加え、トークンは `Authorization: Bearer` のネットワークシークレットとして登録します。
-ブラウザでは最初に `?token=<HUB_TOKEN>` を付けて開きます。手元の PC を外部に公開する構成は想定していません。
+Host the hub on an always-on server that cloud sessions can reach. Set `HUB_TOKEN` and start the
+server with `session-hub serve --host 0.0.0.0`. In each child's environment, set `HUB_URL`, add the
+hub's host to the network allowlist, and register the token as an `Authorization: Bearer` network
+secret. In the browser, open the dashboard the first time with `?token=<HUB_TOKEN>` appended. Session
+Hub does not support exposing your own machine to the network.
 
-## コマンド早見表
+## Command reference
 
-子セッション（`HUB_URL` へ push。届かなければ `HUB_STORE` に直接書く）:
+Child sessions push to `HUB_URL`, and write to `HUB_STORE` directly when the hub is unreachable:
 
 ```bash
-session-hub start --title "作業名" --task-ref "#128" --task "設計=todo:S" --task "実装=todo:M"
-session-hub report --phase test --summary "テスト追加中" --task "実装=done"
-session-hub ask --kind decision --q "上限は?" --opt 60 --opt 120 --default 120 [--non-blocking]
+session-hub start --title "Rate limiting for the auth API" --task-ref "#128" --task "Design=todo:S" --task "Implement=todo:M"
+session-hub report --phase test --summary "Adding tests" --task "Implement=done"
+session-hub ask --kind decision --q "Requests per minute?" --opt 60 --opt 120 --default 120 [--non-blocking]
 session-hub pr --number 45 --ci pending --state waiting_ci
 session-hub ready --self-review --tests --description
 session-hub done --summary "PR #45"
-session-hub fail --error "原因"
+session-hub fail --error "Cause"
 session-hub flush
 session-hub doctor
 ```
 
-`flush` は、届かずに outbox へ溜まったイベントを再送します。`doctor` は設定を確認します。
+`flush` resends events that could not be delivered and wait in the outbox. `doctor` checks the
+configuration.
 
-知見・注意点の記録と参照:
+To record and look up findings and caveats:
 
 ```bash
-session-hub learn --kind caveat --title "CI の Redis は 6.2" --body "根拠と対処" --tag ci --scope tests/
+session-hub learn --kind caveat --title "CI Redis is 6.2" --body "Evidence and workaround" --tag ci --scope tests/
 session-hub knowledge --scope tests/ [--kind caveat] [--body]
 session-hub collection knowledge [--format json]
 ```
 
-`--kind` は caveat / issue / decision / howto / insight です。同じタイトルの知見は 1 件にまとまり、`--obsolete` で廃止にできます。`collection` はコレクション全体を Markdown（既定）か JSON で出力します。
+`--kind` takes caveat, issue, decision, howto, or insight. Findings with the same title merge into
+one entry, and `--obsolete` retires a finding. `collection` prints a whole collection as Markdown
+(the default) or JSON.
 
-### コレクションの追加
+### Add a collection
 
-ストア直下に `collections.json` を置くと、組み込みの「ナレッジ」に加えて、更新をためる先と表示を宣言的に追加・変更できます。ダッシュボードにはコレクションごとのタブが自動で表示されます。詳しくは [DESIGN.md §3.7](docs/DESIGN.md) を参照してください。
+A `collections.json` file at the top of the store adds or changes collections declaratively, on top of
+the built-in knowledge collection. Each collection declares where updates accumulate and how the
+dashboard shows them. The dashboard adds a tab for each collection automatically. See
+[DESIGN.md §3.7](docs/DESIGN.md) for details.
 
 ```json
 [
   {"name": "knowledge", "sinks": [{"type": "markdown", "path": "KNOWLEDGE.md"}]},
-  {"name": "decisions", "label": "決定ログ", "match": {"type": ["finding"], "kind": ["decision"]},
+  {"name": "decisions", "label": "Decision log", "match": {"type": ["finding"], "kind": ["decision"]},
    "reduce": {"type": "log", "payload": "finding"}, "view": {"type": "table", "columns": ["title", "body", "reporters"]}}
 ]
 ```
 
-親セッション・人間:
+For the parent session and humans:
 
 ```bash
 session-hub attention
@@ -174,25 +224,35 @@ session-hub command <session_id> --cmd pause
 session-hub export --out dashboard.html
 ```
 
-`attention` は要対応だけを 1 行ずつ出します（親 LLM 向け）。`answer` と `command` は記録したうえで、子へ送る `[HUB/1]` 行を出力します。`export` はスナップショットを埋め込んだ静的 HTML を書き出します。
+`attention` prints one line per session that needs attention, for the parent LLM. `answer` and
+`command` record the action, then print the `[HUB/1]` line to send to the child. `export` writes a
+static HTML file with a snapshot embedded.
 
-イベントを送るとき、状態が「親を起こすべきもの」（人間待ち・レビュー可・失敗・完了）に変わると、コマンドは `[HUB/1] ...` の 1 行を出力します。子はその行だけを `send_message` で親へ送ります。
+When an event moves a session into a state that should wake the parent (waiting for a human, ready
+for review, failed, or done), the command prints one `[HUB/1] ...` line. The child sends that line
+alone to the parent with `send_message`.
 
-## 環境変数
+## Environment variables
 
-| 変数 | 用途 |
+| Variable | Purpose |
 |---|---|
-| `HUB_URL` | ハブサーバーの URL。設定すると子は push、親の `attention` などはサーバーから読む |
-| `HUB_TOKEN` | ハブの認証トークン（サーバー・クライアント共通） |
-| `HUB_STORE` | ストアのディレクトリ（サーバー、またはサーバーなしで使うとき） |
-| `HUB_SESSION_ID` | 自セッション ID（未設定なら Claude Code の環境変数から取得） |
-| `HUB_PARENT_SESSION_ID` | 親のセッション ID（子が `[HUB/1]` 行を送る宛先） |
-| `HUB_STOP_GUARD` | `0` で Stop hook の確認を無効化 |
-| `HUB_AUTOSTART` | `1` で、ローカルのハブサーバーが動いていなければセッション開始時に起動（`HUB_URL` が 127.0.0.1 / localhost のときだけ） |
-| `HUB_OUTBOX` / `HUB_STATE_DIR` | outbox とローカル状態の置き場所（既定 `~/.cache/...`） |
+| `HUB_URL` | The hub server's URL. When set, children push to it, and parent commands such as `attention` read from it |
+| `HUB_TOKEN` | The hub's authentication token (shared by server and clients) |
+| `HUB_STORE` | The store directory (for the server, or when running without a server) |
+| `HUB_SESSION_ID` | This session's ID (read from Claude Code's environment variables when unset) |
+| `HUB_PARENT_SESSION_ID` | The parent's session ID (where a child sends `[HUB/1]` lines) |
+| `HUB_STOP_GUARD` | `0` disables the Stop hook's prompt |
+| `HUB_AUTOSTART` | `1` starts the local hub server at session start if it is not running (only when `HUB_URL` points to 127.0.0.1 or localhost) |
+| `HUB_OUTBOX` / `HUB_STATE_DIR` | Where the outbox and local state live (default `~/.cache/...`) |
 
-## テスト
+## Tests
 
 ```bash
 python3 -m unittest discover -s tests -v
 ```
+
+## Contributing
+
+Every non-trivial change starts as a design proposal under [`proposals/`](proposals/README.md), and
+the code follows the proposal. [`CLAUDE.md`](CLAUDE.md) describes the working agreement, the writing
+rules, and the gate (`scripts/check.sh`) that must pass before a push.

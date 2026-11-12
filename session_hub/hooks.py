@@ -1,12 +1,13 @@
-"""Claude Code の hook から呼ばれる処理。子セッションの報告漏れを、トークンをほぼ使わずに防ぐ。
+"""Handlers that Claude Code hooks call. They catch missed child-session reports at almost no token cost.
 
-    session-start  : CLI のシム（~/.local/bin/session-hub）を用意し、短い手順をコンテキストへ注入
-    stop           : ターン終了ごとに heartbeat と usage を自動送信。
-                     状態が「作業中」のままターンを終えようとしたら 1 回だけ報告を促す
-    todo           : TodoWrite / TaskCreate / TaskUpdate の内容から進捗（tasks）を自動送信
+    session-start  : install the CLI shim (~/.local/bin/session-hub) and inject short instructions
+                     into the context
+    stop           : send a heartbeat and usage automatically at the end of each turn.
+                     If a turn ends while the state is still "working", prompt for a report once
+    todo           : send progress (tasks) automatically from TodoWrite, TaskCreate, and TaskUpdate
 
-どの hook も、HUB_URL か HUB_STORE が設定されていなければ何もしない。
-また例外で Claude Code のセッションを止めないよう、失敗は握りつぶして終了コード 0 で返る。
+Every hook does nothing unless HUB_URL or HUB_STORE is set.
+To keep an exception from stopping the Claude Code session, each hook swallows failures and exits 0.
 """
 
 from __future__ import annotations
@@ -53,7 +54,7 @@ def _read_payload() -> dict:
 # ---- session-start ---------------------------------------------------------
 
 def install_shim() -> Path | None:
-    """プラグインとして読み込まれたとき、Bash から `session-hub` で呼べるようにする。"""
+    """When loaded as a plugin, make `session-hub` callable from Bash."""
     target = PLUGIN_ROOT / "bin" / "session-hub"
     if not target.exists():
         return None
@@ -70,10 +71,11 @@ def install_shim() -> Path | None:
 
 
 def autostart_server() -> str | None:
-    """HUB_AUTOSTART=1 のとき、ローカルのハブサーバーが動いていなければ裏で起動する。
+    """With HUB_AUTOSTART=1, start the local hub server in the background if it is not running.
 
-    ローカル運用専用: HUB_URL が 127.0.0.1 / localhost を指し、HUB_STORE があるときだけ動く。
-    複数のセッションが同時に起動しても、ポートを取れなかった側はすぐ終了するだけで害はない。
+    Local use alone: this runs only when HUB_URL points to 127.0.0.1 or localhost and HUB_STORE is set.
+    When several sessions start at once, a server that fails to bind the port exits at once,
+    which does no harm.
     """
     url = client.hub_url()
     store = os.environ.get("HUB_STORE")
@@ -196,7 +198,7 @@ def todo(payload: dict) -> str:
             fields["summary"] = inp["activeForm"]
     else:
         return ""
-    # タスクに着手したら、計画中/待機中の表示を自動で作業中へ（質問中などは上書きしない）
+    # Once a task starts, move a planning or queued state to working (never override asking and similar states)
     doing = any(t["s"] == "doing" for t in fields.get("tasks", [])) or any(
         u.endswith("=doing") for u in fields.get("task_updates", []))
     if doing and local_state.load(sid).get("state") in (None, "queued", "planning"):
@@ -231,7 +233,7 @@ HANDLERS = {"session-start": session_start, "stop": stop, "todo": todo}
 def run(name: str) -> None:
     try:
         out = HANDLERS[name](_read_payload())
-    except Exception as exc:  # hook の失敗でセッションを止めない
+    except Exception as exc:  # A hook failure must not stop the session
         print(f"session-hub hook {name}: {exc}", file=sys.stderr)
         return
     if out:

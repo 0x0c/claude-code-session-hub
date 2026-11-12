@@ -1,10 +1,10 @@
-"""デモ用データを作る。
+"""Generate demo data.
 
-    python3 scripts/demo.py --store /tmp/hub-demo            # 過去 3 時間分の履歴を作成
-    HUB_STORE=/tmp/hub-demo python3 -m session_hub serve             # ハブサーバーを起動
-    python3 scripts/demo.py --push http://127.0.0.1:8765     # 子セッションのふりをして数秒おきに push
+    python3 scripts/demo.py --store /tmp/hub-demo            # create three hours of history
+    HUB_STORE=/tmp/hub-demo python3 -m session_hub serve             # start the hub server
+    python3 scripts/demo.py --push http://127.0.0.1:8765     # push every few seconds as a fake child session
 
-ブラウザで http://127.0.0.1:8765/ を開くと、push が届くたびに即時反映される。
+Open http://127.0.0.1:8765/ in a browser; each push appears there at once.
 """
 
 from __future__ import annotations
@@ -36,7 +36,7 @@ def seed(store: EventStore) -> None:
     def add(sid, minutes_ago, writer=None, **f):
         store.append(sid, {"ts": t(minutes_ago), **f}, writer=writer)
 
-    # A: 質問して人間待ち
+    # A: asked a question and waits for a human
     add(A, 170, type="start", title="認証APIのレート制限", task_ref="#128", parent_id=P, branch="claude/rate-limit",
         state="planning", summary="既存のミドルウェア構成を調査",
         tasks=[{"t": "設計", "s": "doing", "size": "S"}, {"t": "ミドルウェア", "s": "todo", "size": "M"},
@@ -48,7 +48,7 @@ def seed(store: EventStore) -> None:
     add(A, 38, type="ask", phase="implement", attention={"kind": "decision", "question": "1分あたりのリクエスト上限は?",
         "options": ["60", "120", "300"], "default": "120", "blocking": True})
 
-    # B: レビュー可（ゲート通過）
+    # B: review-ready (gate passed)
     add(B, 160, type="start", title="ログ出力の構造化", task_ref="#131", parent_id=P, state="working", phase="implement",
         summary="logger を JSON 出力に置換", tasks=[{"t": "logger置換", "s": "doing", "size": "M"}, {"t": "テスト", "s": "todo", "size": "S"}])
     add(B, 90, type="report", phase="test", summary="既存テストを JSON 形式に追従",
@@ -58,7 +58,7 @@ def seed(store: EventStore) -> None:
     add(B, 6, type="ready", summary="CI 緑、自己レビュー済み", ready={"self_review": True, "tests_added": True, "description": True},
         tasks=[{"t": "logger置換", "s": "done", "size": "M"}, {"t": "テスト", "s": "done", "size": "S"}])
 
-    # C: 作業中
+    # C: working
     add(C, 130, type="start", title="検索インデックス刷新", task_ref="#140", parent_id=P, state="planning",
         tasks=[{"t": n, "s": "todo", "size": s} for n, s in
                [("スキーマ", "S"), ("バッチ", "L"), ("差分更新", "M"), ("API", "M"), ("テスト", "M")]])
@@ -69,16 +69,16 @@ def seed(store: EventStore) -> None:
         add(C, m, type="report", state="working", phase=phase, summary=summ, tasks=tasks)
     add(C, 2, type="heartbeat", actor="hook", usage={"input": 410000, "output": 38000, "cost_usd": 3.1, "context_pct": 62})
 
-    # D: 失敗
+    # D: failed
     add(D, 100, type="start", title="依存パッケージ更新", parent_id=P, state="working", summary="lockfile 更新")
     add(D, 55, type="fail", last_error="npm ci が ERESOLVE で失敗（peer 依存の衝突）")
 
-    # E: 停滞（heartbeat が古い）
+    # E: stalled (stale heartbeat)
     add(E, 140, type="start", title="画像リサイズ処理", parent_id=P, state="working", summary="sharp への置換",
         tasks=[{"t": "置換", "s": "doing", "size": "M"}, {"t": "テスト", "s": "todo", "size": "M"}])
     add(E, 47, type="report", summary="sharp のビルドを試行中")
 
-    # 作業中に判明した知見・注意点（ナレッジに集約される）
+    # Insights and caveats learned during work (aggregated into knowledge)
     def learn(sid, minutes_ago, kind, title, body=None, tags=(), scope=None):
         add(sid, minutes_ago, type="finding", finding={"kind": kind, "title": title, "body": body,
                                                        "tags": list(tags), "scope": scope})
@@ -94,7 +94,7 @@ def seed(store: EventStore) -> None:
     learn(C, 100, "insight", "検索インデックスの全件再構築は約 40 分かかる",
           "夜間バッチ以外で走らせると API のレイテンシが悪化する。", ["search", "perf"])
 
-    # 親の回答の履歴（過去の質問）
+    # History of parent answers (to earlier questions)
     add(C, 100, type="ask", attention={"kind": "clarification", "question": "既存インデックスは残す?", "options": ["残す", "削除"],
         "default": "残す", "blocking": False})
     qid = store.read(C)[-1]["seq"]

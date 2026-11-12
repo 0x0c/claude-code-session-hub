@@ -1,4 +1,4 @@
-"""トランスクリプト（JSONL）からトークン使用量を合算する。hook から呼ぶ。"""
+"""Sum token usage from a transcript (JSONL). The hooks call this module."""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ def usage_from_transcript(path: str | Path) -> dict:
             usage = msg.get("usage")
             if not isinstance(usage, dict):
                 continue
-            # ストリーミングで同じメッセージが複数行に分かれることがあるので ID で重複排除
+            # Streaming can split one message across several lines, so deduplicate by ID
             mid = msg.get("id") or rec.get("uuid")
             if mid in seen:
                 continue

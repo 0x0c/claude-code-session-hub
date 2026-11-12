@@ -1,10 +1,10 @@
-"""session-hub コマンド。
+"""The session-hub command.
 
-子セッション:  session-hub start / report / ask / ready / pr / done / fail / learn
-               HUB_URL があればハブサーバーへ push、なければローカルのストアに書く
-親セッション:  session-hub attention / log / status / answer / command / knowledge / collection
-人間:          session-hub serve（リアルタイムダッシュボード） / session-hub export（静的 HTML）
-hook:          session-hub hook session-start|stop|todo（stdin に hook の JSON）
+Child session:   session-hub start / report / ask / ready / pr / done / fail / learn
+                 Pushes to the hub server when HUB_URL is set; otherwise writes to the local store.
+Parent session:  session-hub attention / log / status / answer / command / knowledge / collection
+Human:           session-hub serve (real-time dashboard) / session-hub export (static HTML)
+Hook:            session-hub hook session-start|stop|todo (hook JSON on stdin)
 """
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ def _session(args) -> str:
 
 
 def _record(args, fields: dict, writer: str | None = None, session: str | None = None) -> dict | None:
-    """push 先（HUB_URL）があればサーバーへ送り、なければローカルのストアに書く。"""
+    """Send to the server when a push target (HUB_URL) is set; otherwise write to the local store."""
     sid = session or _session(args)
     try:
         res, mode = deliver(sid, fields, writer=writer, store_root=args.store)
@@ -46,13 +46,13 @@ def _record(args, fields: dict, writer: str | None = None, session: str | None =
         store = EventStore(args.store)
         if not args.no_sync and store.is_git() and not store.sync(f"hub: {sid} {res['event']['type']}"):
             print("session-hub: 警告: git push に失敗しました（イベントはローカルに保存済み）", file=sys.stderr)
-    # 親を起こすべき遷移なら、send_message でそのまま送れる 1 行が message に入っている
+    # For a transition that should wake the parent, message holds one line ready for send_message
     if res["escalate"] or not args.quiet:
         print(res["message"])
     return res
 
 
-# ---- サブコマンド ---------------------------------------------------------
+# ---- Subcommands ----------------------------------------------------------
 
 def cmd_start(a):
     f = {"type": "start", "state": a.state, "title": a.title, "task_ref": a.task_ref,
@@ -131,7 +131,7 @@ def cmd_heartbeat(a):
     if a.transcript:
         usage = usage_from_transcript(a.transcript)
     elif not sys.stdin.isatty():
-        # Claude Code の hook は stdin に {"transcript_path": ...} を渡す
+        # A Claude Code hook passes {"transcript_path": ...} on stdin
         try:
             payload = json.loads(sys.stdin.read() or "{}")
             if payload.get("transcript_path"):
@@ -210,7 +210,7 @@ def cmd_serve(a):
 
 
 def cmd_doctor(a):
-    """設定の確認。問題があれば終了コード 1。"""
+    """Check the configuration; exit with status 1 on any problem."""
     import shutil
     ok = True
 
@@ -266,7 +266,7 @@ def cmd_flush(a):
     print(f"sent {client.flush(url, os.environ.get('HUB_TOKEN'))}")
 
 
-# ---- パーサー -------------------------------------------------------------
+# ---- Parser ---------------------------------------------------------------
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="session-hub", description="Claude Code セッションの状況共有")

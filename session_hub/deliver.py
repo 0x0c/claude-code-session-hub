@@ -1,10 +1,11 @@
-"""メッセージ（サブセッションからの更新）の配送。CLI と hook の共通処理。
+"""Delivery of messages (updates from sub-sessions), shared by the CLI and the hooks.
 
-配送の優先順:
-    1. HUB_URL のハブサーバーへ push（ダッシュボードに即時反映）
-    2. サーバーに届かず、HUB_STORE があれば、共有ストアへ直接書く
-       （ローカル運用。サーバーが起動したとき、または次の push / 30 秒ごとの再判定で画面に出る）
-    3. どちらもなければ outbox に溜め、次の送信時に再送する
+Delivery order:
+    1. Push to the hub server at HUB_URL (the dashboard shows the update at once).
+    2. If the server is unreachable and HUB_STORE is set, write to the shared store directly
+       (local use; the update appears when the server starts, on the next push, or on the
+       30-second recheck).
+    3. Otherwise, queue the event in the outbox and retry it on the next send.
 """
 
 from __future__ import annotations
@@ -20,9 +21,9 @@ def store_configured(store_root=None) -> bool:
 
 
 def deliver(session_id: str, fields: dict, writer: str | None = None, store_root=None) -> tuple[dict | None, str]:
-    """戻り値: (記録結果 or None, 経路 "push" | "store" | "outbox")。
+    """Return (recorded result or None, route "push" | "store" | "outbox").
 
-    サーバーが内容を拒否した（4xx）場合は ValueError をそのまま送出する。
+    If the server rejects the payload (4xx), the ValueError propagates unchanged.
     """
     payload = {"session_id": session_id, "writer": writer, "fields": fields}
     url = client.hub_url()

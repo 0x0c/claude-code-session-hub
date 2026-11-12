@@ -1,14 +1,14 @@
 #!/bin/sh
-# session-hub のラッパー。インストール方法を問わず session_hub パッケージを見つけて実行する。
+# Wrapper for session-hub. Finds the session_hub package however it was installed, then runs it.
 #
-# 探す順番:
-#   1. このスクリプトの 1 つ上（リポジトリのクローン、または Claude Code プラグインとして読み込まれた場合）
-#   2. 環境変数 HUB_HOME（パッケージを置いたディレクトリ）
-#   3. pip / uv tool などでインストール済みの session_hub
-#   4. apm でインストールされた場合の apm_modules/**/claude-code-session-hub
-#      （apm はこのラッパーだけを .claude/hooks/ にコピーし、本体は apm_modules に置くため）
+# Search order:
+#   1. The directory above this script (a repository clone, or a load as a Claude Code plugin)
+#   2. The HUB_HOME environment variable (the directory that holds the package)
+#   3. A session_hub installed by pip, uv tool, or a similar installer
+#   4. apm_modules/**/claude-code-session-hub after an apm install
+#      (apm copies this wrapper alone into .claude/hooks/ and keeps the package in apm_modules)
 #
-# 見つからないとき、hook として呼ばれた場合は何もせず正常終了する（セッションを邪魔しない）。
+# If the package is missing and a hook invoked the wrapper, exit 0 without action so the session is not disrupted.
 
 has_pkg() { [ -n "$1" ] && [ -f "$1/session_hub/__init__.py" ]; }
 

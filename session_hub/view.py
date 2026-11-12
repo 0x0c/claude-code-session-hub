@@ -1,4 +1,4 @@
-"""ダッシュボード / 時系列ビュー向けのデータ組み立て。LLM は使わない。"""
+"""Assemble data for the dashboard and the timeline view, without an LLM."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from . import collections, schema
 
 STALE_MINUTES = 30
 
-# DESIGN.md §4.3 の並び順
+# Sort order from DESIGN.md §4.3
 PRIORITY = {
     "needs_human:blocking": 0, "failed": 1, "review_ready": 2, "stale": 3,
     "needs_human": 4, "changes_requested": 5, "blocked": 6, "working": 7,
@@ -23,7 +23,7 @@ def _now() -> datetime:
 
 def session_view(events: list[dict], now: datetime | None = None,
                  stale_minutes: int = STALE_MINUTES) -> tuple[dict, list[dict]]:
-    """1 セッション分のイベントから (ステータス, 差分付きイベント列) を作る。"""
+    """Build (status, events with diffs) from one session's events."""
     now = now or _now()
     st = schema.empty_status(events[0]["session_id"])
     st["progress"] = schema.task_progress([])
@@ -43,7 +43,7 @@ def session_view(events: list[dict], now: datetime | None = None,
     elif st["state"] == "needs_human" and att.get("blocking"):
         key = "needs_human:blocking"
     elif st["state"] == "review_ready" and st["gate"]:
-        key = "working"  # 自己申告だけでゲート未通過。要対応には上げない
+        key = "working"  # Self-reported only and the gate is not met, so do not raise to needs-attention
     else:
         key = st["state"]
     st["priority"] = PRIORITY.get(key, 9)
@@ -53,7 +53,7 @@ def session_view(events: list[dict], now: datetime | None = None,
 
 def snapshot(all_events: dict[str, list[dict]], now: datetime | None = None,
              defs: list[dict] | None = None) -> dict:
-    """ダッシュボード用の全データ。defs はコレクション定義（省略時は組み込みのみ）。"""
+    """Return all dashboard data. defs holds collection definitions (built-ins alone when omitted)."""
     sessions, events = [], []
     for sid, evs in all_events.items():
         if not evs:
@@ -75,7 +75,7 @@ def snapshot(all_events: dict[str, list[dict]], now: datetime | None = None,
 def knowledge_lines(snap: dict, name: str = "knowledge", kinds: list[str] | None = None,
                     tags: list[str] | None = None, scope: str | None = None, limit: int = 30,
                     with_body: bool = False) -> list[str]:
-    """コレクションを LLM に渡しやすい短い行にする（新しい子への引き継ぎなど）。"""
+    """Render a collection as short lines an LLM can take in (for a handoff to a new child, for example)."""
     col = snap.get("collections", {}).get(name)
     if not col:
         return []
@@ -106,7 +106,7 @@ def knowledge_lines(snap: dict, name: str = "knowledge", kinds: list[str] | None
     return out
 
 
-# ---- テキスト出力（親 LLM / ターミナル向け） -------------------------------
+# ---- Text output (for the parent LLM and the terminal) ---------------------
 
 ICON = {"needs_human": "NH", "review_ready": "RR", "failed": "FL", "done": "OK",
         "working": "WK", "planning": "PL", "waiting_ci": "CI", "blocked": "BL",
@@ -121,7 +121,7 @@ def _ago(ts: str | None, now: datetime) -> str:
 
 
 def attention_lines(snap: dict, now: datetime | None = None) -> list[str]:
-    """親が読む最小限の出力。要対応のセッションだけを 1 行ずつ。"""
+    """Minimal output for the parent: one line per session that needs attention."""
     now = now or _now()
     out = []
     for s in snap["sessions"]:

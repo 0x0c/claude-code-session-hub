@@ -1,21 +1,22 @@
-"""コレクション: 受け取った更新を「どこに・どうためて・どう見せるか」の抽象化。
+"""Collections: an abstraction over where received updates go, how they accumulate, and how they show.
 
-イベントストアが唯一の正（source of truth）で、コレクションはその上の投影（projection）にすぎない。
-1 つのコレクションは次の 4 つで定義する（すべて宣言的な JSON。コードの追加は不要）。
+The event store is the single source of truth; a collection is merely a projection over it.
+Four parts define a collection, all declarative JSON with no code to add:
 
-    match   どのイベントを集めるか     {"type": [...], "kind": [...], "tags_any": [...], "session": [...]}
-    reduce  どうまとめるか             {"type": "log" | "latest" | "aggregate", "payload": "finding", "key": [...]}
-    view    どう見せるか               {"type": "cards" | "table", "group_by": "kind", "columns": [...]}
-    sinks   ほかにどこへ書き出すか     [{"type": "markdown" | "jsonl", "path": "knowledge.md"}]
+    match   which events to collect   {"type": [...], "kind": [...], "tags_any": [...], "session": [...]}
+    reduce  how to combine them       {"type": "log" | "latest" | "aggregate", "payload": "finding", "key": [...]}
+    view    how to show them          {"type": "cards" | "table", "group_by": "kind", "columns": [...]}
+    sinks   where else to write them  [{"type": "markdown" | "jsonl", "path": "knowledge.md"}]
 
-組み込みは「ナレッジ」（finding イベントを key ごとに集約し、種類別のカードで表示）。
-ストア直下の collections.json に同じ形式で定義を書くと、追加・上書きできる。
+The built-in collection is "knowledge": it aggregates finding events by key and shows cards by kind.
+A definition of the same shape in collections.json at the store root adds or overrides a collection.
 
-reduce の種類:
-    log        一致したイベントを時系列のまま並べる
-    latest     key ごとに最新の 1 件だけ残す（例: セッションごとの最新の PR 状態）
-    aggregate  key ごとに 1 件へまとめ、本文は最新、tags と scope は和集合、報告元をすべて残す
-               （例: 複数セッションが同じ注意点に気づいたら 1 枚のカードに「3 セッションが報告」）
+Reduce types:
+    log        list matching events in time order
+    latest     keep the newest event per key (for example, the latest PR state per session)
+    aggregate  merge events into one item per key: the newest body, the union of tags and scope,
+               and every reporter (for example, three sessions that hit the same caveat yield one
+               card that says "reported by 3 sessions")
 """
 
 from __future__ import annotations
@@ -50,7 +51,7 @@ class CollectionError(ValueError):
     pass
 
 
-# ---- 定義の読み込み --------------------------------------------------------
+# ---- Loading definitions --------------------------------------------------
 
 def _validate(d: dict) -> dict:
     if not isinstance(d, dict) or not re.match(r"^[a-z0-9_-]{1,40}$", str(d.get("name", ""))):
@@ -85,7 +86,7 @@ def load_definitions(store_root: Path | None) -> list[dict]:
     return list(defs.values())
 
 
-# ---- 投影 -----------------------------------------------------------------
+# ---- Projection -----------------------------------------------------------
 
 def _payload(ev: dict, field: str | None) -> dict:
     if field:
@@ -113,7 +114,7 @@ def _norm(v) -> str:
 
 
 def _key(ev: dict, payload: dict, spec: list[str]) -> str:
-    """key 指定: フィールド名の配列。'a|b' は a が空なら b を使う。"""
+    """Build the key from spec, an array of field names; 'a|b' falls back to b when a is empty."""
     parts = []
     for f in spec or ["id"]:
         val = None
@@ -131,7 +132,7 @@ def _source(ev: dict) -> dict:
 
 
 def project(defn: dict, events: list[dict]) -> list[dict]:
-    """時系列順のイベント列から、コレクションの項目一覧を作る。"""
+    """Build a collection's items from events in time order."""
     r = defn["reduce"]
     items: dict[str, dict] = {}
     log: list[dict] = []
@@ -152,7 +153,8 @@ def project(defn: dict, events: list[dict]) -> list[dict]:
                           "first_ts": cur["first_ts"] if cur else ev["ts"], "last_ts": ev["ts"],
                           "count": (cur["count"] + 1) if cur else 1}
             continue
-        # aggregate: 本文などは最新で上書き、tags / scope は和集合、報告元は追記
+        # aggregate: the newest values overwrite the body and similar fields, tags and scope merge as
+        # a union, and the reporter is appended
         merged = {**cur, **{k: v for k, v in data.items() if v not in (None, "", [])}}
         if "tags" in cur or "tags" in data:
             merged["tags"] = sorted(set(cur.get("tags") or []) | set(data.get("tags") or []))
@@ -185,7 +187,7 @@ def project_all(defs: list[dict], events: list[dict]) -> dict:
     return out
 
 
-# ---- 書き出し（sinks） -----------------------------------------------------
+# ---- Writing out (sinks) --------------------------------------------------
 
 def render_markdown(col: dict, session_titles: dict[str, str] | None = None) -> str:
     titles = session_titles or {}
@@ -221,14 +223,14 @@ def render_markdown(col: dict, session_titles: dict[str, str] | None = None) -> 
 
 def write_sinks(defs: list[dict], projected: dict, store_root: Path,
                 session_titles: dict[str, str] | None = None) -> list[Path]:
-    """定義された書き出し先を更新する。内容が変わったファイルだけ書き換える。"""
+    """Update the defined sinks, rewriting only the files whose content changed."""
     written = []
     root = Path(store_root).resolve()
     for d in defs:
         col = projected.get(d["name"])
         for sink in d.get("sinks") or []:
             path = (root / sink["path"]).resolve()
-            if root not in path.parents:  # ストアの外には書かない
+            if root not in path.parents:  # Never write outside the store
                 raise CollectionError(f"sink の path はストアの中を指定してください: {sink['path']}")
             if sink["type"] == "markdown":
                 text = render_markdown(col, session_titles)

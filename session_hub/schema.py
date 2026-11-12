@@ -1,7 +1,7 @@
-"""イベントとステータスのスキーマ定義、検証、畳み込み（fold）。
+"""Schema definitions, validation, and folding for events and statuses.
 
-ステータスは「イベントの列を順に畳み込んだ結果」として求める。
-イベントは追記のみ（append-only）なので、そのまま時系列ビューの元データになる。
+We compute a status by folding the event sequence in order.
+Events are append-only, so they also serve directly as the source data for the timeline view.
 """
 
 from __future__ import annotations
@@ -16,21 +16,21 @@ STATES = (
     "review_ready", "in_review", "changes_requested", "done", "failed", "abandoned",
 )
 
-# 親を起こすべき遷移（DESIGN.md §1.2）
+# Transitions that should wake the parent (DESIGN.md §1.2)
 ESCALATE_STATES = ("needs_human", "review_ready", "failed", "done")
 
 EVENT_TYPES = (
-    "start",      # セッション開始（親が記録することもある）
-    "report",     # 状態・作業段階・要約の更新
-    "ask",        # 人間/親への質問
-    "answer",     # 質問への回答（親→子）
-    "command",    # 親→子への指示
-    "ready",      # レビュー準備の自己申告
-    "pr",         # PR / CI の事実情報（hook・スクリプト）
-    "heartbeat",  # 生存通知・usage（hook）
+    "start",      # session start (the parent may record it)
+    "report",     # update of state, phase, or summary
+    "ask",        # question to a human or the parent
+    "answer",     # answer to a question (parent to child)
+    "command",    # instruction from parent to child
+    "ready",      # self-report of review readiness
+    "pr",         # PR and CI facts (from a hook or script)
+    "heartbeat",  # liveness signal and usage (from a hook)
     "done",
     "fail",
-    "finding",    # 作業で判明した知見・注意点など（コレクションへ集約される）
+    "finding",    # insight, caveat, or similar learned during work (aggregated into collections)
 )
 
 ACTORS = ("child", "parent", "hook", "human", "script")
@@ -41,7 +41,7 @@ CONFIDENCE = ("high", "med", "low")
 FINDING_KINDS = ("caveat", "insight", "decision", "howto", "issue")
 FINDING_STATUS = ("active", "obsolete")
 
-# 自由記述の上限文字数
+# Character limits for free-text fields
 LIMITS = {
     "summary": 80, "next": 80, "note": 200, "question": 200, "last_error": 120,
     "title": 80, "task": 40, "option": 40, "value": 200,
@@ -58,7 +58,7 @@ def now_iso() -> str:
 
 
 def iso_after(ts: str) -> str:
-    """ts の 1 ミリ秒後。"""
+    """Return the timestamp one millisecond after ts."""
     from datetime import timedelta
     dt = parse_ts(ts) + timedelta(milliseconds=1)
     return dt.astimezone(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
@@ -71,7 +71,7 @@ def parse_ts(ts: str) -> datetime:
 def clip(value: str | None, key: str) -> str | None:
     if value is None:
         return None
-    if key == "body":  # 本文は改行を残す（行内の空白だけ詰める）
+    if key == "body":  # Keep line breaks in the body; collapse whitespace within each line
         lines = [" ".join(ln.split()) for ln in str(value).splitlines()]
         value = "\n".join(lines).strip()
         while "\n\n\n" in value:
@@ -90,7 +90,7 @@ def _check_enum(value, allowed, name):
 
 
 def normalize_event(ev: dict) -> dict:
-    """イベントを検証し、文字数を切り詰めた新しい dict を返す。"""
+    """Validate an event and return a new dict with text clipped to the limits."""
     ev = copy.deepcopy(ev)
     for key in ("session_id", "seq", "ts", "type"):
         if ev.get(key) in (None, ""):
@@ -101,7 +101,7 @@ def normalize_event(ev: dict) -> dict:
     _check_enum(ev["actor"], ACTORS, "actor")
     _check_enum(ev.get("state"), STATES, "state")
     _check_enum(ev.get("confidence"), CONFIDENCE, "confidence")
-    parse_ts(ev["ts"])  # 形式チェック
+    parse_ts(ev["ts"])  # Format check
     if not isinstance(ev["seq"], int) or ev["seq"] < 1:
         raise SchemaError("seq は 1 以上の整数です")
 
@@ -165,7 +165,7 @@ def empty_status(session_id: str) -> dict:
 
 
 def apply_event(status: dict, ev: dict) -> dict:
-    """1 イベント分ステータスを進めた新しい dict を返す。"""
+    """Return a new status dict advanced by one event."""
     st = copy.deepcopy(status)
     st["event_count"] += 1
     st["heartbeat"] = ev["ts"]
@@ -216,18 +216,18 @@ def task_progress(tasks: list[dict]) -> dict:
 
 
 def fold(events: list[dict]) -> dict:
-    """1 セッション分のイベント列（時系列順）からステータスを求める。"""
+    """Compute the status from one session's events in time order."""
     if not events:
         raise SchemaError("events が空です")
     st = empty_status(events[0]["session_id"])
-    for ev in events:  # 呼び出し側で時系列順に並べておく
+    for ev in events:  # The caller sorts events in time order
         st = apply_event(st, ev)
     st["progress"] = task_progress(st["tasks"])
     return st
 
 
 def diff_status(before: dict, after: dict) -> dict:
-    """時系列ビューで「このイベントで何が変わったか」を示すための差分。"""
+    """Return the diff that shows, in the timeline view, what this event changed."""
     keys = ("state", "phase", "summary", "next", "confidence", "attention",
             "pr", "ready", "last_error", "progress")
     out = {}
@@ -239,7 +239,7 @@ def diff_status(before: dict, after: dict) -> dict:
 
 
 def ready_gate(st: dict) -> list[str]:
-    """レビュー可ゲート（DESIGN.md §4.1）。満たしていない理由の一覧を返す（空なら通過）。"""
+    """Apply the review-ready gate (DESIGN.md §4.1) and return the unmet reasons (empty means passed)."""
     reasons = []
     pr = st.get("pr") or {}
     ready = st.get("ready") or {}

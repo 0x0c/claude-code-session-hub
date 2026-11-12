@@ -1,5 +1,5 @@
 {
-  "description": "session-hub: heartbeat・トークン使用量・進捗の自動送信と、報告漏れの検知。HUB_URL / HUB_STORE が未設定なら何もしない。",
+  "description": "session-hub: sends heartbeats, token usage, and progress automatically, and catches missed reports. Does nothing when neither HUB_URL nor HUB_STORE is set.",
   "hooks": {
     "SessionStart": [
       { "hooks": [ { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/session-hub\" hook session-start", "timeout": 10 } ] }

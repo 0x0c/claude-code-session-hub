@@ -1,7 +1,7 @@
 {
   "name": "session-hub",
   "version": "0.1.0",
-  "description": "サブセッションの状況を決まったプロトコルでハブへ push し、ダッシュボードで一覧・時系列表示する。報告漏れを防ぐ hook と手順スキルを含む。",
+  "description": "Sub-sessions push their status to a hub over a fixed protocol, and a dashboard shows it as an overview and a timeline. Includes hooks that prevent missed reports and skills that describe the reporting procedure.",
   "license": "MIT",
   "keywords": ["orchestration", "dashboard", "sessions", "status"]
 }

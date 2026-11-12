@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "claude-code-session-hub"
 version = "0.1.0"
-description = "Claude Code のサブセッションの状況を push で集約し、リアルタイムのダッシュボードと時系列ビューで表示する"
+description = "Collects Claude Code sub-session status by push and shows it on a real-time dashboard and timeline"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }

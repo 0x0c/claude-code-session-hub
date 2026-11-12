@@ -1,65 +1,79 @@
-# Session Hub 設計検討
+# Session Hub design
 
-親セッション（オーケストレーター）が複数の子セッションを走らせるとき、その状況を **少ないトークンで**、**一目で** 把握するための仕組みの検討。
+A parent session (the orchestrator) often runs several child sessions at once. This document designs
+a way for the parent and a human to see the state of every child **at a glance** while spending **as
+few tokens as possible**. Children report their state to a local hub server. The server stores each
+report and pushes it to a real-time dashboard, and the parent reads a few summary lines only when a
+child needs it.
 
-> 実装状況: §8 のフェーズ 0・1・3・4 の大部分を実装済み（push 型ハブサーバー、時系列ビュー付きダッシュボード、報告スキルと hook）。
-> 使い方は [README](../README.md)、用語は [付録 A 用語集](#付録-a-用語集) を参照。
+> Implementation status: most of phases 0, 1, 3, and 4 in §8 are implemented — the push-based hub
+> server, the dashboard with its timeline view, and the reporting skill and hooks.
+> For usage, see the [README](../README.md). For terms, see [Appendix A](#appendix-a-glossary).
 
-## 0. 目的と設計原則
+## 0. Goals and design principles
 
-| 目的 | 具体的に知りたいこと |
+| Goal | What we want to know |
 |---|---|
-| トークン節約 | 親が子のトランスクリプトを読まずに済む／不要な起床をしない |
-| 人間の介入要否 | 判断・認証情報・権限・仕様確認など、人間待ちで止まっていないか |
-| PRレビュー可否 | CI・自己レビュー・未解決事項が揃い、レビューに回してよいか |
-| 稼働状況 | 今何をしているか、止まっていないか（ハートビート） |
-| 残作業量 | 残りタスク数と規模、次の一手 |
+| Save tokens | The parent never reads a child's transcript and never wakes up without need |
+| Know when a human must step in | Whether a child has stopped to wait for a human: a decision, a credential, a permission, or a clarification of the spec |
+| Know when a PR can go to review | Whether continuous integration (CI), the self-review, and every open item are settled, so the pull request (PR) can go to review |
+| See activity | What each child is doing now, and whether it has stopped (the heartbeat) |
+| See remaining work | How many tasks remain, how large they are, and the next step |
 
-原則:
+We follow six principles:
 
-1. **Pull 型が基本、Push は例外だけ** — 子の状態は共有ストアに書くだけ。親を起こす（=トークンを使う）のは「人間待ち」「レビュー可」「失敗」「完了」の遷移時のみ。
-2. **集計と描画は LLM ではなくスクリプト** — ダッシュボード生成は決定的な処理でトークン 0。
-3. **意味情報だけを LLM に書かせ、事実はスクリプトが拾う** — フェーズや質問文は子エージェントが書く。トークン数、コミット、PR/CI 状態、最終更新時刻は hook／スクリプトが自動取得する。
-4. **固定スキーマ・列挙値・短文** — 自由記述は 1 行要約と質問文に限定。文字数上限を設ける。
-5. **段階的開示** — 一覧（1行）→ 詳細（JSON 1件）→ トランスクリプト（リンク）。親は通常、一覧の「要対応」行しか読まない。
-6. **自己申告を鵜呑みにしない** — 「レビュー可」は子の申告 + 機械的ゲート（CI 緑など）の AND で判定。
+1. **Pull by default; push to the parent by exception.** A child writes its state to a shared store
+   and nothing more. A child wakes the parent — which costs tokens — only on four transitions:
+   waiting for a human, ready for review, failed, and done.
+2. **Scripts, not the large language model (LLM), aggregate and render.** Generating the dashboard
+   is deterministic work and costs zero tokens.
+3. **The LLM writes meaning; scripts collect facts.** The child agent writes the phase and the text
+   of a question. Hooks and scripts collect the token counts, the commits, the PR and CI state, and
+   the last update time on their own.
+4. **Fixed schema, enumerated values, short text.** Free text is limited to a one-line summary and
+   the text of a question, each with a character limit.
+5. **Progressive disclosure.** A reader moves from the list (one line per session) to the detail
+   (one JSON record) to the transcript (a link). The parent normally reads only the "needs action"
+   lines of the list.
+6. **Do not trust self-reports alone.** "Ready for review" requires both the child's own claim and
+   a mechanical gate, such as green CI.
 
 ---
 
-## 1. 記述する情報（ステータスレコード）
+## 1. What a child records (the status record)
 
-セッション 1 件につき 1 レコード（JSON）。`v` でスキーマのバージョンを持つ。
+Each session has one status record, a JSON object. The field `v` holds the schema version.
 
-### 1.1 フィールド一覧
+### 1.1 Fields
 
-| グループ | フィールド | 書き手 | 説明 |
+| Group | Field | Writer | Description |
 |---|---|---|---|
-| 識別 | `v`, `session_id`, `parent_id`, `title`, `task_ref` | 起動時（親） | `task_ref` は Issue 番号やタスク ID |
-| 場所 | `repo`, `branch`, `base` | 起動時 / hook | |
-| 状態 | `state` | 子（CLI） | 下記の列挙値 |
-| | `phase` | 子 | `plan` / `implement` / `test` / `fix` / `docs` / `self_review` など自由度の低い列挙 |
-| | `summary` | 子 | 今何をしているか。**≤ 80 文字** |
-| | `next` | 子 | 次の一手。≤ 80 文字 |
-| 進捗 | `tasks.done`, `tasks.total`, `tasks.items[]` | 子 or hook | 各 item は `{t: "短い名前", s: "todo|doing|done|skip", size: "S|M|L"}` |
-| | `remaining` | スクリプト | 未完了 item の size 合計から算出（S=1, M=3, L=8 など） |
-| 人間待ち | `attention.kind` | 子 | `decision` / `clarification` / `credential` / `permission` / `review` / `external`(他チーム待ち等) |
-| | `attention.question`, `attention.options[]`, `attention.default`, `attention.since` | 子 | 選択肢形式を推奨（回答が 1 語で済み、往復トークンが減る） |
-| | `attention.blocking` | 子 | `true` なら完全停止、`false` なら既定値で進めつつ確認待ち |
-| 阻害 | `blocked_on` | 子 | 他セッション ID や外部要因（`session:xxx`, `ci`, `upstream`） |
-| PR | `pr.number`, `pr.url` | hook | |
-| | `pr.ci` | スクリプト | `pending` / `pass` / `fail` / `none` |
-| | `pr.mergeable`, `pr.unresolved_threads`, `pr.review` | スクリプト | GitHub から取得 |
-| | `ready.self_review`, `ready.tests_added`, `ready.description` | 子 | 子の自己申告チェックリスト |
-| | `ready.gate` | スクリプト | 下記 §4 の判定結果（`ready` / `not_ready:<理由>`） |
-| コスト | `usage.input`, `usage.output`, `usage.cache_read`, `usage.cache_write`, `usage.cost_usd` | hook | トランスクリプト（`transcript_path`）の usage を合算 |
-| | `usage.context_pct` | hook | コンテキスト使用率。圧縮間近の検知に使う |
-| 健全性 | `heartbeat` | hook | 最終ターン終了時刻 |
-| | `last_error` | 子 / hook | 直近の失敗（≤ 120 文字） |
-| | `confidence` | 子 | `high` / `med` / `low`。低いものを人間が優先的に見る |
-| 管理 | `seq`, `updated_at` | CLI | 単調増加。順序逆転・重複書き込みの排除 |
-| | `links.session`, `links.artifacts[]` | hook | トランスクリプトや成果物への導線 |
+| Identity | `v`, `session_id`, `parent_id`, `title`, `task_ref` | At launch (parent) | `task_ref` is an issue number or a task ID |
+| Location | `repo`, `branch`, `base` | At launch / hook | |
+| State | `state` | Child (CLI) | One of the values listed in §1.2 |
+| | `phase` | Child | A narrow enumeration such as `plan` / `implement` / `test` / `fix` / `docs` / `self_review` |
+| | `summary` | Child | What the child is doing now. **≤ 80 characters** |
+| | `next` | Child | The next step. ≤ 80 characters |
+| Progress | `tasks.done`, `tasks.total`, `tasks.items[]` | Child or hook | Each item is `{t: "short name", s: "todo|doing|done|skip", size: "S|M|L"}` |
+| | `remaining` | Script | The sum of the sizes of the unfinished items (for example S=1, M=3, L=8) |
+| Waiting for a human | `attention.kind` | Child | `decision` / `clarification` / `credential` / `permission` / `review` / `external` (for example, waiting for another team) |
+| | `attention.question`, `attention.options[]`, `attention.default`, `attention.since` | Child | We recommend offering options: the answer then fits in one word, which cuts the tokens of each round trip |
+| | `attention.blocking` | Child | `true`: the child has stopped completely. `false`: the child continues with the default and waits for confirmation |
+| Blockers | `blocked_on` | Child | Another session ID or an external cause (`session:xxx`, `ci`, `upstream`) |
+| PR | `pr.number`, `pr.url` | Hook | |
+| | `pr.ci` | Script | `pending` / `pass` / `fail` / `none` |
+| | `pr.mergeable`, `pr.unresolved_threads`, `pr.review` | Script | Fetched from GitHub |
+| | `ready.self_review`, `ready.tests_added`, `ready.description` | Child | The child's self-reported checklist |
+| | `ready.gate` | Script | The result of the gate in §4 (`ready` / `not_ready:<reason>`) |
+| Cost | `usage.input`, `usage.output`, `usage.cache_read`, `usage.cache_write`, `usage.cost_usd` | Hook | The sum of the usage entries in the transcript (`transcript_path`) |
+| | `usage.context_pct` | Hook | The share of the context window in use. It detects a session close to compaction |
+| Health | `heartbeat` | Hook | The time the last turn ended |
+| | `last_error` | Child / hook | The most recent failure (≤ 120 characters) |
+| | `confidence` | Child | `high` / `med` / `low`. A human looks at low-confidence sessions first |
+| Bookkeeping | `seq`, `updated_at` | CLI | Monotonically increasing. They reject out-of-order and duplicate writes |
+| | `links.session`, `links.artifacts[]` | Hook | Links to the transcript and to the deliverables |
 
-### 1.2 `state` の列挙値と遷移
+### 1.2 `state` values and transitions
 
 ```
 queued → planning → working ⇄ waiting_ci
@@ -69,39 +83,39 @@ queued → planning → working ⇄ waiting_ci
                       │                          │                       │
                       ▼                          ▼                       │
                    blocked                     done (merged)   ←── working ┘
-任意の状態 → failed / abandoned
+any state → failed / abandoned
 ```
 
-| state | 意味 | 親を起こすか |
+| state | Meaning | Wakes the parent? |
 |---|---|---|
-| `queued` | 起動待ち | いいえ |
-| `planning` / `working` | 作業中 | いいえ |
-| `waiting_ci` | CI 待ち（子は手が空いている） | いいえ |
-| `needs_human` | 人間の判断が必要 | **はい** |
-| `blocked` | 他セッション・外部要因待ち | 長時間続けば（スクリプトが判断） |
-| `review_ready` | レビューに出してよい（ゲート通過時のみ確定） | **はい** |
-| `in_review` / `changes_requested` | レビュー中 / 指摘対応中 | 指摘時のみ |
-| `done` | 完了 | **はい**（集約して 1 通） |
-| `failed` / `abandoned` | 失敗・放棄 | **はい** |
+| `queued` | Waiting to start | No |
+| `planning` / `working` | Working | No |
+| `waiting_ci` | Waiting for CI (the child is free) | No |
+| `needs_human` | Needs a human decision | **Yes** |
+| `blocked` | Waiting for another session or an external cause | Only if it lasts long (a script decides) |
+| `review_ready` | May go to review (confirmed only when the gate passes) | **Yes** |
+| `in_review` / `changes_requested` | Under review / addressing review comments | Only when comments arrive |
+| `done` | Finished | **Yes** (several are batched into one message) |
+| `failed` / `abandoned` | Failed / abandoned | **Yes** |
 
-### 1.3 レコード例
+### 1.3 Example record
 
 ```json
 {
   "v": 1, "session_id": "session_01ABC", "parent_id": "session_01PARENT", "seq": 42,
-  "title": "認証APIのレート制限", "task_ref": "#128",
+  "title": "Rate limiting for the auth API", "task_ref": "#128",
   "repo": "owner/app", "branch": "claude/rate-limit", "base": "main",
   "state": "needs_human", "phase": "implement", "confidence": "med",
-  "summary": "Redis方式で実装中。上限値の決定待ち",
-  "next": "回答後にミドルウェアへ組み込み、テスト追加",
+  "summary": "Implementing with Redis. Waiting for the limit value",
+  "next": "After the answer, wire it into the middleware and add tests",
   "tasks": {"done": 3, "total": 6, "items": [
-    {"t": "設計", "s": "done", "size": "S"},
-    {"t": "ミドルウェア", "s": "doing", "size": "M"},
-    {"t": "テスト", "s": "todo", "size": "M"}
+    {"t": "Design", "s": "done", "size": "S"},
+    {"t": "Middleware", "s": "doing", "size": "M"},
+    {"t": "Tests", "s": "todo", "size": "M"}
   ]},
   "remaining": 7,
   "attention": {"kind": "decision", "blocking": true, "since": "2026-11-12T03:10:00Z",
-    "question": "1分あたりの上限は?", "options": ["60", "120", "300"], "default": "120"},
+    "question": "Limit per minute?", "options": ["60", "120", "300"], "default": "120"},
   "pr": {"number": null, "ci": "none"},
   "ready": {"self_review": false, "tests_added": false, "description": false, "gate": "not_ready:no_pr"},
   "usage": {"input": 182000, "output": 21000, "cache_read": 1450000, "cost_usd": 1.92, "context_pct": 38},
@@ -111,443 +125,530 @@ queued → planning → working ⇄ waiting_ci
 
 ---
 
-## 2. やりとりの経路（トランスポート）の比較
+## 2. Comparing the transports
 
-| 経路 | 方向 | 親のトークン | 即時性 | 耐久性 | 人間からの見やすさ | 備考 |
+A transport is the path a status update travels. We compared nine candidates.
+
+| Transport | Direction | Parent tokens | Latency | Durability | Readability for humans | Notes |
 |---|---|---|---|---|---|---|
-| **A. Git の専用ブランチ**（orphan `hub/status`、1セッション1ファイル） | 子→ストア | 0 | 低（push 間隔） | 高（履歴=イベントログ） | 中 | どの環境でも動く。1ファイル/セッションで衝突をほぼ回避。push 失敗時は rebase リトライ |
-| B. 作業ブランチにステータスファイルを同梱 | 子→ストア | 0 | 低 | 高 | 低 | PR の差分を汚すので非推奨 |
-| **C. Artifact の共有 DB**（ArtifactData） | 子→ダッシュボード | 0 | 高 | 中 | **高**（そのまま Web ページ） | ダッシュボード自体を Artifact にすれば描画も即時。子セッションから同アカウントで書き込める前提 |
-| D. `send_message`（子→親） | 子→親 | **毎回発生**（親のターンが走る） | 最高 | 低（会話内のみ） | 低 | エスカレーション専用にする |
-| E. `send_message`（親→子） | 親→子 | 子側のみ | 最高 | 低 | — | 回答・指示（コマンド）用 |
-| F. GitHub ラベル / PR 本文 / Issue コメント | 子→GitHub | 0 | 中 | 高 | 高（GitHub 上） | `hub:needs-human` などのラベルは GitHub 通知と連携できる。PR が無い段階では使えない |
-| G. CCR API のポーリング（`get_session` の `status_bucket`、`list_events` の `kinds` 絞り込み） | 親が取得 | 小〜大 | 中 | — | — | 子の協力不要の「真値」。ただし MCP ツールなので LLM が呼ぶ必要があり、`list_events` は重い。`get_session` だけに限定すれば安い |
-| H. ローカル実行時のトランスクリプト（`~/.claude/projects/**/*.jsonl`） | スクリプトが直接読む | 0 | 高 | 高 | — | ローカル並列実行時のみ。usage・最終ツール呼び出しなど事実情報が取れる |
-| **I. ハブサーバーへの HTTP push**（`POST /api/events`） | 子→サーバー→ブラウザ | 0 | **最高**（受信即配信） | 高（サーバーがストアへ追記） | **高** | サーバーが子から到達可能である必要がある（§9） |
+| **A. A dedicated Git branch** (orphan `hub/status`, one file per session) | Child → store | 0 | Low (push interval) | High (history = event log) | Medium | Works in any environment. One file per session nearly avoids conflicts. On a failed push, rebase and retry |
+| B. A status file inside the working branch | Child → store | 0 | Low | High | Low | Not recommended: it pollutes the PR diff |
+| **C. An Artifact's shared database** (ArtifactData) | Child → dashboard | 0 | High | Medium | **High** (a web page as is) | If the dashboard itself is an Artifact, rendering is instant too. Assumes child sessions can write with the same account |
+| D. `send_message` (child → parent) | Child → parent | **Every time** (a parent turn runs) | Highest | Low (conversation only) | Low | Reserve for escalation |
+| E. `send_message` (parent → child) | Parent → child | Child side only | Highest | Low | — | For answers and instructions (commands) |
+| F. GitHub labels / PR body / issue comments | Child → GitHub | 0 | Medium | High | High (on GitHub) | Labels such as `hub:needs-human` work with GitHub notifications. Unusable before a PR exists |
+| G. Polling the cloud session API (`status_bucket` from `get_session`, `list_events` filtered by `kinds`) | Parent fetches | Small to large | Medium | — | — | The ground truth, with no cooperation from the child. These are Model Context Protocol (MCP) tools, so the LLM must call them, and `list_events` is heavy. Limited to `get_session`, polling stays cheap |
+| H. Local transcripts (`~/.claude/projects/**/*.jsonl`) | A script reads them directly | 0 | High | High | — | Local parallel runs only. Yields facts such as usage and the last tool call |
+| **I. HTTP push to a hub server** (`POST /api/events`) | Child → server → browser | 0 | **Highest** (delivered on receipt) | High (the server appends to the store) | **High** | The child must be able to reach the server (§9) |
 
-### 採用: push 型（I）を主経路に
+### Decision: push (I) is the main transport
 
-当初は Git ストアをポーリングする案（A）を推奨していたが、**ダッシュボードの即時性**を優先して push 型に変更した。
+We first recommended polling a Git store (A). We switched to push to make the **dashboard update
+immediately**.
 
-- **子 → ハブ**: 子は状態が変わるたびに `session-hub` コマンドでハブサーバーへイベントを POST する（I）。
-  サーバーは検証してストアに追記し、その場で接続中のブラウザへ SSE で配信する。**サーバーもブラウザもポーリングしない。**
-- **届かないとき**: 子は送れなかったイベントを outbox（ローカル JSONL）に溜め、次の送信時に先に再送する。
-- **耐久性**: ストアは追記のみの JSONL。必要なら A（Git）として共有・保管できる（補助機能 `--pull-every`）。
-- **エスカレーション**: D を「親を起こすべき遷移」のときだけ使う（§3.3）。
-- **回答・指示**: E。
-- **死活の真値**: 親が必要なときだけ G の `get_session` を呼び、`status_bucket` と突き合わせる。
-- **人間向け通知**: ダッシュボードのブラウザ通知、補助的に F のラベル。
+- **Child → hub**: on every state change, the child POSTs an event to the hub server with the
+  `session-hub` command (I). The server validates the event, appends it to the store, and delivers
+  it at once over Server-Sent Events (SSE) to every connected browser. **Neither the server nor the
+  browser polls.**
+- **When delivery fails**: the child keeps the unsent events in an outbox (a local JSONL file) and
+  resends them first on the next send.
+- **Durability**: the store is append-only JSONL. When needed, the store can also be shared and
+  archived through Git, as in A (the auxiliary `--pull-every` option).
+- **Escalation**: D, used only on transitions that should wake the parent (§3.3).
+- **Answers and instructions**: E.
+- **Liveness ground truth**: the parent calls `get_session` (G) only when needed and compares its
+  `status_bucket` with the reported state.
+- **Notifying humans**: browser notifications from the dashboard, with F's labels as a supplement.
 
-## 3. プロトコル
+## 3. Protocol
 
-### 3.1 構成要素
+### 3.1 Components
 
 ```
-┌──────────── 子セッション ────────────┐
-│ エージェント ── session-hub report ... ─┐   意味情報: state / phase / summary / 質問
-│ Stop hook ───── session-hub hook stop ─┤   事実情報: heartbeat / トークン使用量（0 トークン）
-│ PostToolUse ─── session-hub hook todo ─┤   TodoWrite 等 → 進捗（0 トークン）
+┌──────────── Child session ─────────────┐
+│ Agent ───────── session-hub report ... ─┐   Meaning: state / phase / summary / question
+│ Stop hook ───── session-hub hook stop ─┤   Facts: heartbeat / token usage (0 tokens)
+│ PostToolUse ─── session-hub hook todo ─┤   TodoWrite etc. → progress (0 tokens)
 │                                        ▼
-│                    POST /api/events ─────────────┐   失敗時は outbox に保存し次回再送
-│ 重要遷移時のみ ── send_message ─────────► 親（1 行）│
+│                    POST /api/events ─────────────┐   On failure, saved to the outbox and resent next time
+│ Key transitions only ── send_message ───► parent (1 line)
 └────────────────────────────────────────┘          │
                                                      ▼
-┌──────────── ハブサーバー（session-hub serve）─────────────┐
-│ 検証 → seq / 時刻を採番 → ストアへ追記（events/*.jsonl）      │
-│ → 状態を畳み込み、差分を SSE でブラウザへ即時配信             │
+┌──────────── Hub server (session-hub serve) ────────────────┐
+│ Validate → assign seq / time → append to store (events/*.jsonl) │
+│ → fold into state, push the diff to browsers over SSE at once   │
 └───────────────┬─────────────────────────────────────┘
-                ▼ GET /api/stream（SSE）          ▲ GET /api/snapshot
-         ブラウザのダッシュボード              親: session-hub attention
+                ▼ GET /api/stream (SSE)           ▲ GET /api/snapshot
+         Browser dashboard                   Parent: session-hub attention
 ```
 
-- **イベントソーシング**: 状態は保存しない。追記のみのイベント列を畳み込んで毎回求める。
-  イベント列そのものが時系列ビューの元データになり、「いつ何が変わったか」を後から完全にたどれる。
-- **書き手ごとのファイル**: `events/<session_id>.jsonl`（子）と `events/<session_id>@parent.jsonl`（親の回答・指示）。
-  1 ファイルの書き手は常に 1 人なので、Git で共有しても衝突しない。
-- **時刻の採番**: ストア全体で単調増加するミリ秒時刻をサーバーが付ける。到着順＝表示順で一貫する。
+- **Event sourcing**: the hub never stores state. The hub folds the append-only event sequence into
+  the state on every read. The event sequence is also the source data of the timeline view, so a
+  reader can trace exactly what changed and when.
+- **One file per writer**: `events/<session_id>.jsonl` holds the child's events, and
+  `events/<session_id>@parent.jsonl` holds the parent's answers and instructions. Each file always
+  has a single writer, so sharing the store through Git causes no conflicts.
+- **Timestamp assignment**: the server assigns a millisecond timestamp that increases monotonically
+  across the whole store. The arrival order and the display order therefore always agree.
 
-### 3.2 子 → ハブ（`session-hub report` ほか）
+### 3.2 Child → hub (`session-hub report` and related commands)
 
-子エージェントには「状態が変わったら 1 行の Bash を叩く」ことだけを課す（手順は `skills/session-hub-report/SKILL.md`）。
+We ask a child agent for one thing alone: run a one-line Bash command whenever its state changes.
+`skills/session-hub-report/SKILL.md` gives the procedure.
 
 ```bash
-session-hub start --title "認証APIのレート制限" --task-ref "#128" --task "設計=todo:S" --task "実装=todo:M"
-session-hub report --phase implement --summary "ミドルウェア実装中" --task "実装=doing"
-session-hub ask --kind decision --q "1分あたりの上限は?" --opt 60 --opt 120 --opt 300 --default 120
+session-hub start --title "Rate limiting for the auth API" --task-ref "#128" --task "Design=todo:S" --task "Implement=todo:M"
+session-hub report --phase implement --summary "Implementing the middleware" --task "Implement=doing"
+session-hub ask --kind decision --q "Limit per minute?" --opt 60 --opt 120 --opt 300 --default 120
 session-hub pr --number 45 --ci pending --state waiting_ci
 session-hub ready --self-review --tests --description
-session-hub done --summary "PR #45 マージ済み"
+session-hub done --summary "PR #45 merged"
 ```
 
-- `HUB_URL` があればハブへ push、なければローカルのストア（`HUB_STORE`）に書く。
-- サーバー側で検証・文字数の切り詰め・seq と時刻の採番を行う。不正な値は 400 で拒否され、子に候補が表示される。
-- 呼び出しタイミングは**状態遷移時・質問発生時・PR の節目のみ**。
-- 報告漏れは hook で補う（§3.6）。
+- With `HUB_URL` set, the command pushes to the hub. Without it, the command writes to the local
+  store (`HUB_STORE`).
+- The server validates each event, truncates text to its limit, and assigns `seq` and the
+  timestamp. The server rejects an invalid value with HTTP 400, and the child sees the valid
+  candidates.
+- A child calls the command **only on a state transition, on a new question, and at PR milestones**.
+- Hooks cover any report the child forgets (§3.6).
 
-### 3.3 子 → 親（エスカレーション通知）
+### 3.3 Child → parent (escalation notices)
 
-親を起こすのは次の遷移のみ。1 行固定書式で、詳細はストアを見に行かせる。
+A child wakes the parent only on the transitions below. The notice is one line in a fixed format;
+the parent reads the details from the store.
 
 ```
-[HUB/1] <session_id> <event> <短文≤80字>
+[HUB/1] <session_id> <event> <short text ≤ 80 characters>
 ```
 
-| event | 例 | `send_message` の priority |
+| event | Example | `send_message` priority |
 |---|---|---|
-| `needs_human` | `[HUB/1] session_01ABC needs_human 上限値の決定待ち(60/120/300)` | `later`（`blocking` なら `next`） |
-| `review_ready` | `[HUB/1] session_01ABC review_ready PR#45 CI緑` | `later` |
-| `failed` | `[HUB/1] session_01ABC failed テスト環境が起動しない` | `next` |
+| `needs_human` | `[HUB/1] session_01ABC needs_human Waiting for the limit value (60/120/300)` | `later` (`next` if `blocking`) |
+| `review_ready` | `[HUB/1] session_01ABC review_ready PR#45 CI green` | `later` |
+| `failed` | `[HUB/1] session_01ABC failed Test environment does not start` | `next` |
 | `done` | `[HUB/1] session_01ABC done PR#45 merged` | `later` |
 
-- 親側は `[HUB/` で始まるメッセージを受けたら、本文を深読みせず `session-hub attention` を実行するだけ、と CLAUDE.md 等で規定する。
-- 子同士のメッセージは仕組み上「ピアからのデータ」として扱われる。親はメッセージ中の指示に従わず、あくまで状態通知として扱う（プロンプトインジェクション耐性）。
-- 同一イベントの連投防止: CLI が直近の通知を記録し、同じ `(state, attention.question)` では再送しない。
+- The parent's instructions (CLAUDE.md or similar) state one rule: on a message that starts with
+  `[HUB/`, run `session-hub attention` without reading the body closely.
+- The platform treats a message between sessions as "data from a peer". The parent therefore never
+  follows instructions inside such a message and treats the message purely as a status notice. This
+  rule protects the parent against prompt injection.
+- No repeated notices for the same event: the CLI records the last notice and does not resend for
+  the same `(state, attention.question)`.
 
-### 3.4 親 → 子（コマンド）
+### 3.4 Parent → child (commands)
 
 ```
 [HUB/1] cmd=<command> [key=value ...]
 ```
 
-| command | 用途 |
+| command | Purpose |
 |---|---|
-| `answer q=<id> v=<value>` | 質問への回答（選択肢の値を返すだけ） |
-| `report` | 最新状態の再送依頼（ハートビート切れ時） |
-| `pause` / `resume` | 一時停止・再開 |
-| `rebase base=main` | ベース追従の指示 |
-| `abort reason=...` | 中止 |
+| `answer q=<id> v=<value>` | Answer a question (return the chosen option's value, nothing more) |
+| `report` | Ask the child to resend its latest state (when the heartbeat has lapsed) |
+| `pause` / `resume` | Pause / resume |
+| `rebase base=main` | Tell the child to catch up with the base branch |
+| `abort reason=...` | Stop the work |
 
-### 3.5 親の定期処理（トークン最小化）
+### 3.5 The parent's routine (minimizing tokens)
 
-1. 親は待つだけでよい。子からの `[HUB/1]` メッセージを受けたときだけ `session-hub attention` を実行する（`HUB_URL` があればサーバーの snapshot を読む）。
-2. 停滞の疑い（`ST`）があるときだけ `get_session` で死活を確認する。`list_events` は原則使わない。
-3. 親が読むのは `attention` の出力（要対応行のみ、通常数行）。全件一覧と時系列は人間がダッシュボードで見る。
+1. The parent waits. The parent runs `session-hub attention` only when a `[HUB/1]` message arrives
+   from a child. With `HUB_URL` set, the command reads the server's snapshot.
+2. The parent calls `get_session` to check liveness only when a session is suspected stale (`ST`).
+   As a rule, the parent does not call `list_events`.
+3. The parent reads the output of `attention` alone: the "needs action" lines, normally a few. A
+   human reads the full list and the timeline on the dashboard.
 
-### 3.6 報告タイミングを保証する仕組み
+### 3.6 Making sure children report on time
 
-push 型では、子が報告しない限りダッシュボードは古いままになる。そこで「何を・いつ送るか」を 3 層で担保する。
+Under push, the dashboard stays stale until a child reports. We therefore guarantee what is sent
+and when in three layers.
 
-| 層 | 仕組み | トークン | 担保する内容 |
+| Layer | Mechanism | Tokens | What it guarantees |
 |---|---|---|---|
-| 1. 自動送信（hook） | `Stop` hook → heartbeat とトークン使用量 / `PostToolUse(TodoWrite・TaskCreate・TaskUpdate)` → 進捗と作業中タスク名、着手時に planning→working | 0 | 「生きているか」「どこまで進んだか」 |
-| 2. 手順（スキル + 起動プロンプト） | `skills/session-hub-report/SKILL.md`（いつ・何を送るかの表）、`prompts/child-append-system-prompt.md`（5 行の常駐ルール）、`SessionStart` hook が未登録なら `start` を促す 2 行を注入 | 小 | 意味情報（段階・質問・PR・完了） |
-| 3. 終了時ガード | `Stop` hook が、最後に報告した状態が planning / working のまま、または未登録のままターンを終えようとしたら **1 回だけ** block して報告を促す（`stop_hook_active` で無限ループを防止、`HUB_STOP_GUARD=0` で無効化） | 1 ターン分（必要時のみ） | 「作業中のまま放置」の防止。ぐるぐる表示の正しさ |
+| 1. Automatic sends (hooks) | The `Stop` hook sends the heartbeat and the token usage. `PostToolUse(TodoWrite, TaskCreate, TaskUpdate)` sends the progress and the name of the task in progress, and moves planning→working when work starts | 0 | Whether the child is alive, and how far it has progressed |
+| 2. Instructions (skill + launch prompt) | `skills/session-hub-report/SKILL.md` (a table of when to send what) and `prompts/child-append-system-prompt.md` (five standing rules). If the session is not registered, the `SessionStart` hook injects two lines that prompt the child to run `start` | Small | The meaning: the phase, questions, the PR, and completion |
+| 3. Guard at the end of a turn | When a child is about to end its turn while its last reported state is still planning or working, or while it is still unregistered, the `Stop` hook blocks **once** and asks the child to report. `stop_hook_active` prevents an endless loop, and `HUB_STOP_GUARD=0` turns the guard off | One turn (only when needed) | No session left marked as working. The spinner stays truthful |
 
-- hook は `HUB_URL` / `HUB_STORE` が未設定なら何もしないので、プラグインを常時有効にしても他の作業に影響しない。
-- hook はネットワーク失敗や例外でセッションを止めない（outbox に積むか、黙って終了コード 0）。
-- 「最後に何を報告したか」は子のローカル状態（`~/.cache/session-hub/state-<id>.json`）で判断し、ガードのためにネットワークを使わない。
+- The hooks do nothing when neither `HUB_URL` nor `HUB_STORE` is set. Leaving the plugin always
+  enabled therefore does not affect other work.
+- A hook never stops a session over a network failure or an exception: the hook queues the event in
+  the outbox, or exits silently with code 0.
+- The guard reads "what the child last reported" from the child's local state
+  (`~/.cache/session-hub/state-<id>.json`) and uses no network.
 
-### 3.7 コレクション: 更新を「どこに・どうためて・どう見せるか」の抽象化
+### 3.7 Collections: where updates accumulate and how they are shown
 
-セッションごとの連絡とは別に、作業で判明した知見・注意点・決定事項のように**セッションをまたいで 1 か所にためたい情報**がある。
-これを専用機能として作るのではなく、「受け取った更新をどこにためるか」を一般化した**コレクション**として扱う。
+Apart from per-session status, some information belongs **in one place across sessions**: the
+findings, caveats, and decisions that work uncovers. We do not build a dedicated feature for that
+information. Instead, we generalize "where received updates accumulate" into a **collection**.
 
 ```
-            ┌─ match ─┐   ┌── reduce ──┐   ┌── view ──┐
-イベント列 ─┤ どれを   ├──►│ どうまとめる├──►│ どう見せる├──► ダッシュボードのタブ
-（唯一の正）│ 集めるか │   │ log/latest/ │   │ cards/   │
-            └─────────┘   │ aggregate   │   │ table    │──► sinks（Markdown / JSONL へ書き出し）
-                          └────────────┘   └──────────┘
+             ┌─ match ──┐   ┌── reduce ───┐   ┌── view ──┐
+Event stream ┤ which    ├──►│ how to      ├──►│ how to   ├──► dashboard tab
+(sole source │ events   │   │ combine:    │   │ show:    │
+ of truth)   │ to take  │   │ log/latest/ │   │ cards/   │
+             └──────────┘   │ aggregate   │   │ table    │──► sinks (written to Markdown / JSONL)
+                            └─────────────┘   └──────────┘
 ```
 
-- **唯一の正はイベントストア。** コレクションはその上の投影（projection）で、定義を変えれば過去のイベントから作り直せる。
-  保存先を増やしても、子の送り方（プロトコル）は変わらない。
-- **定義は宣言的な JSON**（ストア直下の `collections.json`）。コードを書かずに追加・上書き・無効化できる。
+- **The event store is the sole source of truth.** A collection is a projection on top of the
+  store. Changing a collection's definition rebuilds the collection from past events. Adding
+  another destination does not change how children send (the protocol).
+- **Definitions are declarative JSON** (`collections.json` at the root of the store). A user adds,
+  overrides, or disables a collection without writing code.
 
-| 要素 | 内容 | 例 |
+| Element | Content | Example |
 |---|---|---|
-| `match` | 集めるイベントの条件。`type`、`kind`、`tags_any`、`session`、`status` | `{"type": ["finding"], "kind": ["decision"]}` |
-| `reduce` | まとめ方。`log`（時系列のまま）、`latest`（key ごとに最新 1 件）、`aggregate`（key ごとに 1 件へ統合） | 知見は `aggregate`、key は `key\|title`（明示キーがなければタイトル） |
-| `view` | 表示形式。`cards`（`group_by` でグループ分け）、`table`（`columns` を指定） | 知見は種類別のカード |
-| `sinks` | 追加の書き出し先。`markdown` / `jsonl`（ストア内のパス）。内容が変わったときだけ書き換える | `KNOWLEDGE.md` を自動更新してリポジトリや Wiki に載せる |
+| `match` | Which events to collect: `type`, `kind`, `tags_any`, `session`, `status` | `{"type": ["finding"], "kind": ["decision"]}` |
+| `reduce` | How to combine: `log` (keep the time series), `latest` (the newest one per key), `aggregate` (merge into one per key) | Knowledge uses `aggregate` with the key `key\|title` (the title when no explicit key is given) |
+| `view` | How to display: `cards` (grouped by `group_by`), `table` (with the given `columns`) | Knowledge shows cards grouped by kind |
+| `sinks` | Extra destinations: `markdown` / `jsonl` (a path inside the store). A sink file is rewritten only when its content changes | Keep `KNOWLEDGE.md` up to date and publish it in a repository or a wiki |
 
-**aggregate の統合規則**: 本文などは最新の報告で上書き（空の値では上書きしない）、`tags` と `scope` は和集合、報告元はすべて残す。
-同じ注意点に複数のセッションが気づくと 1 件にまとまり「2 セッション / 2 回報告」と表示される。重要度の自然な指標になる。
-同じタイトルで `status: obsolete` を送ると「廃止」になり、既定の表示や `knowledge` 出力から外れる（履歴は残る）。
+**Merge rules for `aggregate`**: the latest report overwrites fields such as the body, but an empty
+value never overwrites. `tags` and `scope` become the union of all reports, and every reporter is
+kept. When several sessions hit the same caveat, their reports merge into one item that reads, for
+example, "2 sessions / 2 reports". The count serves as a natural measure of importance. Sending the
+same title with `status: obsolete` marks the item obsolete. An obsolete item leaves the default view
+and the `knowledge` output, but its history remains.
 
-**組み込みコレクション「ナレッジ」**: 子が `session-hub learn` で送る `finding` イベントを集約する。
+**The built-in "knowledge" collection** aggregates the `finding` events that children send with
+`session-hub learn`.
 
-| `kind` | 表示名 | 記録するもの |
+| `kind` | Display name (on-screen label) | What it records |
 |---|---|---|
-| `caveat` | 注意点 | 知らないとハマる罠 |
-| `issue` | 未解決の問題 | 自分のタスク外で見つけて残した問題 |
-| `decision` | 決定事項 | 決めたこと・回答をもらったこと（理由つき） |
-| `howto` | 手順・ノウハウ | 再現・セットアップ・調査の手順 |
-| `insight` | 知見 | 設計・性能・仕様について分かった事実 |
+| `caveat` | Caveat (注意点) | A trap that catches anyone who does not know it |
+| `issue` | Open issue (未解決の問題) | A problem found outside the child's own task and left as is |
+| `decision` | Decision (決定事項) | Something decided or answered, with the reason |
+| `howto` | How-to (手順・ノウハウ) | Steps to reproduce, set up, or investigate |
+| `insight` | Insight (知見) | A fact learned about the design, performance, or spec |
 
-`finding` は `{kind, title(≤80), body(≤600, 改行可), tags[], scope, key, status}`。
+A `finding` has the fields `{kind, title(≤80), body(≤600, newlines allowed), tags[], scope, key, status}`.
 
-**読み方（トークン節約）**: 子は着手前に `session-hub knowledge --scope <触る場所>` で関係するものだけを数行で読む。
-親は新しい子を起動するときに、関係するものだけを `prompt` に添える。全件をコンテキストに入れることはしない。
+**Reading knowledge (saving tokens)**: before starting work, a child runs
+`session-hub knowledge --scope <the area it will touch>` and reads the relevant items in a few
+lines. When the parent launches a new child, the parent adds only the relevant items to the
+`prompt`. Neither ever loads every item into its context.
 
-**定義例**（`collections.json`）:
+**Example definition** (`collections.json`):
 
 ```json
 [
   {"name": "knowledge", "sinks": [{"type": "markdown", "path": "KNOWLEDGE.md"}]},
-  {"name": "decisions", "label": "決定ログ",
+  {"name": "decisions", "label": "Decision log",
    "match": {"type": ["finding"], "kind": ["decision"]},
    "reduce": {"type": "log", "payload": "finding"},
    "view": {"type": "table", "columns": ["title", "body", "reporters", "last_ts"]}},
-  {"name": "prs", "label": "PR 状況", "match": {"type": ["pr"]},
+  {"name": "prs", "label": "PR status", "match": {"type": ["pr"]},
    "reduce": {"type": "latest", "key": ["session_id"]},
    "view": {"type": "table", "columns": ["session_id", "pr", "last_ts"]}}
 ]
 ```
 
-### 3.8 ローカル運用（採用中の構成）
+### 3.8 Local operation (the current setup)
 
-| 項目 | 内容 |
+| Item | Content |
 |---|---|
-| 子の実行場所 | 手元の PC。人間が並行して起動する `claude` セッション、または親が `claude -p --append-system-prompt ...` でバックグラウンド起動するセッション |
-| 共有設定 | `~/.claude/settings.json` の `env` に `HUB_URL=http://127.0.0.1:8765`、`HUB_STORE=~/.session-hub`、`HUB_AUTOSTART=1` |
-| サーバー | 127.0.0.1 でのみ待ち受け（トークン不要）。`HUB_AUTOSTART=1` なら最初に始まったセッションの SessionStart hook が裏で起動する。二重起動はポートの取り合いで自然に防がれる |
-| メッセージの配送 | 1. サーバーへ push（即時反映） 2. 届かなければ共有ストアへ直接書く 3. ストアも未設定なら outbox |
-| 停止中のメッセージ | ストアに残るので失われない。サーバー起動時、次の push、または 30 秒ごとの再判定で画面に出る |
-| 親への通知 | ローカルのセッション間メッセージ（使える場合）で `[HUB/1]` 行を送る。使えない場合はダッシュボードのブラウザ通知とタブのタイトル（要対応数）で人間が気づく |
-| 導入 | `apm install 0x0c/claude-code-session-hub --target claude`（プロジェクト単位。スキルは `.claude/skills/`、hook は `.claude/settings.json`、本体は `apm_modules/`）または Claude Code プラグイン |
-| 確認 | `session-hub doctor` |
-| 注意 | Agent ツールのサブエージェントは親と同じセッション ID になるため、別セッションとしては表示されない（必要なら `--session` で固有 ID を渡す） |
+| Where children run | On the user's own computer: `claude` sessions a human starts side by side, or sessions the parent starts in the background with `claude -p --append-system-prompt ...` |
+| Shared settings | In the `env` of `~/.claude/settings.json`: `HUB_URL=http://127.0.0.1:8765`, `HUB_STORE=~/.session-hub`, `HUB_AUTOSTART=1` |
+| Server | Listens on 127.0.0.1 alone (no token needed). With `HUB_AUTOSTART=1`, the SessionStart hook of the first session to start launches the server in the background. Competition for the port prevents a second instance |
+| Message delivery | 1. Push to the server (shown at once). 2. If the push fails, write directly to the shared store. 3. If no store is set either, queue in the outbox |
+| Messages sent while the server is down | Kept in the store, so none are lost. They appear on screen when the server starts, on the next push, or at the re-check every 30 seconds |
+| Notifying the parent | Send the `[HUB/1]` line through local inter-session messaging, where available. Otherwise a human notices through the dashboard's browser notifications and the tab title (the count of sessions that need action) |
+| Installation | With the Agent Package Manager (APM): `apm install 0x0c/claude-code-session-hub --target claude` (per project: skills go to `.claude/skills/`, hooks to `.claude/settings.json`, and the package itself to `apm_modules/`), or as a Claude Code plugin |
+| Check | `session-hub doctor` |
+| Caveat | A subagent of the Agent tool shares the parent's session ID, so the dashboard does not show the subagent as a separate session. If needed, pass a unique ID with `--session` |
 
-## 4. 機械的に判定する項目（スクリプト側の責務）
+## 4. Checks that scripts decide mechanically
 
-### 4.1 レビュー可ゲート (`ready.gate`)
+### 4.1 The review gate (`ready.gate`)
 
-すべて満たしたときのみ `review_ready` を確定させる。満たさない場合は最初に失敗した理由を記録。
+The gate confirms `review_ready` only when every condition below holds. Otherwise the gate records
+the first condition that failed.
 
-1. PR が存在し draft でない（または draft 解除予定）
-2. CI が `pass`
-3. `mergeable` が true（コンフリクトなし、ベースから大きく遅れていない）
-4. 未解決のレビュースレッドが 0
-5. `attention` が空
-6. 子の自己申告 `ready.self_review` / `ready.tests_added` / `ready.description` が true
-7. `tasks` に `todo` / `doing` が残っていない（`skip` は可）
+1. A PR exists and is not a draft (or is about to leave draft).
+2. CI is `pass`.
+3. `mergeable` is true: no conflicts, and the branch is not far behind the base.
+4. No review thread is unresolved.
+5. `attention` is empty.
+6. The child's self-reports `ready.self_review`, `ready.tests_added`, and `ready.description` are
+   all true.
+7. No `todo` or `doing` item remains in `tasks` (`skip` is allowed).
 
-### 4.2 停滞・異常の検知
+### 4.2 Detecting stalls and anomalies
 
-| 条件 | 判定 |
+| Condition | Verdict |
 |---|---|
-| `state=working` かつ `heartbeat` が N 分以上前 | `stale?` — 親が `get_session` で確認 |
-| `get_session.status_bucket=failed` だが `state≠failed` | 子が報告できずに落ちた |
-| `needs_human` が M 時間以上 | 優先度を上げて表示 |
-| `usage.context_pct` > 80 | 圧縮・分割を検討 |
-| `usage.cost_usd` が予算超過 / 進捗に対して過大 | `cost_usd / tasks.done` で効率を表示 |
-| `tasks` の残りが長時間減らない | ループ・迷走の疑い |
+| `state=working` and `heartbeat` is N or more minutes old | `stale?` — the parent checks with `get_session` |
+| `get_session.status_bucket=failed` but `state≠failed` | The child crashed before it could report |
+| `needs_human` for M or more hours | Shown with a higher priority |
+| `usage.context_pct` > 80 | Consider compacting or splitting the work |
+| `usage.cost_usd` exceeds the budget, or is too high for the progress | Efficiency is shown as `cost_usd / tasks.done` |
+| The remaining `tasks` do not shrink for a long time | Possibly looping or lost |
 
-### 4.3 優先順位（ダッシュボードの並び順）
+### 4.3 Priority (the dashboard's sort order)
 
 `needs_human(blocking)` > `failed` > `review_ready` > `stale?` > `needs_human(non-blocking)` > `changes_requested` > `blocked` > `working` > `waiting_ci` > `done`
 
 ---
 
-## 5. ダッシュボード
+## 5. Dashboard
 
-### 5.1 出力形式
+The dashboard's labels are Japanese product strings. Where a reader must find a label on screen,
+this section gives the literal label in parentheses after its English meaning.
 
-| 形式 | 用途 |
+### 5.1 Output formats
+
+| Format | Use |
 |---|---|
-| `session-hub serve` のダッシュボード | 人間向け。push 受信と同時に反映（SSE） |
-| `session-hub export --out dashboard.html` | スナップショットを埋め込んだ単体 HTML（共有・保存用、更新なし） |
-| `GET /api/snapshot` | 機械向け JSON |
-| `session-hub attention` | 親 LLM 向け。要対応のみ、1 件 1 行 |
-| `session-hub log [<session_id>]` | ターミナルで時系列を追う |
+| The dashboard of `session-hub serve` | For humans. Reflects each push as it arrives (SSE) |
+| `session-hub export --out dashboard.html` | A standalone HTML file with an embedded snapshot (for sharing and archiving; does not update) |
+| `GET /api/snapshot` | JSON for machines |
+| `session-hub attention` | For the parent LLM. Sessions that need action alone, one line each |
+| `session-hub log [<session_id>]` | Follow the timeline in a terminal |
 
-### 5.2 画面構成
+### 5.2 Screen layout
 
-- **ヘッダー**: 接続状態（リアルタイム / 再接続中 / ポーリング）、セッション数、要対応数、作業中数、トークン合計、最終更新。
-  要対応数はタブのタイトルにも `(3) Session Hub` の形で出る。ブラウザ通知（任意）で、人間待ち・レビュー可・失敗・完了・停滞への遷移を知らせる。
-- **セッション一覧**（左）: 「要対応 / 作業中・待機 / 完了」に分け、§4.3 の優先順で並べる。
-  各カードに状態バッジ、タスク進捗バー、残量、PR と CI、トークン・費用、最終更新、未回答の質問（選択肢と既定値、回答コマンド）。
-  **手を動かしている状態（planning / working / changes_requested）のセッションにはスピナー（ぐるぐる）を表示する。**
-  CI 待ち・ブロック・人間待ちなど「待っているだけ」の状態や、停滞の疑いがあるものには表示しない。
-  自己申告だけでゲート（§4.1）を通っていない「レビュー可」は「レビュー条件未達」と未達理由を表示する。
-- **タイムライン**（右）: 子から届いた報告を時系列でたどる。
-  - **フィード**: 日付ごとにイベントを並べ、各行に時刻、セッション、種別、本文、そのイベントで変わったこと（状態 A→B、段階、タスク数、質問の解決）を表示。
-    「詳細」で生のイベント JSON。新着はハイライトし、読んでいる途中で画面が動かないよう下にスクロール中は「新着 N 件」バーで知らせる。
-    絞り込み: セッション、イベント種別、全文検索、heartbeat の表示（連続するものは 1 行にまとめる）、新しい順 / 古い順。
-  - **スイムレーン**: セッションごとの横帯で、状態の推移を色の区間として表示。点はイベント（質問=橙、回答=青）。
-    ホバーで詳細、クリックでフィードの該当行へ移動。人間待ちの長さや停滞が一目で分かる。
-- **コレクションのタブ**（右パネル）: 定義されたコレクションごとにタブが自動で増える（例「ナレッジ (6)」）。
-  `cards` はグループ（ナレッジなら種類）ごとのカードで、本文、タグ（クリックで検索）、対象、報告したセッションと回数、最終更新を表示する。
-  報告元のセッション名をクリックすると、タイムラインの該当イベントへ移動する。セッション選択・全文検索・グループの絞り込み・廃止済みの表示切替ができる。
-  push で届いた項目はその場でハイライトされる。
-- **メッセージ受信時のグロー**: サブセッションからメッセージが届くと、そのセッションのカード、タイムラインの該当行、スイムレーンの帯、
-  メッセージが入ったコレクションの項目を、遷移後の状態の色（人間待ち=橙、失敗=赤、レビュー可=緑など）で約 6 秒光らせる。
-  画面が再描画されても途中から続き、連続して届いたときは最新のもので光り直す。heartbeat（hook の自動送信）は光らせない。
-  動きを減らす設定（prefers-reduced-motion）では脈動せず、枠だけを表示する。
-- スマホ幅（390px）でも横スクロールなしで読める。ライト / ダーク両対応。
+- **Header**: the connection status (real-time / reconnecting / polling), the number of sessions,
+  the number that need action, the number working, the token total, and the last update.
+  - The tab title also shows the "needs action" count, as in `(3) Session Hub`.
+  - Optional browser notifications announce transitions to waiting for a human, ready for review,
+    failed, done, and stale.
+- **Session list** (left): split into "needs action" (要対応), "working or waiting"
+  (作業中・待機), and "done" (完了), each sorted by the priority in §4.3.
+  - Each card shows a state badge, a task progress bar, the remaining work, the PR and CI, the
+    tokens and cost, the last update, and any unanswered question (with its options, its default,
+    and the command to answer it).
+  - **A session in an active state (planning / working / changes_requested) shows a spinner.**
+    A session that is merely waiting (for CI, on a blocker, or for a human) shows no spinner, and
+    neither does a session suspected stale.
+  - A "ready for review" claim that rests on the self-report alone, without passing the gate (§4.1),
+    shows as "review conditions not met" (レビュー条件未達) together with the unmet reason.
+- **Timeline** (right): traces the reports from children in time order, in two forms.
+  - **Feed**: events grouped by date. Each row shows the time, the session, the type, the text, and
+    what the event changed (state A→B, phase, task count, a resolved question).
+    "Details" (詳細) opens the raw event JSON. New events are highlighted. While the reader is
+    scrolled down, a "N new" bar (新着 N 件) announces new events instead of moving the screen.
+    Filters: session, event type, full-text search, heartbeat display (consecutive heartbeats
+    collapse into one row), and newest or oldest first.
+  - **Swimlanes**: one horizontal band per session, with state changes drawn as colored spans.
+    Dots mark events (question = orange, answer = blue). Hovering shows details, and clicking jumps
+    to the matching feed row. A long wait for a human, or a stall, is visible at a glance.
+- **Collection tabs** (right panel): each defined collection adds a tab automatically, for example
+  "Knowledge (6)" (ナレッジ (6)).
+  - A `cards` view shows one card per item, grouped (knowledge is grouped by kind). Each card shows
+    the body, the tags (click one to search), the scope, the reporting sessions and their count, and
+    the last update.
+  - Clicking a reporting session's name jumps to that event in the timeline. Filters cover the
+    session, full-text search, and the group, and a toggle shows obsolete items.
+  - An item that arrives by push is highlighted in place.
+- **Glow on message arrival**: when a message arrives from a sub-session, four elements glow for
+  about six seconds in the color of the new state (waiting for a human = orange, failed = red, ready
+  for review = green, and so on):
+  - the session's card
+  - the matching timeline row
+  - the swimlane band
+  - the collection item the message landed in
 
-### 5.3 `session-hub attention` の出力（親が読む分）
+  A glow survives a redraw and continues where it left off. When messages arrive back to back, the
+  latest one restarts the glow. Heartbeats (the hooks' automatic sends) do not glow. With the
+  reduced-motion setting (prefers-reduced-motion), the glow does not pulse and shows only an
+  outline.
+- The dashboard reads without horizontal scrolling at phone width (390px), in both light and dark
+  themes.
+
+### 5.3 Output of `session-hub attention` (what the parent reads)
+
+Each line starts with a two-letter code: `NH` (needs human), `FL` (failed), `RR` (review ready), or
+`ST` (stale).
 
 ```
-NH session_01ABC #128 decision q=4 "1分あたりの上限は?" [60|120*|300] 38m
-FL session_04XYZ npm ci が ERESOLVE で失敗（peer 依存の衝突）
-RR session_01DEF #131 PR#45 ci=pass CI 緑、自己レビュー済み
+NH session_01ABC #128 decision q=4 "Limit per minute?" [60|120*|300] 38m
+FL session_04XYZ npm ci failed with ERESOLVE (peer dependency conflict)
+RR session_01DEF #131 PR#45 ci=pass CI green, self-review done
 ST session_01GHI 47m since heartbeat
 ```
 
-## 6. トークン節約のための追加策
+## 6. More ways to save tokens
 
-| 策 | 効果 |
+| Measure | Effect |
 |---|---|
-| 子にトランスクリプトを要約させず、状態は CLI 引数で渡す | 子の出力トークン削減 |
-| 質問は選択肢 + 既定値で | 人間・親の往復を 1 語に |
-| `attention.blocking=false` を活用（既定値で先へ進み、後で差し替え可能な判断） | 待ち時間の削減。結果として無駄な再開コストも減る |
-| 親は `list_events` を原則使わない（使うなら `kinds` で `result` だけ） | 親の入力トークン削減 |
-| 通知の集約（`done` は複数まとめて 1 通、など） | 親の起床回数削減 |
-| 子のモデル・effort をタスク規模（`size`）で選ぶ | 単価の削減 |
-| hook で usage を記録し、タスクあたりコストを可視化 | 高コストなパターンの発見 |
-| Stop hook で「報告していなければ 1 回だけ報告を促す」 | 報告漏れ防止。ただし 1 ターン分のコストがかかるので条件付き（状態が変わったのに未報告の場合のみ） |
+| The child passes its state as CLI arguments instead of summarizing its transcript | Fewer output tokens for the child |
+| Questions come with options and a default | A round trip with a human or the parent shrinks to one word |
+| Use `attention.blocking=false` (for a decision the child can proceed on with the default and revise later) | Less waiting, and therefore less wasted cost on resuming |
+| As a rule, the parent does not call `list_events` (if it must, it filters `kinds` to `result`) | Fewer input tokens for the parent |
+| Batch notices (several `done` notices go out as one message, and so on) | The parent wakes less often |
+| Choose the child's model and effort by task size (`size`) | Lower unit cost |
+| Record usage with hooks and show the cost per task | Reveals expensive patterns |
+| The Stop hook asks a child that has not reported to report, once | Prevents missed reports. The prompt costs one turn, so the hook fires only when the state changed without a report |
 
 ---
 
-## 7. 実装構成
+## 7. Code layout
 
 ```
 claude-code-session-hub/
-  session_hub/            Python パッケージ（標準ライブラリのみ）
-    schema.py             スキーマ定義・検証・畳み込み・レビュー可ゲート
-    store.py              追記型イベントストア（書き手ごとの JSONL、単調時刻、Git 同期）
-    core.py               記録処理とエスカレーション判定（CLI とサーバーで共通）
-    client.py             push クライアント（outbox による再送）
-    server.py             ハブサーバー（POST 受信、SSE 配信、トークン認証）
-    view.py               ダッシュボード / attention / log / knowledge 用のデータ組み立て
-    collections.py        コレクション（match / reduce / view / sinks）の定義と投影
-    hooks.py              Claude Code hook の処理（session-start / stop / todo）
-    local_state.py        子側のローカル状態（最後の報告状態、タスク ID 対応）
-    usage.py              トランスクリプトからのトークン集計
-    cli.py                session-hub コマンド
+  session_hub/            Python package (standard library only)
+    schema.py             Schema definition, validation, folding, and the review gate
+    store.py              Append-only event store (JSONL per writer, monotonic time, Git sync)
+    core.py               Recording and escalation decisions (shared by the CLI and the server)
+    client.py             Push client (resends through the outbox)
+    deliver.py            Message delivery shared by the CLI and hooks (push → shared store → outbox)
+    server.py             Hub server (POST intake, SSE delivery, token authentication)
+    view.py               Data assembly for the dashboard / attention / log / knowledge
+    collections.py        Collection definitions (match / reduce / view / sinks) and projection
+    hooks.py              Claude Code hook handlers (session-start / stop / todo)
+    local_state.py        The child's local state (last reported state, task ID mapping)
+    usage.py              Token totals from the transcript
+    cli.py                The session-hub command
     templates/dashboard.html
-  bin/session-hub         インストール不要のラッパー
-  .claude-plugin/         Claude Code プラグイン定義（plugin.json, marketplace.json）
-  apm.yml                 APM 用のメタデータのみ（プラグイン構成のまま APM でも配布するため .apm/ や依存は置かない）
-  hooks/hooks.json        プラグインの hook 設定
-  skills/session-hub-report/       子セッション用スキル（いつ・何を報告するか）
-  skills/session-hub-orchestrate/  親セッション用スキル（起動・応答・確認）
-  prompts/child-append-system-prompt.md   create_session に渡す短い常駐ルール
-  scripts/demo.py         デモデータと疑似 push
+  bin/session-hub         Wrapper that needs no installation
+  .claude-plugin/         Claude Code plugin definition (plugin.json, marketplace.json)
+  apm.yml                 APM metadata alone (no .apm/ or dependencies, so APM distributes the plugin layout as is)
+  hooks/hooks.json        The plugin's hook settings
+  skills/session-hub-report/       Skill for child sessions (when to report what)
+  skills/session-hub-orchestrate/  Skill for the parent session (launch, respond, check)
+  prompts/child-append-system-prompt.md   Short standing rules passed to create_session
+  scripts/demo.py         Demo data and simulated pushes
   tests/
 ```
 
-## 8. 段階的な進め方
+## 8. Phased plan
 
-| フェーズ | 内容 | 状況 |
+| Phase | Content | Status |
 |---|---|---|
-| 0 | スキーマ + 報告コマンド + ストア + 一覧 | 実装済み |
-| 1 | Stop hook で usage・heartbeat 自動記録、TodoWrite 連携 | 実装済み |
-| 2 | GitHub から PR / CI / 指摘数を自動取得してゲート判定 | 判定ロジックは実装済み。取得は `session-hub pr` での手動記録のみ |
-| 3 | エスカレーション通知と親の運用ルール | 実装済み（`[HUB/1]` 行の出力、orchestrate スキル） |
-| 4 | リアルタイムダッシュボードと時系列ビュー | 実装済み（push + SSE） |
-| 5 | 停滞検知・予算アラート・集約通知 | 停滞検知のみ実装済み |
-| 6 | コレクション（ナレッジなど、更新の蓄積先の抽象化） | 実装済み（組み込み「ナレッジ」、collections.json、Markdown / JSONL sink） |
+| 0 | Schema, reporting commands, store, and list | Implemented |
+| 1 | Automatic usage and heartbeat recording in the Stop hook; TodoWrite integration | Implemented |
+| 2 | Fetch PR, CI, and review-comment counts from GitHub automatically and run the gate | The gate logic is implemented. Fetching is manual alone, through `session-hub pr` |
+| 3 | Escalation notices and the parent's operating rules | Implemented (`[HUB/1]` line output, the orchestrate skill) |
+| 4 | Real-time dashboard and timeline view | Implemented (push + SSE) |
+| 5 | Stall detection, budget alerts, and batched notices | Stall detection alone is implemented |
+| 6 | Collections (an abstraction of where updates accumulate, such as knowledge) | Implemented (built-in "knowledge", collections.json, Markdown / JSONL sinks) |
 
-## 9. 未決事項
+## 9. Open questions
 
-1. **ハブサーバーの置き場所**: **当面はローカル運用に決定。** サブセッションを手元の PC で動かし、全セッションで `HUB_STORE` を共有する。
-   ハブサーバーは `127.0.0.1` でのみ待ち受け、子は `HUB_URL=http://127.0.0.1:8765` へ push する（PC を外部に公開しない）。
-   サーバーが止まっている間は共有ストアへ直接書き、サーバーが起動するか次の push で画面に出る（§3.8）。
-   クラウドの子セッションを使う場合の候補（常設サーバー、Artifact の共有 DB）は将来の検討事項として残す。
-   どちらの場合も子の環境のネットワーク許可リストにそのホストを追加し、トークンは環境変数ではなくネットワークシークレットとして登録するのが望ましい。
-2. **実行環境**: 子はクラウドセッション（`create_session`）中心か、ローカルの並列実行も含むか。ローカルのみなら `HUB_STORE` を共有するだけでよい。
-3. **GitHub 情報の自動取得**（フェーズ 2）: サーバーから GitHub API を叩くか、親が取得して `session-hub pr` で記録するか。
-4. **自動化の範囲**: `review_ready` 時に PR の draft 解除やレビュアー割り当てまで自動で行うか。
-5. **予算**: セッション単位・全体のコスト上限と、超過時の挙動（通知のみ / 停止）。費用は今はトークン数のみ自動記録（金額は `--cost` で任意）。
-6. **ナレッジの整理**: 似ているが表現の違う知見は別の項目になる。定期的に親（または人間）が `--key` で統合・`--obsolete` で廃止する運用でよいか、類似度でまとめる仕組みが要るか。
-7. **ハブからサブセッションへの指示**: 作業中のサブセッションには hook 経由で届けられるが、止まっているセッションは起こせない（親か人間の `send_message` が必要）。実装しないことに決定済み。親が `session-hub answer` / `command` で記録し、出力行を `send_message` で送る現行の方式のままとする。
-8. **規模**: 受信のたびに全イベントから状態を作り直している。数千イベント程度までは問題ないが、それを超えるなら差分更新にする。
+1. **Where the hub server runs**: **decided — local operation for now.** Sub-sessions run on the
+   user's own computer, and every session shares one `HUB_STORE`.
+   - The hub server listens on `127.0.0.1` alone, and children push to
+     `HUB_URL=http://127.0.0.1:8765`. The computer is never exposed to the outside.
+   - While the server is down, children write directly to the shared store. Their messages appear
+     on screen when the server starts or on the next push (§3.8).
+   - For cloud child sessions, two candidates remain for future study: a permanent server, and an
+     Artifact's shared database.
+   - Either way, the child environment's network allowlist should include that host, and the token
+     should be registered as a network secret rather than an environment variable.
+2. **Execution environment**: will children be mainly cloud sessions (`create_session`), or will
+   local parallel runs count too? For local runs alone, sharing `HUB_STORE` is enough.
+3. **Fetching GitHub data automatically** (phase 2): should the server call the GitHub API, or
+   should the parent fetch the data and record it with `session-hub pr`?
+4. **Scope of automation**: on `review_ready`, should the hub also take the PR out of draft and
+   assign reviewers?
+5. **Budget**: a cost cap per session and overall, and what happens when it is exceeded (notify
+   alone, or stop). Today the hooks record token counts alone; the dollar amount is optional
+   (`--cost`).
+6. **Curating knowledge**: similar findings with different wording become separate items. Is it
+   enough for the parent (or a human) to merge them periodically with `--key` and retire them with
+   `--obsolete`, or do we need a mechanism that groups items by similarity?
+7. **Instructions from the hub to sub-sessions**: decided not to implement. A hook can deliver an
+   instruction to a working sub-session, but nothing can wake a stopped one; that takes a
+   `send_message` from the parent or a human. We keep the current approach: the parent records the
+   instruction with `session-hub answer` / `command` and sends the printed line with `send_message`.
+8. **Scale**: the hub rebuilds the state from every event on each receipt. That approach holds up
+   to a few thousand events; beyond that, we switch to incremental updates.
 
 ---
 
-## 付録 A 用語集
+## Appendix A. Glossary
 
-### 登場人物・構成要素
+### Actors and components
 
-| 用語 | 意味 |
+| Term | Meaning |
 |---|---|
-| 親セッション（オーケストレーター） | 子セッションを起動し、質問への回答やレビュー依頼などの判断をするセッション。ダッシュボードを見る人間を含めて「親側」と呼ぶこともある |
-| 子セッション / サブセッション | 親から作業を任されて動くセッション。自分の状況をハブへ報告する |
-| ハブ / ハブサーバー | `session-hub serve` で動くサーバー。子からの報告を受け取り、保存し、ブラウザへ配信する |
-| ストア | イベントを保存するディレクトリ（`HUB_STORE`、既定 `.hub`）。`events/*.jsonl` が本体 |
-| ダッシュボード | ハブが配信する Web 画面。セッション一覧とタイムラインからなる |
-| `session-hub` | 本ツールのコマンド。子の報告、親の確認・回答、サーバー起動、hook の処理をすべて担う |
-| プラグイン | 本リポジトリを Claude Code のプラグインとして読み込んだもの。スキル・hook・コマンドをまとめて子セッションに配る |
+| Parent session (orchestrator) | The session that launches child sessions and makes decisions such as answering questions and requesting reviews. Together with the human watching the dashboard, it is sometimes called "the parent side" |
+| Child session / sub-session | A session that does work delegated by the parent and reports its status to the hub |
+| Hub / hub server | The server that `session-hub serve` runs. It receives reports from children, stores them, and delivers them to browsers |
+| Store | The directory that holds events (`HUB_STORE`, default `.hub`). The files `events/*.jsonl` are its core |
+| Dashboard | The web page the hub serves, made of the session list and the timeline |
+| `session-hub` | This tool's command. It handles a child's reports, the parent's checks and answers, starting the server, and the hooks |
+| Plugin | This repository loaded as a Claude Code plugin. It distributes the skills, hooks, and command to child sessions together |
 
-### データとプロトコル
+### Data and protocol
 
-| 用語 | 意味 |
+| Term | Meaning |
 |---|---|
-| メッセージ | サブセッションからハブへ届く更新 1 件。保存されると 1 件のイベントになる。ダッシュボードは受信すると関係する表示をグローで一定時間光らせる。親への `send_message`（[HUB/1] 行）は「エスカレーション通知」と呼んで区別する |
-| グロー | メッセージを受信したときの強調表示。送り主のセッションカード、タイムラインの該当行、スイムレーンの帯、そのメッセージが入ったコレクションの項目を、遷移後の状態の色で約 6 秒光らせる（heartbeat は対象外） |
-| イベント | 子や親が送る 1 件の報告（JSON 1 行）。種類は start / report / ask / answer / command / ready / pr / heartbeat / done / fail |
-| ステータス（ステータスレコード） | あるセッションの「今の状態」。イベント列を古い順に適用（畳み込み）して求める。保存はしない |
-| 畳み込み（fold） | イベントを 1 件ずつ順に当てはめて最新の状態を計算すること |
-| イベントソーシング | 状態ではなく「起きた出来事」を追記で保存し、状態は出来事から計算する設計。時系列をたどれるのはこのため |
-| 追記のみ（append-only） | 書いたイベントを後から書き換えない・消さない保存方式 |
-| 書き手（writer） | イベントファイルの持ち主。子自身は `<id>.jsonl`、親の回答・指示は `<id>@parent.jsonl` |
-| seq | 書き手ファイルごとの連番。イベント ID は `<ファイル名>#<seq>`（例 `session_01ABC#3`） |
-| state | セッションの状態（§1.2 の 12 種類）。例: working、needs_human、review_ready |
-| phase | 作業段階。plan / implement / test / fix / docs / self_review など |
-| attention | 人間・親への質問。種類（kind）、質問文、選択肢、既定値、停止中かどうか（blocking）を持つ |
-| qid | 質問の番号。回答（answer）がどの質問に対するものかを示す |
-| blocking / non-blocking | 回答が来るまで止まっている質問 / 既定値で先に進めている質問 |
-| tasks / progress / 残量 | タスク一覧と、完了数・総数。残量は未完了タスクの規模（S=1, M=3, L=8）の合計 |
-| heartbeat | 「まだ生きている」ことを示す自動イベント。トークン使用量も運ぶ |
-| usage | トークン使用量（input / output / cache_read / cache_write）と任意で費用・コンテキスト使用率 |
-| `HUB/1` | 親子間メッセージの書式とその版。`[HUB/1] <id> <state> <短文>`（子→親）、`[HUB/1] cmd=<命令> ...`（親→子） |
-| エスカレーション（通知） | 親を起こすべき遷移（人間待ち・レビュー可・失敗・完了）のときにだけ、子が親へ 1 行送ること |
-| コマンド（cmd） | 親から子への指示。answer / report / pause / resume / rebase / abort |
+| Message | One update that arrives at the hub from a sub-session. Once stored, a message becomes one event. On receipt, the dashboard makes the related elements glow for a while. A `send_message` to the parent (a `[HUB/1]` line) is called an "escalation notice" to keep the two apart |
+| Glow | The highlight shown when a message arrives. The sender's session card, the matching timeline row, the swimlane band, and the collection item the message landed in glow for about six seconds in the color of the new state (heartbeats excluded) |
+| Event | One report (one JSON line) from a child or the parent. Types: start / report / ask / answer / command / ready / pr / heartbeat / done / fail / finding |
+| Status (status record) | A session's current state. The hub computes the status by applying the events oldest first (folding) and never stores it |
+| Fold | Applying events one by one, in order, to compute the latest state |
+| Event sourcing | A design that appends what happened instead of storing state, and computes state from what happened. This design is why the timeline can be traced |
+| Append-only | A storage discipline: an event, once written, is never rewritten or deleted |
+| Writer | The owner of an event file. The child writes `<id>.jsonl`; the parent's answers and instructions go to `<id>@parent.jsonl` |
+| seq | A sequence number per writer file. An event ID is `<file name>#<seq>` (for example `session_01ABC#3`) |
+| state | A session's state, one of the 12 values in §1.2. Examples: working, needs_human, review_ready |
+| phase | The stage of work: plan / implement / test / fix / docs / self_review and so on |
+| attention | A question to a human or the parent. It holds a kind, the question text, options, a default, and whether the child has stopped (blocking) |
+| qid | A question's number. An answer names the question it answers by its qid |
+| blocking / non-blocking | A question the child has stopped for until it is answered / a question the child proceeds past with the default |
+| tasks / progress / remaining | The task list, and the done and total counts. The remaining work is the sum of the sizes of the unfinished tasks (S=1, M=3, L=8) |
+| heartbeat | An automatic event that shows the session is still alive. It also carries the token usage |
+| usage | Token usage (input / output / cache_read / cache_write), optionally with the cost and the context usage |
+| `HUB/1` | The format of messages between parent and child, and its version: `[HUB/1] <id> <state> <short text>` (child → parent) and `[HUB/1] cmd=<command> ...` (parent → child) |
+| Escalation (notice) | A one-line message a child sends to the parent, only on a transition that should wake the parent (waiting for a human, ready for review, failed, done) |
+| Command (cmd) | An instruction from the parent to a child: answer / report / pause / resume / rebase / abort |
 
-### 判定と表示
+### Verdicts and display
 
-| 用語 | 意味 |
+| Term | Meaning |
 |---|---|
-| 要対応 | 人間か親が何かすべきセッション。人間待ち・失敗・レビュー可・停滞の疑い |
-| レビュー可ゲート | 「レビューに出してよいか」の機械判定。PR あり、CI 成功、コンフリクトなし、未解決の指摘 0、未回答の質問なし、自己チェック済み、残タスクなし（§4.1） |
-| レビュー条件未達 | 子は「レビュー可」と申告したが、ゲートを通っていない状態。未達の理由を表示する |
-| 自己申告 / 自己チェック | 子が `session-hub ready` で申告する、自己レビュー・テスト追加・PR 説明の完了 |
-| 停滞（stale） | 作業中のはずなのに一定時間（既定 30 分）報告がないこと。落ちている可能性がある |
-| 優先度 | ダッシュボードの並び順（§4.3）。人間待ち（停止中）が最上位 |
-| スピナー（ぐるぐる） | 子が手を動かしている状態（計画中・作業中・修正対応中）を示す回転アイコン |
-| フィード | タイムラインの表示形式の一つ。イベントを時刻順に並べた一覧 |
-| スイムレーン | タイムラインの表示形式の一つ。セッションごとの横帯に状態の推移を色で示す |
+| Needs action | A session where a human or the parent should do something: waiting for a human, failed, ready for review, or suspected stale |
+| Review gate | The mechanical check of whether a PR may go to review: a PR exists, CI passes, no conflicts, no unresolved comments, no unanswered questions, self-checks done, and no remaining tasks (§4.1) |
+| Review conditions not met | The child claimed "ready for review", but the gate did not pass. The dashboard shows the unmet reason |
+| Self-report / self-check | What a child declares with `session-hub ready`: the self-review, added tests, and the PR description are done |
+| Stale | A session that should be working but has not reported for a set time (default 30 minutes). It may have crashed |
+| Priority | The dashboard's sort order (§4.3). A human wait that blocks the child ranks highest |
+| Spinner | The rotating icon that marks a child as active (planning, working, or addressing changes) |
+| Feed | One form of the timeline: events listed in time order |
+| Swimlanes | One form of the timeline: one horizontal band per session, with state changes shown in color |
 
-### 通信と仕組み
+### Communication and mechanisms
 
-| 用語 | 意味 |
+| Term | Meaning |
 |---|---|
-| push 型 | 子が変化のたびにハブへ送り、ハブがすぐ画面へ送る方式。受け手が定期的に見に行く「ポーリング」の反対 |
-| ポーリング | 一定間隔で変化がないか確認しに行く方式。本ツールでは補助機能（`--watch-files`、`--pull-every`、ブラウザの SSE が使えないときの代替）にだけ使う |
-| SSE（Server-Sent Events） | サーバーからブラウザへ、接続を張ったまま次々とデータを送る仕組み。ダッシュボードの即時反映に使う |
-| snapshot / update | SSE で送るデータ。接続直後に全体（snapshot）、以後は変化分（update） |
-| outbox | ハブに届かなかったイベントを子の手元に溜めるファイル。次の送信時に先に再送する |
-| `HUB_URL` / `HUB_TOKEN` | 子・親が使うハブの URL と認証トークン |
-| `HUB_STORE` | ストアのディレクトリ。`HUB_URL` がないときは子もここへ直接書く |
-| `HUB_SESSION_ID` | 自セッションの ID。未設定なら Claude Code の環境変数から求める |
-| hook | Claude Code が特定のタイミングで自動実行するコマンド。本ツールでは SessionStart・PostToolUse・Stop を使う |
-| SessionStart hook | セッション開始時に動く。コマンドを使えるようにし、未登録なら登録を促す短い文をコンテキストへ入れる |
-| PostToolUse hook | ツール実行後に動く。TodoWrite などのタスク操作を進捗としてハブへ送る |
-| Stop hook | ターン終了時に動く。heartbeat を送り、作業中のまま終えようとしていたら 1 回だけ報告を促す |
-| スキル | 必要なときに読み込まれる手順書。子用 `session-hub-report`、親用 `session-hub-orchestrate` |
-| `append_system_prompt` | `create_session` で子に常に効かせる追加指示。本ツールでは 5 行の報告ルールを渡す |
-| `send_message` | セッション間でメッセージを送る機能。届くと受け手のターンが動くのでトークンを使う。エスカレーションと指示にだけ使う |
-| `get_session` / `status_bucket` | セッションの状態を取得する機能と、その大まかな状態（working / blocked / failed など）。停滞の確認に使う |
-| `list_events` | 子のトランスクリプトを読む機能。重いので原則使わない |
+| Push | A child sends to the hub on every change, and the hub forwards to the screen at once. The opposite of polling, where the receiver checks periodically |
+| Polling | Checking for changes at a fixed interval. This tool uses polling for auxiliary features alone: `--watch-files`, `--pull-every`, and the fallback when the browser cannot use SSE |
+| SSE (Server-Sent Events) | A mechanism by which a server keeps a connection open and sends a browser data as it comes. The dashboard uses SSE to update immediately |
+| snapshot / update | The data sent over SSE: the whole state right after connecting (snapshot), then the changes (update) |
+| outbox | A file on the child's side that holds events that did not reach the hub. The child resends them first on the next send |
+| `HUB_URL` / `HUB_TOKEN` | The hub's URL and authentication token, used by children and the parent |
+| `HUB_STORE` | The store directory. Without `HUB_URL`, a child also writes here directly |
+| `HUB_SESSION_ID` | The current session's ID. If unset, the tool derives it from Claude Code's environment variables |
+| Hook | A command Claude Code runs automatically at specific moments. This tool uses SessionStart, PostToolUse, and Stop |
+| SessionStart hook | Runs at session start. It makes the command available and, if the session is unregistered, adds a short text to the context prompting registration |
+| PostToolUse hook | Runs after a tool call. It sends task operations such as TodoWrite to the hub as progress |
+| Stop hook | Runs at the end of a turn. It sends the heartbeat and, if the child is about to stop while still marked as working, asks it once to report |
+| Skill | A set of instructions loaded when needed: `session-hub-report` for children, `session-hub-orchestrate` for the parent |
+| `append_system_prompt` | Extra instructions that `create_session` keeps in force for a child. This tool passes the five-line reporting rules |
+| `send_message` | Sends a message between sessions. Delivery runs the receiver's turn and therefore costs tokens. Used for escalation and instructions alone |
+| `get_session` / `status_bucket` | The call that fetches a session's state, and that state in coarse form (working / blocked / failed and so on). Used to confirm a stall |
+| `list_events` | The call that reads a child's transcript. Heavy, so avoided as a rule |
 
-### ナレッジとコレクション
+### Knowledge and collections
 
-| 用語 | 意味 |
+| Term | Meaning |
 |---|---|
-| コレクション | 受け取った更新を「どれを集め（match）、どうまとめ（reduce）、どう見せ（view）、ほかにどこへ書き出すか（sinks）」の定義と、その結果。イベントストアの投影 |
-| 投影（projection） | 保存済みのイベント列から、目的に合わせた形のデータを計算して作ること。元のイベントは変えない |
-| match | コレクションに入れるイベントの条件 |
-| reduce | まとめ方。log（時系列のまま）/ latest（キーごとに最新 1 件）/ aggregate（キーごとに 1 件へ統合） |
-| key | reduce で「同じもの」とみなす単位。ナレッジでは明示キー、なければタイトル（空白・大文字小文字を無視） |
-| view | 表示形式。cards（グループ分けしたカード）/ table（表） |
-| sink | コレクションの追加の書き出し先（Markdown / JSONL ファイル） |
-| `collections.json` | ストア直下に置くコレクション定義。組み込みの追加・上書き・無効化に使う |
-| ナレッジ | 組み込みコレクション。サブセッションが作業で判明した知見・注意点などを 1 か所に集める |
-| finding | ナレッジに入るイベントの種類。`session-hub learn` で送る |
-| kind（finding の） | 知見の種類。caveat（注意点）/ issue（未解決の問題）/ decision（決定事項）/ howto（手順）/ insight（知見） |
-| scope | 知見が関係する場所（パス、モジュール、サービス名）。`knowledge --scope` で関係するものだけを読むのに使う |
-| obsolete（廃止） | もう当てはまらなくなった知見。表示と `knowledge` 出力から外れるが履歴は残る |
-| 報告元（reporters） | その項目を報告したセッションの一覧。複数あるほど多くの作業者が遭遇したことを示す |
+| Collection | A definition of which received updates to collect (match), how to combine them (reduce), how to show them (view), and where else to write them (sinks) — together with the result. A projection of the event store |
+| Projection | Data computed from the stored event sequence in a shape that fits a purpose. The original events stay unchanged |
+| match | The condition for an event to enter a collection |
+| reduce | How to combine: log (keep the time series) / latest (the newest one per key) / aggregate (merge into one per key) |
+| key | The unit that reduce treats as "the same item". For knowledge, the explicit key, or else the title (ignoring whitespace and case) |
+| view | The display form: cards (grouped cards) / table |
+| sink | An extra destination for a collection (a Markdown or JSONL file) |
+| `collections.json` | The collection definitions at the root of the store. Used to add, override, or disable built-in collections |
+| Knowledge | The built-in collection. It gathers in one place the findings and caveats that sub-sessions uncover while working |
+| finding | The event type that enters knowledge, sent with `session-hub learn` |
+| kind (of a finding) | The type of finding: caveat / issue (open issue) / decision / howto (how-to) / insight |
+| scope | Where a finding applies (a path, module, or service name). `knowledge --scope` uses it to read only the relevant findings |
+| obsolete | A finding that no longer holds. It leaves the display and the `knowledge` output, but its history remains |
+| Reporters | The sessions that reported an item. The more reporters, the more workers hit the same thing |

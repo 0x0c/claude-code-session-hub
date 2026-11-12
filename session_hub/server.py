@@ -1,20 +1,23 @@
-"""ハブサーバー（push 型・標準ライブラリのみ）。
+"""Hub server (push-based, standard library only).
 
-流れ:
-    子セッション ──POST /api/events──► サーバー ──記録──► ストア
-                                          └──即時配信（SSE）──► ブラウザ
+Flow:
+    child session ──POST /api/events──► server ──record──► store
+                                          └──instant delivery (SSE)──► browser
 
-- 子セッションは `session-hub report` などを実行すると、HUB_URL のこのサーバーへ イベントを POST する。
-- サーバーは受け取ったイベントを検証してストアに追記し、その場で接続中のブラウザへ
-  Server-Sent Events で差分を送る。ブラウザ側もサーバー側もポーリングしない。
-- 経過時間だけで変わる判定（停滞検知、「◯分前」）のため、30 秒ごとに状態を送り直す。
-- 補助: `--watch-files`（ストアへの直接書き込みを検知）、`--pull-every`（Git ストアの pull）。
+- When a child session runs `session-hub report` or a similar command, it POSTs an event to this
+  server at HUB_URL.
+- The server validates each event, appends it to the store, and immediately sends the diff to
+  connected browsers over Server-Sent Events (SSE). Neither the browser nor the server polls.
+- Some judgments change with elapsed time alone (stall detection, "N minutes ago"), so the server
+  resends the state every 30 seconds.
+- Auxiliary options: `--watch-files` (detect direct writes to the store) and `--pull-every`
+  (pull a Git store).
 
-エンドポイント:
-    GET  /              ダッシュボード（HTML）
-    GET  /api/snapshot  全データ（JSON）
-    GET  /api/stream    SSE。最初に snapshot、以後 update
-    POST /api/events    イベント受信 {"session_id", "writer"?, "fields": {...}}
+Endpoints:
+    GET  /              dashboard (HTML)
+    GET  /api/snapshot  all data (JSON)
+    GET  /api/stream    SSE: a snapshot first, then updates
+    POST /api/events    receive an event {"session_id", "writer"?, "fields": {...}}
 """
 
 from __future__ import annotations
@@ -40,7 +43,7 @@ def _dumps(obj) -> str:
 
 
 class Hub:
-    """イベントの受信・記録と、SSE クライアントへの配信を受け持つ。"""
+    """Receive and record events, and deliver them to SSE clients."""
 
     def __init__(self, store: EventStore, watch_files: bool = False, pull_every: float = 0,
                  refresh_every: float = 30.0, ping_every: float = 15.0):
@@ -49,8 +52,8 @@ class Hub:
         self.pull_every = pull_every
         self.refresh_every = refresh_every
         self.ping_every = ping_every
-        self.lock = threading.Lock()        # snapshot とクライアント集合
-        self.write_lock = threading.Lock()  # 記録 → 配信 を 1 件ずつ直列化
+        self.lock = threading.Lock()        # guards the snapshot and the client set
+        self.write_lock = threading.Lock()  # serializes record-then-publish one event at a time
         self.clients: set[queue.Queue] = set()
         self.defs = collections.load_definitions(store.root)
         self.snap = self._build()
@@ -73,7 +76,7 @@ class Hub:
     def _index(snap: dict) -> dict[str, str]:
         return {e["id"]: _dumps(e) for e in snap["events"]}
 
-    # ---- 受信（push） ----
+    # ---- Receiving (push) ----
     def ingest(self, payload: dict) -> dict:
         if not isinstance(payload, dict) or not isinstance(payload.get("fields"), dict):
             raise schema.SchemaError("body は {session_id, writer?, fields:{...}} の形式です")
@@ -83,11 +86,11 @@ class Hub:
         writer = payload.get("writer") or None
         fields = {k: v for k, v in payload["fields"].items() if k not in ("session_id", "seq", "ts")}
         with self.write_lock:
-            res = core.record(self.store, sid, fields, writer=writer)  # seq と時刻はサーバーが採番
+            res = core.record(self.store, sid, fields, writer=writer)  # The server assigns seq and the timestamp
             self.publish()
         return res
 
-    # ---- クライアント管理 ----
+    # ---- Client management ----
     def subscribe(self) -> tuple[queue.Queue, dict]:
         q: queue.Queue = queue.Queue(maxsize=256)
         with self.lock:
@@ -102,8 +105,8 @@ class Hub:
         try:
             q.put_nowait(msg)
         except queue.Full:
-            # 読みが追いつかないクライアントは切り離す。ブラウザは自動再接続し、
-            # 新しい snapshot から取り直すので取りこぼしは起きない。
+            # Drop a client that cannot keep up. The browser reconnects automatically and
+            # starts again from a fresh snapshot, so it misses nothing.
             self.clients.discard(q)
             try:
                 while True:
@@ -117,9 +120,9 @@ class Hub:
         for q in list(self.clients):
             self._send(q, msg)
 
-    # ---- 配信 ----
+    # ---- Publishing ----
     def publish(self, force: bool = False) -> bool:
-        """ストアの内容から snapshot を作り直し、変化分を全クライアントへ送る。"""
+        """Rebuild the snapshot from the store and send the changes to every client."""
         snap = self._build()
         index = self._index(snap)
         with self.lock:
@@ -136,7 +139,7 @@ class Hub:
         return bool(changed or removed)
 
     def run(self) -> None:
-        """定期処理: keepalive、時間経過による再判定、（補助）ファイル監視・Git pull。"""
+        """Run periodic work: keepalive, time-based rechecks, and (auxiliary) file watching and Git pull."""
         last_refresh = last_ping = last_pull = time.monotonic()
         tick = 1.0 if (self.watch_files or self.pull_every) else min(self.ping_every, self.refresh_every)
         while not self._stop.wait(tick):
@@ -152,7 +155,7 @@ class Hub:
                     with self.write_lock:
                         self.publish(force=True)
                     last_refresh = t
-            except Exception as exc:  # 一時的な失敗で定期処理を止めない
+            except Exception as exc:  # A transient failure must not stop periodic work
                 print(f"hub: periodic task failed: {exc}", flush=True)
             if t - last_ping >= self.ping_every:
                 with self.lock:
@@ -191,7 +194,7 @@ def make_handler(hub: Hub, token: str | None):
             self.wfile.write(data)
 
         def _authorized(self) -> bool:
-            """Authorization ヘッダー、cookie、?token= のいずれかで認証（トークン未設定なら常に可）。"""
+            """Authenticate by the Authorization header, a cookie, or ?token= (always allowed without a token)."""
             if not token:
                 return True
             want = token.encode()
@@ -212,7 +215,7 @@ def make_handler(hub: Hub, token: str | None):
                 return self._send(401, "unauthorized: URL に ?token=<HUB_TOKEN> を付けて開いてください",
                                   "text/plain; charset=utf-8")
             if path in ("/", "/index.html") and "token=" in self.path:
-                # 一度だけ URL でトークンを受け取り、以後は cookie で認証（URL からトークンを消す）
+                # Accept the token from the URL once, then authenticate by cookie (removing the token from the URL)
                 self.send_response(303)
                 self.send_header("Set-Cookie", f"hub_token={token}; Path=/; HttpOnly; SameSite=Strict")
                 self.send_header("Location", "/")

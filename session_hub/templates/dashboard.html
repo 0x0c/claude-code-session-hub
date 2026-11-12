@@ -89,7 +89,7 @@ section.panel { background: var(--panel); border: 1px solid var(--line); border-
 .ev:hover { background: var(--hover); }
 .ev.flash { animation: flash 2.5s ease-out; }
 @keyframes flash { from { background: var(--flash); } to { background: transparent; } }
-/* メッセージ受信時のグロー。--glow は遷移後の状態の色、時間は JS の GLOW_MS と合わせる */
+/* Glow on message receipt. --glow is the color of the new state; keep the duration in sync with GLOW_MS in the JS */
 .glow { --glow: var(--accent); animation: glow var(--glow-ms, 6s) ease-out both; position: relative; z-index: 1; }
 @keyframes glow {
   0%   { box-shadow: 0 0 0 2px var(--glow), 0 0 22px 6px color-mix(in srgb, var(--glow) 55%, transparent); }
@@ -195,7 +195,7 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
 <script>
 (() => {
   "use strict";
-  // `hub export` はここにスナップショットを埋め込む（静的モード）
+  // `hub export` embeds the snapshot here (static mode)
   const EMBEDDED = /*__HUB_SNAPSHOT__*/null;
 
   const STATE = {
@@ -212,9 +212,9 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
   };
   const ESCALATE = new Set(["needs_human", "review_ready", "failed", "done"]);
 
-  // ---- メッセージ受信時のグロー ----
-  // サブセッションからの更新（メッセージ）を受け取ったら、関係する表示を GLOW_MS だけ光らせる。
-  // 再描画で DOM が作り直されても、経過時間ぶん animation-delay を負にして途中から続ける。
+  // ---- Glow on message receipt ----
+  // When an update (message) arrives from a sub-session, the related elements glow for GLOW_MS.
+  // If a re-render rebuilds the DOM, a negative animation-delay equal to the elapsed time resumes the glow mid-way.
   const GLOW_MS = 6000;
   document.documentElement.style.setProperty("--glow-ms", GLOW_MS + "ms");
   const glows = new Map(); // key -> { start, color }
@@ -227,7 +227,7 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     if (elapsed >= GLOW_MS) { glows.delete(key); return null; }
     return { color: g.color, elapsed };
   }
-  // 複数のキーのうち最も新しいグローを el() の props へ反映する
+  // Apply the newest glow among several keys to the props of el()
   function glowProps(keys, props = {}) {
     let best = null;
     for (const k of keys) { const g = activeGlow(k); if (g && (!best || g.elapsed < best.elapsed)) best = g; }
@@ -250,7 +250,7 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     return n;
   };
 
-  // ---- 状態 ----
+  // ---- State ----
   const db = { sessions: [], events: new Map(), total: {}, generated_at: null, collections: {} };
   const ui = {
     view: "feed", session: "", text: "", heartbeat: false, asc: false,
@@ -261,8 +261,8 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
   const prevStates = new Map();
   try { ui.notify = localStorage.getItem("hub.notify") === "1"; } catch (_) {}
 
-  // ---- 表示ユーティリティ ----
-  // 子セッションが手を動かしている状態（CI 待ちなど「待っているだけ」は含めない）
+  // ---- Display utilities ----
+  // States in which a child session is doing work (excludes pure waiting, such as waiting for CI)
   const isActive = (s) => !s.stale && ["planning", "working", "changes_requested"].includes(s.state);
   const stateKey = (s) => (s.stale ? "stale" : s.state === "review_ready" && s.gate && s.gate.length ? "review_pending" : s.state);
   const badge = (key) => {
@@ -284,11 +284,11 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     const s = db.sessions.find((x) => x.session_id === sid);
     return (s && s.title) || sid;
   };
-  // セッションごとに安定した色相
+  // A stable hue per session
   const hue = (sid) => { let h = 0; for (const c of sid) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h % 360; };
   const laneColor = (sid) => `hsl(${hue(sid)} 55% 50%)`;
 
-  // ---- セッション一覧 ----
+  // ---- Session list ----
   function renderSessions() {
     const box = $("sessions");
     box.replaceChildren();
@@ -350,7 +350,7 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     return card;
   }
 
-  // ---- タイムライン（フィード） ----
+  // ---- Timeline (feed) ----
   function filteredEvents() {
     const q = ui.text.toLowerCase();
     const out = [];
@@ -407,7 +407,7 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     let lastDay = null;
     let hbRun = [];
     const flushHb = () => {
-      // heartbeat 表示時も、連続するものは 1 行にまとめる
+      // Even when heartbeats are shown, collapse consecutive ones into one line
       if (!hbRun.length) return;
       if (hbRun.length === 1) box.append(eventRow(hbRun[0]));
       else box.append(el("div", { class: "hb" }, `heartbeat ×${hbRun.length}（${hhmm(hbRun[hbRun.length - 1].ts)}〜${hhmm(hbRun[0].ts)}）`));
@@ -445,7 +445,7 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
   }
   const stripEvent = (e) => { const { state_after, ...rest } = e; return rest; };
 
-  // ---- タイムライン（スイムレーン） ----
+  // ---- Timeline (swimlanes) ----
   function renderLanes() {
     const box = $("lanes");
     box.replaceChildren();
@@ -469,7 +469,7 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
       if (text != null) n.textContent = text;
       svg.append(n); return n;
     };
-    // 時間軸
+    // Time axis
     const ticks = 6;
     for (let i = 0; i <= ticks; i++) {
       const t = t0 + ((t1 - t0) * i) / ticks;
@@ -489,7 +489,7 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
       const lbl = mk("text", { x: 0, y: y + laneH / 2 + 4, class: "lname" }, name.length > 18 ? name.slice(0, 17) + "…" : name);
       lbl.addEventListener("click", () => selectSession(s.session_id));
       const evs = all.filter((e) => e.session_id === s.session_id).sort((a, b) => (a.ts < b.ts ? -1 : 1));
-      // 状態の帯：状態が変わった時点から次の変化まで
+      // State band: from one state change to the next
       const segs = [];
       for (const e of evs) {
         const st = e.state_after;
@@ -539,7 +539,7 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     });
   }
 
-  // ---- 全体の描画 ----
+  // ---- Full render ----
   function renderHeader() {
     $("kSessions").textContent = db.sessions.length;
     const action = db.sessions.filter((s) => s.needs_action).length;
@@ -580,8 +580,8 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     $("feedView").hidden = v !== "feed";
     $("lanesView").hidden = v !== "lanes";
     $("colView").hidden = !isCol;
-    if (!isCol) $("colView").replaceChildren(); // 非表示のタブに古い表示（グローなど）を残さない
-    // 種別・heartbeat・並び順はタイムライン専用
+    if (!isCol) $("colView").replaceChildren(); // Leave no stale content (such as a glow) in a hidden tab
+    // The type, heartbeat, and order controls apply to the timeline alone
     $("fTypes").hidden = isCol;
     $("fHeartbeat").parentElement.hidden = isCol;
     $("fOrder").parentElement.hidden = isCol;
@@ -590,7 +590,7 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     render();
   }
 
-  // ---- コレクション（ナレッジなど、更新をためておく先）の表示 ----
+  // ---- Collections (knowledge and other stores of accumulated updates) ----
   const GROUP_COLOR = { caveat: "--s-needs", issue: "--s-fail", decision: "--accent", howto: "--s-review", insight: "--s-work" };
 
   function renderColTabs() {
@@ -620,7 +620,7 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
   }
 
   function sourceLinks(it) {
-    // 報告元セッションをクリックすると、タイムラインの該当イベントへ移動
+    // Clicking a reporting session jumps to its event in the timeline
     const latest = new Map();
     for (const s of it.sources || []) latest.set(s.session_id, s);
     return [...latest.values()].map((s) => el("span", { class: "src", style: { color: laneColor(s.session_id) }, title: s.event_id,
@@ -704,7 +704,7 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
         cols.map((c) => cell(it, c)))))));
   }
 
-  // ---- データ取り込み ----
+  // ---- Data intake ----
   function loadSnapshot(snap) {
     db.events = new Map(snap.events.map((e) => [e.id, e]));
     applySessions(snap, true);
@@ -720,13 +720,13 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     }
     ui.fresh = new Set(fresh.map((e) => e.id));
     for (const e of fresh) {
-      if (e.type === "heartbeat") continue; // hook の自動送信は光らせない
+      if (e.type === "heartbeat") continue; // Do not glow for automatic hook sends
       const color = css((STATE[e.state_after] || [0, "--accent"])[1]) || css("--accent");
       markGlow(glowKey.event(e.id), color);
       markGlow(glowKey.session(e.session_id), color);
     }
     applySessions(u, false);
-    // 読んでいる途中で画面が動かないよう、下にスクロール中は新着バーで知らせる
+    // While the reader is scrolled down, announce new items in the new-items bar instead of moving the view
     const visible = fresh.filter((e) => e.type !== "heartbeat" || ui.heartbeat);
     if (visible.length && window.scrollY > 200 && !ui.asc) {
       ui.unseen += visible.length;
@@ -755,7 +755,7 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     try { new Notification(`${(STATE[key] || [key])[0]}: ${s.title || s.session_id}`, { body, tag: s.session_id }); } catch (_) {}
   }
 
-  // ---- 接続（SSE → 失敗が続けばポーリング） ----
+  // ---- Connection (SSE, falling back to polling after repeated failures) ----
   function setConn(kind, text) {
     $("conn").className = "conn " + kind;
     $("connText").textContent = text;
@@ -788,7 +788,7 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     tick();
   }
 
-  // ---- UI イベント ----
+  // ---- UI events ----
   document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("click", () => setView(b.dataset.view)));
   $("fSession").addEventListener("change", (e) => selectSession(e.target.value));
   $("clearSel").addEventListener("click", () => selectSession(""));
@@ -824,7 +824,7 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
   });
   try { const t = localStorage.getItem("hub.theme"); if (t) document.documentElement.dataset.theme = t; } catch (_) {}
   window.addEventListener("resize", () => { if (ui.view === "lanes") renderLanes(); });
-  // 「◯分前」の表示を定期的に更新
+  // Refresh the "N minutes ago" labels periodically
   setInterval(() => {
     document.querySelectorAll("[data-ago]").forEach((n) => { n.textContent = ago(n.dataset.ago); });
   }, 15000);

@@ -36,7 +36,7 @@ class SchemaTest(TmpMixin, unittest.TestCase):
                           writer="parent")
         self.assertIsNone(res["status"]["attention"])
         self.assertEqual(res["status"]["state"], "working")
-        self.assertIsNone(res["escalate"])  # 親自身の書き込みでは通知しない
+        self.assertIsNone(res["escalate"])  # The parent's own write does not notify
 
     def test_validation_and_clipping(self):
         with self.assertRaises(schema.SchemaError):
@@ -112,7 +112,7 @@ class CollectionsTest(TmpMixin, unittest.TestCase):
         written = collections.write_sinks(defs, snap["collections"], self.store.root)
         self.assertIn("make up で起動", (self.store.root / "out/K.md").read_text())
         self.assertEqual(len(written), 1)
-        self.assertEqual(collections.write_sinks(defs, snap["collections"], self.store.root), [])  # 変化なし
+        self.assertEqual(collections.write_sinks(defs, snap["collections"], self.store.root), [])  # No change
 
     def test_invalid_definitions(self):
         with self.assertRaises(collections.CollectionError):
@@ -180,12 +180,12 @@ class ServerTest(TmpMixin, unittest.TestCase):
         stream.close()
 
     def test_auth_and_validation(self):
-        with self.assertRaises(ValueError):  # 4xx は ValueError（再送しない）
+        with self.assertRaises(ValueError):  # A 4xx raises ValueError (no retry)
             client.post(self.url, {"session_id": "c1", "fields": {"type": "start"}}, token="wrong")
         with self.assertRaises(ValueError):
             client.post(self.url, {"session_id": "c1", "fields": {"type": "bogus"}}, token="tok")
         with self.assertRaises(client.PushError):
-            client.get_snapshot(self.url)  # トークンなしの読み取りも拒否
+            client.get_snapshot(self.url)  # A read without a token is rejected too
         self.assertEqual(client.get_snapshot(self.url, "tok")["sessions"], [])
 
     def test_local_fallback_writes_shared_store_when_server_down(self):
@@ -196,7 +196,7 @@ class ServerTest(TmpMixin, unittest.TestCase):
             res, mode = deliver("c9", {"type": "start", "title": "down"})
             self.assertEqual((mode, res["status"]["state"]), ("store", "planning"))
             self.assertFalse(Path(env["HUB_OUTBOX"]).exists())
-        # サーバーは次の更新でストアから読み直すので、停止中のメッセージも画面に出る
+        # The server rereads the store on the next update, so messages sent while it was down appear too
         client.post(self.url, {"session_id": "c8", "fields": {"type": "start"}}, token="tok")
         self.assertIn("c9", [s["session_id"] for s in client.get_snapshot(self.url, "tok")["sessions"]])
 
@@ -231,7 +231,7 @@ class HooksTest(TmpMixin, unittest.TestCase):
 
     def test_stop_guard(self):
         out = json.loads(self.run_hook("stop", {}))
-        self.assertEqual(out["decision"], "block")  # 未登録
+        self.assertEqual(out["decision"], "block")  # Not registered
         self.assertEqual(self.run_hook("stop", {"stop_hook_active": True}), "")
         res = core.record(self.store, "kid", {"type": "start", "title": "x"})
         local_state.note("kid", {"type": "start"}, res)
