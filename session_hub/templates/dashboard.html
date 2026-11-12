@@ -1,0 +1,837 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Session Hub</title>
+<style>
+:root {
+  --bg: #f6f7f9; --panel: #ffffff; --ink: #1d2330; --muted: #667085; --line: #e3e6eb; --hover: #f1f3f6;
+  --accent: #3b5bdb;
+  --s-needs: #d9480f; --s-review: #2b8a3e; --s-fail: #c92a2a; --s-stale: #9c6f00; --s-work: #1971c2;
+  --s-wait: #6741d9; --s-block: #862e9c; --s-done: #868e96; --s-queue: #adb5bd;
+  --flash: #fff3bf;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12151b; --panel: #1a1e26; --ink: #e6e8ec; --muted: #98a2b3; --line: #2b313c; --hover: #222833;
+    --accent: #748ffc; --s-needs: #ff8a4c; --s-review: #51cf66; --s-fail: #ff6b6b; --s-stale: #fcc419;
+    --s-work: #4dabf7; --s-wait: #9775fa; --s-block: #da77f2; --s-done: #868e96; --s-queue: #5c636e;
+    --flash: #3d3500; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12151b; --panel: #1a1e26; --ink: #e6e8ec; --muted: #98a2b3; --line: #2b313c; --hover: #222833;
+  --accent: #748ffc; --s-needs: #ff8a4c; --s-review: #51cf66; --s-fail: #ff6b6b; --s-stale: #fcc419;
+  --s-work: #4dabf7; --s-wait: #9775fa; --s-block: #da77f2; --s-done: #868e96; --s-queue: #5c636e;
+  --flash: #3d3500; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--ink);
+  font: 14px/1.5 system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif; }
+button, select, input { font: inherit; color: inherit; }
+header { position: sticky; top: 0; z-index: 5; background: var(--panel); border-bottom: 1px solid var(--line);
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 10px 16px; }
+header h1 { font-size: 16px; margin: 0; }
+.conn { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--s-queue); }
+.conn.live .dot { background: var(--s-review); animation: pulse 2s infinite; }
+.conn.retry .dot { background: var(--s-stale); }
+@keyframes pulse { 50% { opacity: .35; } }
+.kpis { display: flex; gap: 14px; font-size: 12px; color: var(--muted); margin-left: auto; flex-wrap: wrap; }
+.kpis b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.iconbtn { background: none; border: 1px solid var(--line); border-radius: 6px; padding: 3px 8px; cursor: pointer; font-size: 12px; }
+.iconbtn[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+main { display: grid; grid-template-columns: minmax(300px, 380px) 1fr; gap: 16px; padding: 16px; max-width: 1500px; margin: 0 auto; }
+@media (max-width: 860px) { main { grid-template-columns: 1fr; padding: 12px 16px; } }
+section.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; min-width: 0; }
+.panel > h2 { font-size: 13px; margin: 0; padding: 10px 14px; border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; gap: 8px; }
+.group-title { font-size: 11px; font-weight: 600; letter-spacing: .04em; color: var(--muted); padding: 10px 14px 4px; }
+.card { padding: 10px 14px; border-top: 1px solid var(--line); cursor: pointer; border-left: 3px solid transparent; }
+.card:hover { background: var(--hover); }
+.card.selected { background: var(--hover); border-left-color: var(--accent); }
+.card .row1 { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.card .title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+.card .meta { font-size: 12px; color: var(--muted); display: flex; gap: 10px; flex-wrap: wrap; margin-top: 2px; }
+.card .summary { font-size: 13px; margin-top: 4px; overflow-wrap: anywhere; }
+.spinner { width: 14px; height: 14px; flex: none; border-radius: 50%; border: 2px solid var(--line);
+  border-top-color: var(--s-work); animation: spin .9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 3s; } }
+.badge { font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 999px; color: #fff; white-space: nowrap; }
+.chip { font-size: 11px; padding: 0 6px; border-radius: 4px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+.progress { height: 5px; background: var(--line); border-radius: 3px; overflow: hidden; margin-top: 6px; }
+.progress > i { display: block; height: 100%; background: var(--s-work); }
+.ask { margin-top: 6px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--s-needs); font-size: 13px; overflow-wrap: anywhere; }
+.ask .opts { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
+.ask .opt { font-size: 12px; border: 1px solid var(--line); border-radius: 4px; padding: 0 6px; }
+.ask .opt.def { border-color: var(--s-needs); font-weight: 600; }
+.empty { padding: 24px 14px; color: var(--muted); text-align: center; font-size: 13px; }
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--line); align-items: center; }
+.toolbar input[type=search] { flex: 1; min-width: 140px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
+.toolbar select { padding: 4px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); max-width: 100%; }
+.toolbar label { font-size: 12px; color: var(--muted); display: inline-flex; align-items: center; gap: 4px; }
+.tabs { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.tabs button { border: 0; background: none; padding: 3px 10px; cursor: pointer; font-size: 12px; }
+.tabs button[aria-selected="true"] { background: var(--accent); color: #fff; }
+.types { display: flex; gap: 4px; flex-wrap: wrap; padding: 8px 14px; border-bottom: 1px solid var(--line); }
+.types button { font-size: 11px; border: 1px solid var(--line); border-radius: 999px; background: none; padding: 1px 8px; cursor: pointer; color: var(--muted); }
+.types button[aria-pressed="true"] { color: var(--ink); border-color: var(--ink); }
+.newbar { display: none; position: sticky; top: 56px; z-index: 3; margin: 8px auto 0; width: max-content;
+  background: var(--accent); color: #fff; border: 0; border-radius: 999px; padding: 4px 14px; cursor: pointer; font-size: 12px; }
+.newbar.show { display: block; }
+.feed { padding: 4px 0 12px; }
+.day { font-size: 11px; font-weight: 600; color: var(--muted); padding: 10px 14px 2px; }
+.ev { display: grid; grid-template-columns: 56px 14px 1fr; gap: 0 10px; padding: 6px 14px; align-items: start; }
+.ev:hover { background: var(--hover); }
+.ev.flash { animation: flash 2.5s ease-out; }
+@keyframes flash { from { background: var(--flash); } to { background: transparent; } }
+/* メッセージ受信時のグロー。--glow は遷移後の状態の色、時間は JS の GLOW_MS と合わせる */
+.glow { --glow: var(--accent); animation: glow var(--glow-ms, 6s) ease-out both; position: relative; z-index: 1; }
+@keyframes glow {
+  0%   { box-shadow: 0 0 0 2px var(--glow), 0 0 22px 6px color-mix(in srgb, var(--glow) 55%, transparent); }
+  15%  { box-shadow: 0 0 0 2px var(--glow), 0 0 14px 3px color-mix(in srgb, var(--glow) 40%, transparent); }
+  30%  { box-shadow: 0 0 0 2px var(--glow), 0 0 22px 6px color-mix(in srgb, var(--glow) 55%, transparent); }
+  75%  { box-shadow: 0 0 0 1px color-mix(in srgb, var(--glow) 60%, transparent), 0 0 10px 2px color-mix(in srgb, var(--glow) 25%, transparent); }
+  100% { box-shadow: 0 0 0 0 transparent, 0 0 0 0 transparent; }
+}
+.ev.glow { border-radius: 6px; background: color-mix(in srgb, var(--glow) 8%, transparent); }
+.lanes .laneglow { animation: laneglow var(--glow-ms, 6s) ease-out both; pointer-events: none; }
+@keyframes laneglow { 0%, 30% { opacity: .35; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  @keyframes glow { 0%, 75% { box-shadow: 0 0 0 2px var(--glow); } 100% { box-shadow: 0 0 0 0 transparent; } }
+}
+.ev time { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; padding-top: 1px; }
+.ev .mark { width: 10px; height: 10px; border-radius: 50%; margin-top: 5px; border: 2px solid var(--panel); outline: 1px solid var(--line); }
+.ev .body { min-width: 0; }
+.ev .head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.ev .who { font-size: 12px; font-weight: 600; cursor: pointer; }
+.ev .type { font-size: 11px; color: var(--muted); }
+.ev .text { font-size: 13px; overflow-wrap: anywhere; margin-top: 1px; }
+.ev .changes { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
+.ev details { margin-top: 3px; }
+.ev summary { font-size: 11px; color: var(--muted); cursor: pointer; }
+.ev pre { font-size: 11px; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 8px; overflow-x: auto; margin: 4px 0 0; }
+.hb { font-size: 11px; color: var(--muted); padding: 2px 14px 2px 94px; }
+.lanes { padding: 10px 14px 14px; overflow-x: auto; }
+.lanes svg { display: block; }
+.lanes text { fill: var(--muted); font-size: 11px; }
+.lanes .lname { fill: var(--ink); font-size: 12px; cursor: pointer; }
+.lanes .grid { stroke: var(--line); }
+.lanes .evdot { cursor: pointer; stroke: var(--panel); stroke-width: 1.5; }
+.legend { display: flex; flex-wrap: wrap; gap: 10px; padding: 0 14px 12px; font-size: 11px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 4px; }
+.legend i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.colbar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 8px 14px; border-bottom: 1px solid var(--line); font-size: 12px; color: var(--muted); }
+.colbar .desc { flex: 1 1 100%; }
+.kgroup { padding: 4px 14px 10px; }
+.kgroup h3 { font-size: 12px; margin: 10px 0 6px; color: var(--muted); display: flex; gap: 6px; align-items: center; }
+.kgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; align-items: start; }
+.kcard { border: 1px solid var(--line); border-left: 4px solid var(--kc, var(--s-queue)); border-radius: 8px; padding: 8px 10px; background: var(--panel); min-width: 0; }
+.kcard.obsolete { opacity: .55; }
+.kcard.flash { animation: flash 2.5s ease-out; }
+.kcard .ktitle { font-weight: 600; font-size: 13px; overflow-wrap: anywhere; }
+.kcard .kbody { font-size: 13px; white-space: pre-wrap; overflow-wrap: anywhere; margin-top: 4px; }
+.kcard .kmeta { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; font-size: 11px; color: var(--muted); align-items: center; }
+.kcard .src { cursor: pointer; text-decoration: underline dotted; }
+table.ctable { width: 100%; border-collapse: collapse; font-size: 13px; }
+.ctable-wrap { overflow-x: auto; padding: 4px 14px 12px; }
+table.ctable th, table.ctable td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; overflow-wrap: anywhere; }
+table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
+.tip { position: fixed; z-index: 10; pointer-events: none; background: var(--ink); color: var(--panel); font-size: 12px;
+  padding: 6px 8px; border-radius: 6px; max-width: 320px; display: none; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Session Hub</h1>
+  <span class="conn" id="conn" role="status" title="サブセッションからの push を受信すると即時に反映します"><span class="dot"></span><span id="connText">接続中…</span></span>
+  <div class="kpis">
+    <span>セッション <b id="kSessions">0</b></span>
+    <span>要対応 <b id="kAction">0</b></span>
+    <span>作業中 <b id="kActive">0</b></span>
+    <span>トークン 入力 <b id="kIn">0</b> / 出力 <b id="kOut">0</b></span>
+    <span>更新 <b id="kUpdated">-</b></span>
+  </div>
+  <button class="iconbtn" id="notifyBtn" aria-pressed="false" title="要対応になったら通知">通知</button>
+  <button class="iconbtn" id="themeBtn" title="テーマ切替">テーマ</button>
+</header>
+
+<main>
+  <section class="panel" aria-labelledby="sessionsTitle">
+    <h2 id="sessionsTitle">セッション <span class="chip" id="clearSel" hidden style="cursor:pointer">選択解除</span></h2>
+    <div id="sessions"></div>
+  </section>
+
+  <section class="panel" aria-labelledby="tlTitle">
+    <h2 id="tlTitle"><span id="tlName">タイムライン</span> <span class="chip" id="tlScope">すべて</span></h2>
+    <div class="toolbar">
+      <div class="tabs" role="tablist">
+        <button role="tab" aria-selected="true" data-view="feed">フィード</button>
+        <button role="tab" aria-selected="false" data-view="lanes">スイムレーン</button>
+        <span id="colTabs" style="display:contents"></span>
+      </div>
+      <select id="fSession" aria-label="セッションで絞り込み"><option value="">すべてのセッション</option></select>
+      <input type="search" id="fText" placeholder="要約・質問・回答を検索" aria-label="検索">
+      <label><input type="checkbox" id="fHeartbeat"> heartbeat</label>
+      <label><input type="checkbox" id="fOrder"> 古い順</label>
+    </div>
+    <div class="types" id="fTypes"></div>
+    <button class="newbar" id="newbar">新着 <span id="newCount">0</span> 件 ↑</button>
+    <div id="feedView" class="feed" aria-live="polite"></div>
+    <div id="colView" hidden></div>
+    <div id="lanesView" hidden>
+      <div class="lanes" id="lanes"></div>
+      <div class="legend" id="legend"></div>
+    </div>
+  </section>
+</main>
+<div class="tip" id="tip"></div>
+
+<script>
+(() => {
+  "use strict";
+  // `hub export` はここにスナップショットを埋め込む（静的モード）
+  const EMBEDDED = /*__HUB_SNAPSHOT__*/null;
+
+  const STATE = {
+    needs_human: ["人間待ち", "--s-needs"], review_ready: ["レビュー可", "--s-review"],
+    review_pending: ["レビュー条件未達", "--s-wait"],
+    failed: ["失敗", "--s-fail"], stale: ["停滞?", "--s-stale"], working: ["作業中", "--s-work"],
+    planning: ["計画中", "--s-work"], waiting_ci: ["CI待ち", "--s-wait"], blocked: ["ブロック", "--s-block"],
+    in_review: ["レビュー中", "--s-wait"], changes_requested: ["修正依頼", "--s-needs"],
+    done: ["完了", "--s-done"], abandoned: ["中止", "--s-done"], queued: ["待機", "--s-queue"],
+  };
+  const TYPES = {
+    start: "開始", report: "報告", ask: "質問", answer: "回答", command: "指示",
+    ready: "準備完了", pr: "PR/CI", done: "完了", fail: "失敗", finding: "知見", heartbeat: "heartbeat",
+  };
+  const ESCALATE = new Set(["needs_human", "review_ready", "failed", "done"]);
+
+  // ---- メッセージ受信時のグロー ----
+  // サブセッションからの更新（メッセージ）を受け取ったら、関係する表示を GLOW_MS だけ光らせる。
+  // 再描画で DOM が作り直されても、経過時間ぶん animation-delay を負にして途中から続ける。
+  const GLOW_MS = 6000;
+  document.documentElement.style.setProperty("--glow-ms", GLOW_MS + "ms");
+  const glows = new Map(); // key -> { start, color }
+  const glowKey = { session: (sid) => "s:" + sid, event: (id) => "e:" + id };
+  function markGlow(key, color) { glows.set(key, { start: performance.now(), color }); }
+  function activeGlow(key) {
+    const g = glows.get(key);
+    if (!g) return null;
+    const elapsed = performance.now() - g.start;
+    if (elapsed >= GLOW_MS) { glows.delete(key); return null; }
+    return { color: g.color, elapsed };
+  }
+  // 複数のキーのうち最も新しいグローを el() の props へ反映する
+  function glowProps(keys, props = {}) {
+    let best = null;
+    for (const k of keys) { const g = activeGlow(k); if (g && (!best || g.elapsed < best.elapsed)) best = g; }
+    if (!best) return props;
+    return { ...props, class: ((props.class || "") + " glow").trim(),
+             style: { ...(props.style || {}), "--glow": best.color, animationDelay: `-${Math.round(best.elapsed)}ms` } };
+  }
+
+  const $ = (id) => document.getElementById(id);
+  const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+  const el = (tag, props = {}, ...kids) => {
+    const n = document.createElement(tag);
+    for (const [k, v] of Object.entries(props)) {
+      if (k === "style") for (const [sk, sv] of Object.entries(v)) sk.startsWith("--") ? n.style.setProperty(sk, sv) : (n.style[sk] = sv);
+      else if (k === "dataset") Object.assign(n.dataset, v);
+      else if (k.startsWith("on")) n.addEventListener(k.slice(2), v);
+      else if (v !== undefined && v !== null && v !== false) n.setAttribute(k, v === true ? "" : v);
+    }
+    for (const kid of kids.flat()) if (kid != null && kid !== false) n.append(kid.nodeType ? kid : String(kid));
+    return n;
+  };
+
+  // ---- 状態 ----
+  const db = { sessions: [], events: new Map(), total: {}, generated_at: null, collections: {} };
+  const ui = {
+    view: "feed", session: "", text: "", heartbeat: false, asc: false,
+    types: new Set(Object.keys(TYPES).filter((t) => t !== "heartbeat")),
+    fresh: new Set(), unseen: 0, notify: false,
+    colGroups: {}, showObsolete: false,
+  };
+  const prevStates = new Map();
+  try { ui.notify = localStorage.getItem("hub.notify") === "1"; } catch (_) {}
+
+  // ---- 表示ユーティリティ ----
+  // 子セッションが手を動かしている状態（CI 待ちなど「待っているだけ」は含めない）
+  const isActive = (s) => !s.stale && ["planning", "working", "changes_requested"].includes(s.state);
+  const stateKey = (s) => (s.stale ? "stale" : s.state === "review_ready" && s.gate && s.gate.length ? "review_pending" : s.state);
+  const badge = (key) => {
+    const [label, color] = STATE[key] || [key, "--s-queue"];
+    return el("span", { class: "badge", style: { background: `var(${color})` } }, label);
+  };
+  const fmtNum = (n) => (n || 0) >= 1e6 ? (n / 1e6).toFixed(1) + "M" : (n || 0) >= 1e3 ? Math.round(n / 1e3) + "k" : String(n || 0);
+  const ago = (ts) => {
+    if (!ts) return "-";
+    const s = Math.max(0, (Date.now() - Date.parse(ts)) / 1000);
+    if (s < 60) return "たった今";
+    if (s < 3600) return Math.floor(s / 60) + "分前";
+    if (s < 86400) return Math.floor(s / 3600) + "時間前";
+    return Math.floor(s / 86400) + "日前";
+  };
+  const hhmm = (ts) => new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+  const dayOf = (ts) => new Date(ts).toLocaleDateString([], { year: "numeric", month: "short", day: "numeric", weekday: "short" });
+  const sessionName = (sid) => {
+    const s = db.sessions.find((x) => x.session_id === sid);
+    return (s && s.title) || sid;
+  };
+  // セッションごとに安定した色相
+  const hue = (sid) => { let h = 0; for (const c of sid) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h % 360; };
+  const laneColor = (sid) => `hsl(${hue(sid)} 55% 50%)`;
+
+  // ---- セッション一覧 ----
+  function renderSessions() {
+    const box = $("sessions");
+    box.replaceChildren();
+    if (!db.sessions.length) {
+      box.append(el("div", { class: "empty" }, "まだ報告がありません。子セッションで `session-hub start` を実行すると表示されます。"));
+      return;
+    }
+    const groups = [["要対応", (s) => s.needs_action], ["作業中・待機", (s) => !s.needs_action && !["done", "abandoned"].includes(s.state)],
+                    ["完了", (s) => ["done", "abandoned"].includes(s.state)]];
+    for (const [title, pred] of groups) {
+      const list = db.sessions.filter(pred);
+      if (!list.length) continue;
+      box.append(el("div", { class: "group-title" }, `${title} (${list.length})`));
+      for (const s of list) box.append(sessionCard(s));
+    }
+  }
+
+  function sessionCard(s) {
+    const p = s.progress || { done: 0, total: 0, remaining: 0 };
+    const pct = p.total ? Math.round((p.done / p.total) * 100) : 0;
+    const pr = s.pr || {};
+    const u = s.usage || {};
+    const meta = [
+      s.task_ref && el("span", {}, s.task_ref),
+      p.total ? el("span", {}, `${p.done}/${p.total} 残≈${p.remaining}`) : null,
+      pr.number ? el("span", {}, `PR#${pr.number}` + (pr.ci ? ` CI:${pr.ci}` : "") + (pr.unresolved_threads != null ? ` 指摘${pr.unresolved_threads}` : "")) : null,
+      s.phase && el("span", {}, s.phase),
+      (u.input || u.output) ? el("span", {}, `${fmtNum(u.input)}/${fmtNum(u.output)} tok`) : null,
+      u.cost_usd != null ? el("span", {}, `$${Number(u.cost_usd).toFixed(2)}`) : null,
+      el("span", { "data-ago": s.heartbeat }, ago(s.heartbeat)),
+    ];
+    const card = el("div", glowProps([glowKey.session(s.session_id)], {
+      class: "card" + (ui.session === s.session_id ? " selected" : ""), tabindex: "0", role: "button",
+      "aria-label": `${s.title || s.session_id} のタイムラインを表示`,
+      onclick: () => selectSession(ui.session === s.session_id ? "" : s.session_id),
+      onkeydown: (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); card.click(); } },
+    }),
+      el("div", { class: "row1" },
+        isActive(s)
+          ? el("span", { class: "spinner", role: "img", "aria-label": "作業中" })
+          : el("span", { class: "dot", style: { background: laneColor(s.session_id) } }),
+        el("span", { class: "title", title: s.session_id }, s.title || s.session_id),
+        badge(stateKey(s))),
+      el("div", { class: "meta" }, meta),
+      s.summary ? el("div", { class: "summary" }, s.summary) : null,
+      p.total ? el("div", { class: "progress", "aria-hidden": "true" }, el("i", { style: { width: pct + "%" } })) : null,
+    );
+    const a = s.attention;
+    if (a) {
+      card.append(el("div", { class: "ask" },
+        el("div", {}, el("b", {}, `Q${a.qid} ${a.kind}${a.blocking ? "（停止中）" : "（既定値で継続中）"}: `), a.question || ""),
+        a.options && a.options.length
+          ? el("div", { class: "opts" }, a.options.map((o) => el("span", { class: "opt" + (o === a.default ? " def" : "") }, o)))
+          : null,
+        el("div", { class: "meta" }, `回答: session-hub answer ${s.session_id} --qid ${a.qid} --value <値>`)));
+    }
+    if (stateKey(s) === "review_pending") card.append(el("div", { class: "meta" }, "未達: " + s.gate.join(" / ")));
+    if (s.last_error && s.state === "failed") card.append(el("div", { class: "summary", style: { color: "var(--s-fail)" } }, s.last_error));
+    return card;
+  }
+
+  // ---- タイムライン（フィード） ----
+  function filteredEvents() {
+    const q = ui.text.toLowerCase();
+    const out = [];
+    for (const e of db.events.values()) {
+      if (ui.session && e.session_id !== ui.session) continue;
+      if (e.type === "heartbeat" ? !ui.heartbeat : !ui.types.has(e.type)) continue;
+      if (q && !eventText(e).toLowerCase().includes(q) && !sessionName(e.session_id).toLowerCase().includes(q)) continue;
+      out.push(e);
+    }
+    out.sort((a, b) => (a.ts < b.ts ? -1 : a.ts > b.ts ? 1 : a.id < b.id ? -1 : 1));
+    if (!ui.asc) out.reverse();
+    return out;
+  }
+
+  function eventText(e) {
+    if (e.type === "ask") return (e.attention && e.attention.question) || "";
+    if (e.type === "answer") return `Q${e.qid} → ${e.value}`;
+    if (e.type === "fail") return e.last_error || e.summary || "";
+    if (e.type === "pr") {
+      const p = e.pr || {};
+      return [p.number && `PR#${p.number}`, p.ci && `CI:${p.ci}`, p.unresolved_threads != null && `指摘${p.unresolved_threads}`, p.review].filter(Boolean).join(" ");
+    }
+    if (e.type === "finding") {
+      const f = e.finding || {};
+      return `${f.title || ""}` + (f.status === "obsolete" ? "（廃止）" : "");
+    }
+    if (e.type === "heartbeat") {
+      const u = e.usage || {};
+      return `in ${fmtNum(u.input)} / out ${fmtNum(u.output)}` + (u.context_pct != null ? ` ctx ${u.context_pct}%` : "");
+    }
+    return [e.summary, e.next && `次: ${e.next}`, e.note].filter(Boolean).join(" / ");
+  }
+
+  function changeChips(e) {
+    const d = e.diff || {};
+    const chips = [];
+    if (d.state) chips.push(el("span", { class: "chip" }, `${(STATE[d.state.from] || [d.state.from])[0]} → `, badge(d.state.to)));
+    if (d.phase) chips.push(el("span", { class: "chip" }, `段階 ${d.phase.from || "-"} → ${d.phase.to || "-"}`));
+    if (d.progress) {
+      const f = d.progress.from || {}, t = d.progress.to || {};
+      chips.push(el("span", { class: "chip" }, `タスク ${f.done ?? 0}/${f.total ?? 0} → ${t.done}/${t.total}`));
+    }
+    if (d.attention && d.attention.to == null && d.attention.from) chips.push(el("span", { class: "chip" }, `Q${d.attention.from.qid} 解決`));
+    if (d.ready) chips.push(el("span", { class: "chip" }, "自己チェック更新"));
+    if (d.confidence) chips.push(el("span", { class: "chip" }, `確信度 ${d.confidence.to}`));
+    return chips;
+  }
+
+  function renderFeed() {
+    const box = $("feedView");
+    const events = filteredEvents();
+    box.replaceChildren();
+    if (!events.length) { box.append(el("div", { class: "empty" }, "該当するイベントはありません")); return; }
+    let lastDay = null;
+    let hbRun = [];
+    const flushHb = () => {
+      // heartbeat 表示時も、連続するものは 1 行にまとめる
+      if (!hbRun.length) return;
+      if (hbRun.length === 1) box.append(eventRow(hbRun[0]));
+      else box.append(el("div", { class: "hb" }, `heartbeat ×${hbRun.length}（${hhmm(hbRun[hbRun.length - 1].ts)}〜${hhmm(hbRun[0].ts)}）`));
+      hbRun = [];
+    };
+    for (const e of events) {
+      const d = dayOf(e.ts);
+      if (d !== lastDay) { flushHb(); box.append(el("div", { class: "day" }, d)); lastDay = d; }
+      if (e.type === "heartbeat" && !Object.keys(e.diff || {}).length) { hbRun.push(e); continue; }
+      flushHb();
+      box.append(eventRow(e));
+    }
+    flushHb();
+  }
+
+  function eventRow(e) {
+    const color = e.state_after ? `var(${(STATE[e.state_after] || [0, "--s-queue"])[1]})` : "var(--s-queue)";
+    const who = e.writer ? `${e.writer} → ` : "";
+    const row = el("div", glowProps([glowKey.event(e.id)], { class: "ev", id: "ev-" + e.id }),
+      el("time", { datetime: e.ts, title: e.ts }, hhmm(e.ts)),
+      el("span", { class: "mark", style: { background: color } }),
+      el("div", { class: "body" },
+        el("div", { class: "head" },
+          el("span", { class: "who", style: { color: laneColor(e.session_id) }, title: e.session_id,
+                       onclick: () => selectSession(e.session_id) }, who + sessionName(e.session_id)),
+          el("span", { class: "type" }, TYPES[e.type] || e.type),
+          e.phase && !(e.diff || {}).phase ? el("span", { class: "chip" }, e.phase) : null),
+        eventText(e) ? el("div", { class: "text" }, eventText(e)) : null,
+        e.type === "ask" && e.attention && e.attention.options && e.attention.options.length
+          ? el("div", { class: "changes" }, e.attention.options.map((o) => el("span", { class: "chip" }, o + (o === e.attention.default ? "（既定）" : ""))))
+          : null,
+        el("div", { class: "changes" }, changeChips(e)),
+        el("details", {}, el("summary", {}, "詳細"), el("pre", {}, JSON.stringify(stripEvent(e), null, 2)))));
+    return row;
+  }
+  const stripEvent = (e) => { const { state_after, ...rest } = e; return rest; };
+
+  // ---- タイムライン（スイムレーン） ----
+  function renderLanes() {
+    const box = $("lanes");
+    box.replaceChildren();
+    const sessions = db.sessions.filter((s) => !ui.session || s.session_id === ui.session);
+    const all = [...db.events.values()];
+    if (!sessions.length || !all.length) { box.append(el("div", { class: "empty" }, "データがありません")); return; }
+    const times = all.map((e) => Date.parse(e.ts));
+    const t0 = Math.min(...times), t1 = Math.max(Date.now(), Math.max(...times));
+    const labelW = 160, laneH = 30, top = 22;
+    const width = Math.max(560, box.clientWidth - 4);
+    const plotW = width - labelW - 10;
+    const x = (t) => labelW + ((t - t0) / Math.max(1, t1 - t0)) * plotW;
+    const NS = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(NS, "svg");
+    const height = top + sessions.length * laneH + 6;
+    svg.setAttribute("width", width); svg.setAttribute("height", height);
+    svg.setAttribute("role", "img"); svg.setAttribute("aria-label", "セッションごとの状態の推移");
+    const mk = (tag, attrs, text) => {
+      const n = document.createElementNS(NS, tag);
+      for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+      if (text != null) n.textContent = text;
+      svg.append(n); return n;
+    };
+    // 時間軸
+    const ticks = 6;
+    for (let i = 0; i <= ticks; i++) {
+      const t = t0 + ((t1 - t0) * i) / ticks;
+      mk("line", { x1: x(t), x2: x(t), y1: top - 4, y2: height, class: "grid" });
+      const d = new Date(t);
+      mk("text", { x: x(t), y: 12, "text-anchor": i === 0 ? "start" : i === ticks ? "end" : "middle" },
+        (t1 - t0 > 86400000 ? `${d.getMonth() + 1}/${d.getDate()} ` : "") + hhmm(t));
+    }
+    sessions.forEach((s, i) => {
+      const y = top + i * laneH;
+      const name = s.title || s.session_id;
+      const lg = activeGlow(glowKey.session(s.session_id));
+      if (lg) {
+        const r = mk("rect", { x: 0, y: y + 2, width, height: laneH - 4, rx: 6, class: "laneglow", fill: lg.color });
+        r.style.animationDelay = `-${Math.round(lg.elapsed)}ms`;
+      }
+      const lbl = mk("text", { x: 0, y: y + laneH / 2 + 4, class: "lname" }, name.length > 18 ? name.slice(0, 17) + "…" : name);
+      lbl.addEventListener("click", () => selectSession(s.session_id));
+      const evs = all.filter((e) => e.session_id === s.session_id).sort((a, b) => (a.ts < b.ts ? -1 : 1));
+      // 状態の帯：状態が変わった時点から次の変化まで
+      const segs = [];
+      for (const e of evs) {
+        const st = e.state_after;
+        if (!segs.length || segs[segs.length - 1].state !== st) segs.push({ state: st, from: Date.parse(e.ts) });
+      }
+      const end = ["done", "abandoned", "failed"].includes(s.state) ? Date.parse(s.updated_at) : t1;
+      segs.forEach((g, j) => {
+        const to = j + 1 < segs.length ? segs[j + 1].from : end;
+        const key = j === segs.length - 1 && s.stale ? "stale" : g.state;
+        const rect = mk("rect", { x: x(g.from), y: y + 8, width: Math.max(6, x(to) - x(g.from)), height: laneH - 16, rx: 3,
+          fill: css((STATE[key] || [0, "--s-queue"])[1]), opacity: 0.85 });
+        tip(rect, () => `${(STATE[key] || [key])[0]}\n${new Date(g.from).toLocaleString()} 〜 ${j + 1 < segs.length ? new Date(to).toLocaleString() : "現在"}`);
+      });
+      for (const e of evs) {
+        if (e.type === "heartbeat") continue;
+        const c = mk("circle", { cx: x(Date.parse(e.ts)), cy: y + laneH / 2, r: e.type === "ask" || e.type === "fail" ? 5 : 3.5,
+          class: "evdot", fill: e.type === "ask" ? css("--s-needs") : e.type === "answer" ? css("--accent") : css("--ink") });
+        tip(c, () => `${hhmm(e.ts)} ${TYPES[e.type] || e.type}\n${eventText(e)}`);
+        c.addEventListener("click", () => jumpTo(e));
+      }
+    });
+    box.append(svg);
+    const legend = $("legend");
+    legend.replaceChildren(...Object.entries(STATE).map(([, [label, color]]) =>
+      el("span", {}, el("i", { style: { background: `var(${color})` } }), label)),
+      el("span", {}, "● 質問=橙 / 回答=青 / その他=黒"));
+  }
+
+  const tipEl = $("tip");
+  function tip(node, text) {
+    node.addEventListener("mousemove", (ev) => {
+      tipEl.textContent = text();
+      tipEl.style.whiteSpace = "pre-line";
+      tipEl.style.display = "block";
+      tipEl.style.left = Math.min(ev.clientX + 12, innerWidth - 330) + "px";
+      tipEl.style.top = ev.clientY + 12 + "px";
+    });
+    node.addEventListener("mouseleave", () => { tipEl.style.display = "none"; });
+  }
+
+  function jumpTo(e) {
+    setView("feed");
+    selectSession(e.session_id);
+    requestAnimationFrame(() => {
+      const row = document.getElementById("ev-" + e.id);
+      if (row) { row.scrollIntoView({ block: "center" }); row.classList.remove("flash"); void row.offsetWidth; row.classList.add("flash"); }
+    });
+  }
+
+  // ---- 全体の描画 ----
+  function renderHeader() {
+    $("kSessions").textContent = db.sessions.length;
+    const action = db.sessions.filter((s) => s.needs_action).length;
+    $("kAction").textContent = action;
+    $("kActive").textContent = db.sessions.filter(isActive).length;
+    $("kIn").textContent = fmtNum(db.total.input);
+    $("kOut").textContent = fmtNum(db.total.output);
+    $("kUpdated").textContent = db.generated_at ? hhmm(db.generated_at) : "-";
+    document.title = (action ? `(${action}) ` : "") + "Session Hub";
+    const sel = $("fSession");
+    const cur = sel.value;
+    sel.replaceChildren(el("option", { value: "" }, "すべてのセッション"),
+      ...db.sessions.map((s) => el("option", { value: s.session_id }, s.title || s.session_id)));
+    sel.value = cur;
+    $("tlScope").textContent = ui.session ? sessionName(ui.session) : "すべて";
+    $("clearSel").hidden = !ui.session;
+  }
+
+  function render() {
+    renderHeader();
+    renderSessions();
+    renderColTabs();
+    if (ui.view === "feed") renderFeed();
+    else if (ui.view === "lanes") renderLanes();
+    else renderCollection(ui.view.slice(4));
+  }
+
+  function selectSession(sid) {
+    ui.session = sid;
+    $("fSession").value = sid;
+    render();
+  }
+
+  function setView(v) {
+    if (v.startsWith("col:") && !db.collections[v.slice(4)]) v = "feed";
+    ui.view = v;
+    const isCol = v.startsWith("col:");
+    $("feedView").hidden = v !== "feed";
+    $("lanesView").hidden = v !== "lanes";
+    $("colView").hidden = !isCol;
+    if (!isCol) $("colView").replaceChildren(); // 非表示のタブに古い表示（グローなど）を残さない
+    // 種別・heartbeat・並び順はタイムライン専用
+    $("fTypes").hidden = isCol;
+    $("fHeartbeat").parentElement.hidden = isCol;
+    $("fOrder").parentElement.hidden = isCol;
+    $("fText").placeholder = isCol ? "タイトル・本文・タグを検索" : "要約・質問・回答を検索";
+    $("tlName").textContent = isCol ? db.collections[v.slice(4)].label : "タイムライン";
+    render();
+  }
+
+  // ---- コレクション（ナレッジなど、更新をためておく先）の表示 ----
+  const GROUP_COLOR = { caveat: "--s-needs", issue: "--s-fail", decision: "--accent", howto: "--s-review", insight: "--s-work" };
+
+  function renderColTabs() {
+    const box = $("colTabs");
+    const names = Object.keys(db.collections);
+    if (box.dataset.sig !== names.join(",") + "|" + names.map((n) => db.collections[n].active).join(",")) {
+      box.dataset.sig = names.join(",") + "|" + names.map((n) => db.collections[n].active).join(",");
+      box.replaceChildren(...names.map((n) => {
+        const c = db.collections[n];
+        return el("button", { role: "tab", "data-view": "col:" + n, title: c.description || c.label,
+          onclick: () => setView("col:" + n) }, `${c.label} (${c.active})`);
+      }));
+    }
+    document.querySelectorAll(".tabs button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.view === ui.view)));
+  }
+
+  function itemText(it) {
+    return [it.title, it.body, it.summary, it.kind, ...(it.tags || []), ...(it.scopes || [])].filter(Boolean).join(" ").toLowerCase();
+  }
+
+  function collectionItems(col) {
+    const q = ui.text.toLowerCase();
+    return col.items.filter((it) =>
+      (ui.showObsolete || (it.status || "active") === "active") &&
+      (!ui.session || (it.reporters || []).includes(ui.session)) &&
+      (!q || itemText(it).includes(q)));
+  }
+
+  function sourceLinks(it) {
+    // 報告元セッションをクリックすると、タイムラインの該当イベントへ移動
+    const latest = new Map();
+    for (const s of it.sources || []) latest.set(s.session_id, s);
+    return [...latest.values()].map((s) => el("span", { class: "src", style: { color: laneColor(s.session_id) }, title: s.event_id,
+      onclick: () => { const e = db.events.get(s.event_id); if (e) jumpTo(e); } }, sessionName(s.session_id)));
+  }
+
+  function renderCollection(name) {
+    const col = db.collections[name];
+    const box = $("colView");
+    box.replaceChildren();
+    if (!col) return;
+    const view = col.view || {};
+    const items = collectionItems(col);
+    const groupsOn = ui.colGroups[name] || (ui.colGroups[name] = new Set());
+    const bar = el("div", { class: "colbar" },
+      col.description ? el("span", { class: "desc" }, col.description) : null,
+      el("span", {}, `${items.length} 件`),
+      el("label", {}, el("input", { type: "checkbox", ...(ui.showObsolete ? { checked: true } : {}),
+        onchange: (e) => { ui.showObsolete = e.target.checked; render(); } }), " 廃止済みも表示"));
+    box.append(bar);
+    if (view.type === "cards" && view.group_by) {
+      const counts = {};
+      for (const it of items) counts[it[view.group_by]] = (counts[it[view.group_by]] || 0) + 1;
+      const order = [...(view.order || []), ...Object.keys(counts).filter((g) => !(view.order || []).includes(g))];
+      bar.append(...order.filter((g) => counts[g]).map((g) => el("button", { class: "iconbtn", "aria-pressed": String(!groupsOn.has(g)),
+        onclick: () => { groupsOn.has(g) ? groupsOn.delete(g) : groupsOn.add(g); render(); } },
+        `${(view.groups || {})[g] || g} ${counts[g]}`)));
+    }
+    if (!items.length) {
+      box.append(el("div", { class: "empty" }, col.items.length ? "条件に合う項目はありません" :
+        "まだありません。サブセッションが `session-hub learn` で記録すると、ここに集まります。"));
+      return;
+    }
+    if (view.type === "table") return box.append(collectionTable(col, items));
+    const by = view.group_by;
+    const groups = new Map();
+    for (const it of items) {
+      const g = by ? String(it[by] ?? "") : "";
+      if (groupsOn.has(g)) continue;
+      if (!groups.has(g)) groups.set(g, []);
+      groups.get(g).push(it);
+    }
+    const order = [...(view.order || []), ...[...groups.keys()].filter((g) => !(view.order || []).includes(g))];
+    for (const g of order) {
+      if (!groups.has(g)) continue;
+      const color = `var(${GROUP_COLOR[g] || "--s-queue"})`;
+      box.append(el("div", { class: "kgroup" },
+        by ? el("h3", {}, el("span", { class: "badge", style: { background: color } }, (view.groups || {})[g] || g || "-"),
+          `${groups.get(g).length} 件`) : null,
+        el("div", { class: "kgrid" }, groups.get(g).map((it) => knowledgeCard(it, color)))));
+    }
+  }
+
+  function knowledgeCard(it, color) {
+    return el("article", glowProps((it.sources || []).map((s) => glowKey.event(s.event_id)),
+      { class: "kcard" + ((it.status || "active") !== "active" ? " obsolete" : ""), style: { "--kc": color } }),
+      el("div", { class: "ktitle" }, it.title || it.summary || it.key),
+      it.body ? el("div", { class: "kbody" }, it.body) : null,
+      el("div", { class: "kmeta" },
+        (it.tags || []).map((t) => el("span", { class: "chip", style: { cursor: "pointer" }, title: "このタグで検索",
+          onclick: () => { $("fText").value = t; ui.text = t; render(); } }, "#" + t)),
+        (it.scopes || []).map((sc) => el("span", { class: "chip" }, "@" + sc)),
+        (it.status || "active") !== "active" ? el("span", { class: "chip" }, "廃止") : null),
+      el("div", { class: "kmeta" },
+        it.count > 1 ? el("b", {}, `${it.reporters.length} セッション / ${it.count} 回報告`) : null,
+        "報告:", sourceLinks(it), el("span", { "data-ago": it.last_ts }, ago(it.last_ts))));
+  }
+
+  function collectionTable(col, items) {
+    const cols = (col.view && col.view.columns) || ["title", "kind", "reporters", "last_ts"];
+    const cell = (it, c) => {
+      if (c === "reporters") return el("td", {}, sourceLinks(it));
+      if (c === "last_ts" || c === "first_ts") return el("td", { title: it[c] }, ago(it[c]));
+      const v = it[c];
+      return el("td", {}, Array.isArray(v) ? v.join(", ") : v == null ? "" : typeof v === "object" ? JSON.stringify(v) : String(v));
+    };
+    const label = { title: "タイトル", kind: "種類", reporters: "報告元", last_ts: "最終", first_ts: "初出", body: "本文", count: "回数", tags: "タグ" };
+    return el("div", { class: "ctable-wrap" }, el("table", { class: "ctable" },
+      el("thead", {}, el("tr", {}, cols.map((c) => el("th", {}, label[c] || c)))),
+      el("tbody", {}, items.map((it) => el("tr", glowProps((it.sources || []).map((s) => glowKey.event(s.event_id))),
+        cols.map((c) => cell(it, c)))))));
+  }
+
+  // ---- データ取り込み ----
+  function loadSnapshot(snap) {
+    db.events = new Map(snap.events.map((e) => [e.id, e]));
+    applySessions(snap, true);
+    render();
+  }
+
+  function applyUpdate(u) {
+    const fresh = [];
+    for (const id of u.removed || []) db.events.delete(id);
+    for (const e of u.events || []) {
+      if (!db.events.has(e.id)) fresh.push(e);
+      db.events.set(e.id, e);
+    }
+    ui.fresh = new Set(fresh.map((e) => e.id));
+    for (const e of fresh) {
+      if (e.type === "heartbeat") continue; // hook の自動送信は光らせない
+      const color = css((STATE[e.state_after] || [0, "--accent"])[1]) || css("--accent");
+      markGlow(glowKey.event(e.id), color);
+      markGlow(glowKey.session(e.session_id), color);
+    }
+    applySessions(u, false);
+    // 読んでいる途中で画面が動かないよう、下にスクロール中は新着バーで知らせる
+    const visible = fresh.filter((e) => e.type !== "heartbeat" || ui.heartbeat);
+    if (visible.length && window.scrollY > 200 && !ui.asc) {
+      ui.unseen += visible.length;
+      $("newCount").textContent = ui.unseen;
+      $("newbar").classList.add("show");
+    }
+    render();
+  }
+
+  function applySessions(snap, initial) {
+    db.sessions = snap.sessions;
+    db.total = snap.total || {};
+    if (snap.collections) db.collections = snap.collections;
+    db.generated_at = snap.generated_at;
+    for (const s of db.sessions) {
+      const key = stateKey(s);
+      const prev = prevStates.get(s.session_id);
+      if (!initial && prev !== key && (ESCALATE.has(key) || key === "stale")) notify(s, key);
+      prevStates.set(s.session_id, key);
+    }
+  }
+
+  function notify(s, key) {
+    if (!ui.notify || !("Notification" in window) || Notification.permission !== "granted") return;
+    const body = key === "needs_human" && s.attention ? s.attention.question : s.summary || "";
+    try { new Notification(`${(STATE[key] || [key])[0]}: ${s.title || s.session_id}`, { body, tag: s.session_id }); } catch (_) {}
+  }
+
+  // ---- 接続（SSE → 失敗が続けばポーリング） ----
+  function setConn(kind, text) {
+    $("conn").className = "conn " + kind;
+    $("connText").textContent = text;
+  }
+
+  let failures = 0, pollTimer = null;
+  function connect() {
+    if (!("EventSource" in window)) return startPolling();
+    const es = new EventSource("api/stream");
+    es.addEventListener("snapshot", (m) => { failures = 0; setConn("live", "リアルタイム（push 受信中）"); loadSnapshot(JSON.parse(m.data)); });
+    es.addEventListener("update", (m) => applyUpdate(JSON.parse(m.data)));
+    es.onerror = () => {
+      failures++;
+      setConn("retry", "再接続中…");
+      if (failures >= 5) { es.close(); startPolling(); }
+    };
+  }
+  function startPolling() {
+    setConn("retry", "ポーリング（5秒）");
+    const tick = async () => {
+      try {
+        const r = await fetch("api/snapshot", { cache: "no-store" });
+        const snap = await r.json();
+        const known = new Set(db.events.keys());
+        if (!db.generated_at) loadSnapshot(snap);
+        else applyUpdate({ ...snap, events: snap.events.filter((e) => !known.has(e.id) || JSON.stringify(db.events.get(e.id)) !== JSON.stringify(e)) });
+      } catch (_) { setConn("", "切断"); }
+      pollTimer = setTimeout(tick, 5000);
+    };
+    tick();
+  }
+
+  // ---- UI イベント ----
+  document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("click", () => setView(b.dataset.view)));
+  $("fSession").addEventListener("change", (e) => selectSession(e.target.value));
+  $("clearSel").addEventListener("click", () => selectSession(""));
+  let textTimer;
+  $("fText").addEventListener("input", (e) => { clearTimeout(textTimer); textTimer = setTimeout(() => { ui.text = e.target.value; render(); }, 150); });
+  $("fHeartbeat").addEventListener("change", (e) => { ui.heartbeat = e.target.checked; render(); });
+  $("fOrder").addEventListener("change", (e) => { ui.asc = e.target.checked; render(); });
+  $("fTypes").append(...Object.entries(TYPES).filter(([t]) => t !== "heartbeat").map(([t, label]) =>
+    el("button", { "aria-pressed": "true", onclick: (ev) => {
+      ui.types.has(t) ? ui.types.delete(t) : ui.types.add(t);
+      ev.currentTarget.setAttribute("aria-pressed", String(ui.types.has(t)));
+      render();
+    } }, label)));
+  $("newbar").addEventListener("click", () => {
+    ui.unseen = 0; $("newbar").classList.remove("show"); window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+  window.addEventListener("scroll", () => { if (window.scrollY < 100 && ui.unseen) { ui.unseen = 0; $("newbar").classList.remove("show"); } });
+  $("notifyBtn").setAttribute("aria-pressed", String(ui.notify));
+  $("notifyBtn").addEventListener("click", async () => {
+    if (!ui.notify && "Notification" in window && Notification.permission !== "granted") {
+      if ((await Notification.requestPermission()) !== "granted") return;
+    }
+    ui.notify = !ui.notify;
+    $("notifyBtn").setAttribute("aria-pressed", String(ui.notify));
+    try { localStorage.setItem("hub.notify", ui.notify ? "1" : "0"); } catch (_) {}
+  });
+  $("themeBtn").addEventListener("click", () => {
+    const root = document.documentElement;
+    const dark = root.dataset.theme ? root.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+    root.dataset.theme = dark ? "light" : "dark";
+    try { localStorage.setItem("hub.theme", root.dataset.theme); } catch (_) {}
+    if (ui.view === "lanes") renderLanes();
+  });
+  try { const t = localStorage.getItem("hub.theme"); if (t) document.documentElement.dataset.theme = t; } catch (_) {}
+  window.addEventListener("resize", () => { if (ui.view === "lanes") renderLanes(); });
+  // 「◯分前」の表示を定期的に更新
+  setInterval(() => {
+    document.querySelectorAll("[data-ago]").forEach((n) => { n.textContent = ago(n.dataset.ago); });
+  }, 15000);
+
+  if (EMBEDDED) { setConn("", `静的スナップショット（${new Date(EMBEDDED.generated_at).toLocaleString()}）`); loadSnapshot(EMBEDDED); }
+  else connect();
+})();
+</script>
+</body>
+</html>
