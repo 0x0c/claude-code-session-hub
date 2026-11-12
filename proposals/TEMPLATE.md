@@ -1,3 +1,5 @@
+**English** · [日本語](SH-NNNN-<slug>.ja.md)
+
 # SH-NNNN — <Title>
 
 <!-- SH-METADATA -->

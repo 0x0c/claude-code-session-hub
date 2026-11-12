@@ -11,7 +11,8 @@ the proposal in English.
 
 ## Scope: proposals only — never implement
 
-This skill only authors and shapes proposals. It stops at the files under `proposals/` and, when the
+This skill only authors and shapes proposals (each one an English file and its Japanese mirror). It
+stops at the files under `proposals/` and, when the
 user asks, the pull request that carries them. **Do not write, modify, or refactor product code**
 (`session_hub/`, `bin/`, `hooks/`, `skills/`, tests, or configuration), even when the design makes the
 implementation obvious or the user nudges toward "just build it".
@@ -69,7 +70,8 @@ Tell the user which landing you choose and why.
 Scaffold the file with the script; never number a proposal by hand.
 
 ```bash
-python3 scripts/proposals.py new --slug <slug> --title "<Title>" --topic "<Topic>" --author <handle>
+python3 scripts/proposals.py new --slug <slug> --title "<Title>" --title-ja "<日本語のタイトル>" \
+  --topic "<Topic>" --author <handle>
 ```
 
 **The author is a GitHub handle that the user confirms.** Ask the user for it; never reuse a handle
@@ -83,6 +85,10 @@ every `TBD` section: an Introduction that states the contribution up front, a Mo
 the observable difference from step 2, a Detailed design precise enough to build from, and the
 alternatives you rejected with their reasons.
 
+Then write the Japanese mirror (`SH-NNNN-<slug>.ja.md`) under
+[`japanese-document-writing`](../japanese-document-writing/SKILL.md): the same facts, the same
+metadata values, and natural Japanese rather than a literal translation.
+
 ### 5. Self-review before committing
 
 Run the cold review in [`.claude/review-contract.md`](../../review-contract.md) against the diff of
@@ -93,11 +99,10 @@ review comes back empty, at most three rounds. Bring every escalation to the use
 ### 6. Verify
 
 ```bash
-python3 scripts/proposals.py lint
-python3 -m unittest discover -s tests
+scripts/check.sh
 ```
 
-Both must pass.
+The gate runs the tests, the proposal format check, and the bilingual-docs check; all must pass.
 
 ### 7. Commit, push, and open a pull request only when asked
 

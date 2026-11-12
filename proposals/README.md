@@ -1,9 +1,12 @@
+**English** · [日本語](README.ja.md)
+
 # Proposals
 
 A proposal is a short design document that argues for one change to Session Hub before we build
-it. Every non-trivial change starts as a proposal under this directory. The proposal records the
-problem, the design we chose, and the alternatives we rejected, so a later reader can tell why the
-code looks the way it does.
+it. Every non-trivial change starts as a proposal under this directory. Each proposal is a pair of
+files: the English original and its Japanese mirror. The proposal records the problem, the design
+we chose, and the alternatives we rejected, so a later reader can tell why the code looks the way
+it does.
 
 ## The lifecycle of a proposal
 
@@ -30,27 +33,35 @@ Three skills under [`.claude/skills/`](../.claude/skills/) drive this lifecycle:
 
 ## Add a proposal
 
-Scaffold the file with the script rather than by hand. The script allocates the next free number
-and fills the metadata table from [`TEMPLATE.md`](TEMPLATE.md).
+Scaffold the pair with the script rather than by hand. The script allocates the next free number
+and fills the metadata tables from [`TEMPLATE.md`](TEMPLATE.md) and
+[`TEMPLATE.ja.md`](TEMPLATE.ja.md).
 
 ```bash
 python3 scripts/proposals.py new --slug push-retry --title "Retry pushes with backoff" \
-  --topic Protocol --author <github-handle>
+  --title-ja "プッシュの再試行" --topic Protocol --author <github-handle>
 ```
 
-The command prints the path of the new file, for example `proposals/SH-0002-push-retry.md`. Then
-fill every `TBD` section under the [`document-writing`](../.claude/skills/document-writing/SKILL.md)
-and [`english-document-writing`](../.claude/skills/english-document-writing/SKILL.md) skills.
+The command prints the paths of the two new files, for example `proposals/SH-0002-push-retry.md`
+and `proposals/SH-0002-push-retry.ja.md`. Fill every `TBD` section of the English file under the
+[`document-writing`](../.claude/skills/document-writing/SKILL.md) and
+[`english-document-writing`](../.claude/skills/english-document-writing/SKILL.md) skills, then
+write the Japanese mirror under
+[`japanese-document-writing`](../.claude/skills/japanese-document-writing/SKILL.md).
 
 Two branches can allocate the same number in parallel. The format check reports the duplicate, and
 the branch that merges second renumbers its proposal.
 
 ## The format of a proposal
 
-A proposal is one Markdown file named `SH-NNNN-<slug>.md`, written in English. The format check
-(`python3 scripts/proposals.py lint`) enforces the rules below.
+A proposal is a pair of Markdown files: `SH-NNNN-<slug>.md` in English and
+`SH-NNNN-<slug>.ja.md` in Japanese. The format check (`python3 scripts/proposals.py lint`) enforces
+the rules below on both files.
 
-- **Title.** The first line is `# SH-NNNN — <Title>`, with an em dash.
+- **Language switch.** The first line links the other file:
+  `**English** · [日本語](SH-NNNN-<slug>.ja.md)` in the English file and
+  `[English](SH-NNNN-<slug>.md) · **日本語**` in the Japanese file.
+- **Title.** The first heading is `# SH-NNNN — <Title>`, with an em dash.
 - **Metadata table.** The table between `<!-- SH-METADATA -->` and `<!-- /SH-METADATA -->` holds
   six rows in this order: `Proposal`, `Author`, `Status`, `Topic`, `Implementing PR`, and `Related`.
   - `Author` is the author's GitHub handle as a link. Never guess a handle; ask the author.
@@ -67,6 +78,9 @@ A proposal is one Markdown file named `SH-NNNN-<slug>.md`, written in English. T
   4. *Alternatives considered* lists the designs we rejected, each with its reason.
   5. *Progress* is a checklist; an `Implemented` proposal has every box ticked.
   6. *References* links the code, documents, and prior proposals the proposal builds on.
+- **The Japanese mirror.** The Japanese file uses Japanese labels for the same six metadata rows
+  (提案, 作者, 状態, トピック, 実装PR, 関連) and the same six sections (はじめに, 動機, 詳細設計,
+  検討した代替案, 進捗, 参考資料). Every metadata value must match the English file.
 - **No placeholders.** No section may still say `TBD` when the proposal is committed.
 
 ## List proposals

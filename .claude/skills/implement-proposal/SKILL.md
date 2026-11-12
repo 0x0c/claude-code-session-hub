@@ -15,7 +15,8 @@ write code, comments, documentation, commits, and pull request text in English.
   whether the design is approved before writing code; if it is `Deferred` or `Rejected`, stop and
   say so.
 - Work on the session's branch. If there is none, cut `claude/<slug>` from the latest `origin/main`.
-- Set `Status` to `In progress` as the first commit of the branch.
+- Set `Status` to `In progress` in both the English file and the Japanese mirror, as the first
+  commit of the branch.
 
 ## 2. Ground yourself in the code
 
@@ -36,13 +37,16 @@ when the plan deviates from the proposal or touches the protocol, the store form
 - Write comments and docstrings in English under the sentence-level rules of
   [`document-writing`](../document-writing/SKILL.md) and
   [`english-document-writing`](../english-document-writing/SKILL.md).
-- When the implementation must deviate from the Detailed design, update the proposal in the same
-  branch so the proposal stays a true record.
+- When the implementation must deviate from the Detailed design, update the proposal (both
+  languages) in the same branch so the proposal stays a true record.
 
 ## 5. Update the documentation
 
 Update `README.md`, `docs/DESIGN.md`, and the shipped skills under `skills/` wherever the change
-alters behavior a user or an agent relies on. Load the two writing skills before drafting.
+alters behavior a user or an agent relies on. Update each document's Japanese mirror (`*.ja.md`) in
+the same change. Load [`document-writing`](../document-writing/SKILL.md) and the language layer
+([`english-document-writing`](../english-document-writing/SKILL.md) or
+[`japanese-document-writing`](../japanese-document-writing/SKILL.md)) before drafting.
 
 ## 6. Self-review
 
@@ -54,17 +58,18 @@ Bring every escalation to the user before pushing.
 ## 7. Verify
 
 ```bash
-python3 -m unittest discover -s tests
-python3 scripts/proposals.py lint
+scripts/check.sh
 ```
 
-Both must pass before every push. For a change to the dashboard, also start the hub with demo data
+The gate runs the tests, the proposal format check, and the bilingual-docs check; all must pass
+before every push. For a change to the dashboard, also start the hub with demo data
 (`python3 scripts/demo.py --store <dir>` and `bin/session-hub --store <dir> serve`) and check the
 page in a browser.
 
 ## 8. Promote the proposal
 
-In the last commit of the branch, set `Status` to `Implemented` and tick every *Progress* box. The
+In the last commit of the branch, set `Status` to `Implemented` and tick every *Progress* box, in
+both language files. The
 format check requires the `Implementing PR` row for an `Implemented` proposal, so fill it as soon as
 the pull request exists: `[#N](https://github.com/0x0c/claude-code-session-hub/pull/N)`. Open the
 pull request only when the user asks for one; until then, leave `Status` at `In progress` and say in

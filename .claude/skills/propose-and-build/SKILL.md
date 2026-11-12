@@ -45,7 +45,7 @@ together, until it comes back empty (at most three rounds).
 ### Phase C — promote the proposal
 
 Set `Status` to `Implemented`, tick every *Progress* box, and fill the `Implementing PR` row as soon
-as the pull request exists (`implement-proposal` step 8). Until the user asks for the pull request,
+as the pull request exists, in both language files (`implement-proposal` step 8). Until the user asks for the pull request,
 leave `Status` at `In progress` and say that the promotion waits for the pull request number. The
 first session that learns the number fills the row and pushes the change, whatever else that session
 was asked to do.

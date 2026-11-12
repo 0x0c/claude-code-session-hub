@@ -1,0 +1,209 @@
+[English](README.md) · **日本語**
+
+# claude-code-session-hub
+
+Session Hubを使うと、Claude Codeの親セッションは多数のサブセッションの状況を、少ないトークンでリアルタイムに追えます。サブセッションは短い状況報告をローカルのハブサーバーへ送り、ハブはそれをブラウザーのダッシュボードに表示します。
+
+- **ポーリングではなくpush。** 各サブセッションは、状態が変わるたびに`session-hub`コマンドを実行します。ハブはその更新を、Server-Sent Events（SSE）ですぐにブラウザーのダッシュボードへ配信します。
+- **要対応を先頭に。** ダッシュボードは、対応が必要なセッション（人間待ち、失敗、レビュー可、停滞）を先頭に並べます。作業中のセッションにはスピナーを表示します。**タイムライン**（フィードまたはスイムレーン）では、すべての報告を時系列にたどれます。
+- **親は数行だけを読みます。** 親セッションはトランスクリプトを読みません。`session-hub attention`が出力する数行だけで判断します。
+- **サブセッションの知見を1か所に集めます。** サブセッションは、判明した知見・注意点・決定事項を`session-hub learn`で記録します。記録は1つの**ナレッジ**に集まり、同じ発見の報告は1件にまとまります。**コレクション**（collection）は、更新をどこにためてどう見せるかを宣言します（`collections.json`）。各コレクションはダッシュボードのタブとして表示され、Markdownなどの形式で書き出せます。
+- **Claude Codeプラグインとして提供します。** プラグインには、報告の手順を説明するスキルと、報告漏れを防ぐhookが入っています。hookはheartbeat・トークン使用量・タスクの進捗を自動で送ります。また、作業中のまま終了しようとしたセッションには報告を求めます。
+
+設計の背景とプロトコルは[docs/DESIGN.ja.md](docs/DESIGN.ja.md)で説明しています。用語はその[用語集](docs/DESIGN.ja.md#付録a-用語集)で定義しています。
+
+## 必要なもの
+
+Session HubにはPython 3.10以上が必要で、標準ライブラリだけを使います。インストールしなくても`bin/session-hub`として動きます。`session-hub`コマンドとしてインストールするには、`pip install .`を実行します。
+
+## クイックスタート（デモ）
+
+1. 3時間分の履歴を持つデモ用のストアを生成します。
+
+   ```bash
+   python3 scripts/demo.py --store /tmp/hub-demo
+   ```
+
+2. そのストアを使ってハブサーバーを起動します。
+
+   ```bash
+   HUB_STORE=/tmp/hub-demo bin/session-hub serve
+   ```
+
+3. ブラウザーでhttp://127.0.0.1:8765/ を開きます。ダッシュボードにデモのセッションが表示されます。
+
+4. 別のターミナルで、子セッションのふりをして数秒ごとに更新をpushします。
+
+   ```bash
+   python3 scripts/demo.py --push http://127.0.0.1:8765
+   ```
+
+   各更新はすぐにダッシュボードに反映されます。
+
+## 使い方（ローカル運用）
+
+ローカル運用では、サブセッションを手元のマシンで動かし、全セッションで1つのストア（`HUB_STORE`）を共有します。ハブサーバーは`127.0.0.1`でのみ待ち受けるため、マシンをネットワークに公開しません。
+
+```
+Sub-session A ─┐ POST (127.0.0.1)
+Sub-session B ─┼──────────► Hub server ──SSE──► Browser (http://127.0.0.1:8765/)
+Sub-session C ─┘                 │
+        └ while the server is down, write to the shared store ─► ~/.session-hub/events/*.jsonl ◄─ loaded at startup
+```
+
+### 1. スキルとhookを入れる
+
+**APM（Agent Package Manager）で入れる場合**（プロジェクト単位）:
+
+```bash
+apm install 0x0c/claude-code-session-hub --target claude
+```
+
+- APMは、スキルを`.claude/skills/session-hub-report/`と`.claude/skills/session-hub-orchestrate/`に、hookを`.claude/settings.json`に入れます。パッケージ本体は`apm_modules/0x0c/claude-code-session-hub/`に置かれ、hookは自動でそこを見つけます。
+- APMは依存を`apm.yml`に記録します。そのため、チームの他の人は`apm install`だけで同じ状態を再現できます（`apm_modules/`はgit管理外です）。
+- スキルを1つだけ入れるには、`--skill session-hub-report`（子セッション用）または`--skill session-hub-orchestrate`（親用）を付けます。
+- 最初のセッションが始まったとき、SessionStart hookが`~/.local/bin/session-hub`に`session-hub`コマンドを作ります。どこからでもコマンドを使いたい場合は、`pip install git+https://github.com/0x0c/claude-code-session-hub`でインストールすることもできます。
+
+**Claude Codeプラグインとして入れる場合**（全プロジェクト共通）:
+
+```text
+/plugin marketplace add 0x0c/claude-code-session-hub
+/plugin install session-hub@session-hub
+```
+
+プラグインとして入れると、スキル名の前に`session-hub:`が付きます（例：`session-hub:session-hub-report`）。
+
+### 2. 全セッション共通の設定を書く
+
+`~/.claude/settings.json`に次を追加します。このユーザー単位のファイルは、すべてのプロジェクトのセッションに適用されます。
+
+```json
+{
+  "env": {
+    "HUB_URL": "http://127.0.0.1:8765",
+    "HUB_STORE": "~/.session-hub",
+    "HUB_AUTOSTART": "1"
+  }
+}
+```
+
+- `HUB_AUTOSTART=1`にすると、最初に始まったセッションがハブサーバーをバックグラウンドで起動します（ログは`~/.session-hub/.server.log`）。サーバーを自分で起動する場合は、この変数を外して`session-hub serve`を実行します。
+- サーバーが止まっている間、メッセージは共有ストアに直接書かれ、サーバーが起動するとダッシュボードに表示されます。メッセージが失われることはありません。
+- 特定のプロジェクトだけでSession Hubを使うには、そのプロジェクトの`.claude/settings.local.json`に設定を書きます。
+
+### 3. 設定を確認する
+
+```bash
+session-hub doctor
+```
+
+`session-hub doctor`は、URL、サーバーの応答、ストアに書き込めるか、コマンドの場所、未送信のイベントが残っているかを確認します。ブラウザーでhttp://127.0.0.1:8765/ を開くと、ダッシュボードが表示されます。
+
+### 4. サブセッションを動かす
+
+ローカルでは、各サブセッションが別々のClaude Codeセッションで、それぞれ固有のセッションIDを持つ必要があります。
+
+- **人間が並行して起動する。** 別のターミナル、worktree、またはデスクトップアプリの並行セッションで`claude`を起動します。指示の冒頭に[prompts/child-append-system-prompt.md](prompts/child-append-system-prompt.md)の内容を含めるか、次のようにそのファイルを渡します。
+- **親がバックグラウンドで起動する:**
+
+```bash
+claude -p "<task>" --append-system-prompt "$(sed -e 's/{{PARENT_SESSION_ID}}/<parent-id>/' -e 's/{{TITLE}}/<task-title>/' prompts/child-append-system-prompt.md)"
+```
+
+Agentツールのサブエージェントは親と同じセッションIDを使うため、ダッシュボードには別のサブセッションとして表示されません。サブエージェントを区別するには、各サブエージェントに`session-hub --session <unique-id> ...`を実行するよう指示します。
+
+### 入るもの（APM・プラグイン共通）
+
+`HUB_URL`も`HUB_STORE`もないセッションでは、hookは何もしません。
+
+| 構成要素 | 役割 |
+|---|---|
+| スキル`session-hub-report` | いつ、何を報告するか（子用） |
+| スキル`session-hub-orchestrate` | 子の起動、`[HUB/1]`行への対応、質問への回答の仕方（親用） |
+| SessionStart hook | `~/.local/bin/session-hub`を作成し、`HUB_AUTOSTART=1`ならサーバーを起動し、未登録のセッションに`start`の実行を求める2行を注入 |
+| PostToolUse hook | TodoWrite / TaskCreate / TaskUpdateのたびに、タスクの進捗と作業中のタスク名を送信 |
+| Stop hook | ターンの終わりごとにheartbeatとトークン使用量を送信。作業中のまま終了しようとしたセッションには1回だけ報告を促す（`HUB_STOP_GUARD=0`で無効） |
+
+### クラウドのサブセッションで使う場合（参考）
+
+クラウドのセッションから届く常設サーバーにハブを置きます。`HUB_TOKEN`を設定し、`session-hub serve --host 0.0.0.0`でサーバーを起動します。各子セッションの環境では、`HUB_URL`を設定し、ハブのホストをネットワーク許可リストに加え、トークンを`Authorization: Bearer`のネットワークシークレットとして登録します。ブラウザーでは、最初に`?token=<HUB_TOKEN>`を付けてダッシュボードを開きます。手元のマシンをネットワークに公開する構成には対応していません。
+
+## コマンド早見表
+
+子セッションは`HUB_URL`へpushし、ハブに届かないときは`HUB_STORE`に直接書きます。
+
+```bash
+session-hub start --title "Rate limiting for the auth API" --task-ref "#128" --task "Design=todo:S" --task "Implement=todo:M"
+session-hub report --phase test --summary "Adding tests" --task "Implement=done"
+session-hub ask --kind decision --q "Requests per minute?" --opt 60 --opt 120 --default 120 [--non-blocking]
+session-hub pr --number 45 --ci pending --state waiting_ci
+session-hub ready --self-review --tests --description
+session-hub done --summary "PR #45"
+session-hub fail --error "Cause"
+session-hub flush
+session-hub doctor
+```
+
+`flush`は、届かずにoutboxに残っているイベントを再送します。`doctor`は設定を確認します。
+
+知見や注意点を記録し、参照するには次のコマンドを使います。
+
+```bash
+session-hub learn --kind caveat --title "CI Redis is 6.2" --body "Evidence and workaround" --tag ci --scope tests/
+session-hub knowledge --scope tests/ [--kind caveat] [--body]
+session-hub collection knowledge [--format json]
+```
+
+`--kind`には、caveat、issue、decision、howto、insightのいずれかを指定します。同じタイトルの知見は1件にまとまり、`--obsolete`で知見を廃止できます。`collection`は、コレクション全体をMarkdown（既定）またはJSONで出力します。
+
+### コレクションを追加する
+
+ストアの直下に`collections.json`を置くと、組み込みのナレッジコレクションに加えて、コレクションを宣言的に追加・変更できます。各コレクションは、更新をどこにためて、ダッシュボードでどう見せるかを宣言します。ダッシュボードには、コレクションごとのタブが自動で追加されます。詳しくは[DESIGN.ja.md §3.7](docs/DESIGN.ja.md)を参照してください。
+
+```json
+[
+  {"name": "knowledge", "sinks": [{"type": "markdown", "path": "KNOWLEDGE.md"}]},
+  {"name": "decisions", "label": "Decision log", "match": {"type": ["finding"], "kind": ["decision"]},
+   "reduce": {"type": "log", "payload": "finding"}, "view": {"type": "table", "columns": ["title", "body", "reporters"]}}
+]
+```
+
+親セッションと人間は次のコマンドを使います。
+
+```bash
+session-hub attention
+session-hub status
+session-hub log [<session_id>] [--heartbeat] [--tail N]
+session-hub answer <session_id> --qid 4 --value 120
+session-hub command <session_id> --cmd pause
+session-hub export --out dashboard.html
+```
+
+`attention`は、対応が必要なセッションを1行ずつ出力します（親のLLM向け）。`answer`と`command`は操作を記録してから、子へ送る`[HUB/1]`行を出力します。`export`は、スナップショットを埋め込んだ静的なHTMLファイルを書き出します。
+
+イベントによってセッションが親を起こすべき状態（人間待ち、レビュー可、失敗、完了）に変わると、コマンドは`[HUB/1] ...`の1行を出力します。子はその1行だけを`send_message`で親へ送ります。
+
+## 環境変数
+
+| 変数 | 用途 |
+|---|---|
+| `HUB_URL` | ハブサーバーのURL。設定すると、子はここへpushし、`attention`などの親のコマンドはここから読む |
+| `HUB_TOKEN` | ハブの認証トークン（サーバーとクライアントで共通） |
+| `HUB_STORE` | ストアのディレクトリ（サーバー用、またはサーバーなしで動かすとき） |
+| `HUB_SESSION_ID` | このセッションのID（未設定ならClaude Codeの環境変数から取得） |
+| `HUB_PARENT_SESSION_ID` | 親のセッションID（子が`[HUB/1]`行を送る宛先） |
+| `HUB_STOP_GUARD` | `0`でStop hookの確認を無効化 |
+| `HUB_AUTOSTART` | `1`で、ローカルのハブサーバーが動いていなければセッション開始時に起動（`HUB_URL`が127.0.0.1またはlocalhostを指すときだけ） |
+| `HUB_OUTBOX` / `HUB_STATE_DIR` | outboxとローカル状態の置き場所（既定は`~/.cache/...`） |
+
+## テスト
+
+```bash
+python3 -m unittest discover -s tests -v
+```
+
+## 貢献する
+
+自明でない変更はすべて、[`proposals/`](proposals/README.ja.md)のプロポーザルから始まり、コードはプロポーザルに従います。[`AGENTS.ja.md`](AGENTS.ja.md)では、作業の取り決め、文章のルール、pushの前に通す必要があるゲート（`scripts/check.sh`）を説明しています。
+
+利用者が読む文書は日英の2言語で用意します。英語のページ`<name>.md`の隣に日本語版`<name>.ja.md`を置き、変更するときは両方を更新します。

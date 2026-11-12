@@ -1,3 +1,5 @@
+**English** · [日本語](DESIGN.ja.md)
+
 # Session Hub design
 
 A parent session (the orchestrator) often runs several child sessions at once. This document designs

@@ -1,3 +1,5 @@
+**English** · [日本語](README.ja.md)
+
 # claude-code-session-hub
 
 Session Hub lets a parent Claude Code session follow many sub-sessions in real time while spending
@@ -254,5 +256,8 @@ python3 -m unittest discover -s tests -v
 ## Contributing
 
 Every non-trivial change starts as a design proposal under [`proposals/`](proposals/README.md), and
-the code follows the proposal. [`CLAUDE.md`](CLAUDE.md) describes the working agreement, the writing
+the code follows the proposal. [`AGENTS.md`](AGENTS.md) describes the working agreement, the writing
 rules, and the gate (`scripts/check.sh`) that must pass before a push.
+
+User-facing documents are bilingual: each English page `<name>.md` has a Japanese mirror
+`<name>.ja.md` next to it, and a change updates both.

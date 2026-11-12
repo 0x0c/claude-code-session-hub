@@ -42,6 +42,9 @@ Apply every lens that matches the diff.
   [`english-document-writing`](skills/english-document-writing/SKILL.md) skills. Flag a missing
   contribution statement, an undefined term or acronym, an unresolvable "it" or "this", filler, or a
   sentence that should be a list.
+- **Bilingual parity.** A changed user-facing document has its Japanese mirror (`*.ja.md`) updated
+  in the same diff, with the same facts and structure, written under
+  [`japanese-document-writing`](skills/japanese-document-writing/SKILL.md).
 
 ## Output
 

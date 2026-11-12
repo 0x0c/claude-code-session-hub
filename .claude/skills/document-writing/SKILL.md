@@ -26,9 +26,13 @@ subset and still believe it followed the norm.
 - **Scope.** Every proposal (`proposals/SH-*.md`), every document under `docs/`, the `README.md`,
   and every skill under `skills/` and `.claude/skills/`. Code comments and docstrings follow the
   sentence-level rules here (clarity, no filler, active voice) but not the document-structure rules.
-- **Language.** Write documentation, comments, commit messages, and pull request text in **English**,
-  and apply [`english-document-writing`](../english-document-writing/SKILL.md) on top of this skill.
-  Where that layer overlaps these principles, its specific wording governs.
+- **Language.** Write code comments, docstrings, skills, prompts, commit messages, and pull request
+  text in **English**, under [`english-document-writing`](../english-document-writing/SKILL.md).
+  User-facing documents are **bilingual**: the English original `<name>.md` and a Japanese mirror
+  `<name>.ja.md` next to it (`README.ja.md`, `docs/DESIGN.ja.md`, `AGENTS.ja.md`,
+  `proposals/SH-0001-<slug>.ja.md`). Write the mirror under
+  [`japanese-document-writing`](../japanese-document-writing/SKILL.md), and update both files in the
+  same change. Where a language layer overlaps these principles, its specific wording governs.
   Product strings shown to end users (the dashboard labels, the CLI messages) are out of scope for
   this rule; changing their language is a product decision that needs its own proposal.
 - **Enforcement is a review-time norm, not a CI gate.** Judging clarity, emphasis, and argument order
@@ -173,7 +177,11 @@ Reread a fifth time against document structure
 work in, how the terms relate, the exact operation and input, and the sign of success, without
 guessing any of them?
 
-Then run the same rereads under [`english-document-writing`](../english-document-writing/SKILL.md).
+Then run the same rereads under the layer for the language you wrote:
+[`english-document-writing`](../english-document-writing/SKILL.md) for English, or
+[`japanese-document-writing`](../japanese-document-writing/SKILL.md) for a Japanese mirror. Finally,
+run `python3 scripts/check_docs.py` to confirm every bilingual page has its mirror and both
+language-switch links.
 
 ## References
 
@@ -181,5 +189,6 @@ Then run the same rereads under [`english-document-writing`](../english-document
   source of the language-agnostic principles above.
 - nakamura001, "Codexの作成する技術ドキュメントを読みやすくする" (2026-10-09) — the source of the
   document-structure rules in [`references/structure.md`](references/structure.md).
-- [`english-document-writing`](../english-document-writing/SKILL.md) — the English layer beneath
-  this norm.
+- [`english-document-writing`](../english-document-writing/SKILL.md) and
+  [`japanese-document-writing`](../japanese-document-writing/SKILL.md) — the two language layers
+  beneath this norm.
