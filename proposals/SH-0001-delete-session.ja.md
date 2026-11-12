@@ -9,7 +9,7 @@
 | 作者 | [@0x0c](https://github.com/0x0c) |
 | 状態 | **In progress** |
 | トピック | Hub server |
-| 実装PR | — |
+| 実装PR | [#3](https://github.com/0x0c/claude-code-session-hub/pull/3) |
 | 関連 | — |
 <!-- /SH-METADATA -->
 

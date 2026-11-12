@@ -9,7 +9,7 @@
 | Author | [@0x0c](https://github.com/0x0c) |
 | Status | **In progress** |
 | Topic | Hub server |
-| Implementing PR | — |
+| Implementing PR | [#3](https://github.com/0x0c/claude-code-session-hub/pull/3) |
 | Related | — |
 <!-- /SH-METADATA -->
 
