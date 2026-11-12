@@ -75,6 +75,26 @@ def get_snapshot(url: str, token: str | None = None) -> dict:
         raise PushError(f"hub server unreachable: {e}") from e
 
 
+def delete_session(url: str, session_id: str, token: str | None = None) -> dict | None:
+    """Ask the hub to delete a session; return the result, or None when the hub has no such session."""
+    req = urllib.request.Request(url + "/api/sessions/" + urllib.parse.quote(session_id, safe=""),
+                                 method="DELETE")
+    if token:
+        req.add_header("Authorization", f"Bearer {token}")
+    try:
+        with urllib.request.urlopen(req, timeout=TIMEOUT) as res:
+            return json.loads(res.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            return None
+        body = e.read().decode("utf-8", "replace")[:300]
+        if 400 <= e.code < 500:
+            raise ValueError(f"hub server rejected ({e.code}): {body}") from e
+        raise PushError(f"hub server error ({e.code}): {body}") from e
+    except (urllib.error.URLError, TimeoutError, ConnectionError, OSError) as e:
+        raise PushError(f"hub server unreachable: {e}") from e
+
+
 def spool(payload: dict) -> None:
     path = _outbox_path()
     path.parent.mkdir(parents=True, exist_ok=True)

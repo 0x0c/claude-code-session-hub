@@ -192,6 +192,11 @@ immediately**.
   has a single writer, so sharing the store through Git causes no conflicts.
 - **Timestamp assignment**: the server assigns a millisecond timestamp that increases monotonically
   across the whole store. The arrival order and the display order therefore always agree.
+- **Deleting a session**: the one exception to append-only writing. `session-hub delete` and the
+  dashboard's **Delete session** button call `DELETE /api/sessions/<session_id>`, which unlinks every
+  file of that session under the files' write locks and pushes the removal to every browser. The
+  operation works on whole sessions alone, so the folded state of every other session stays intact
+  ([SH-0001](../proposals/SH-0001-delete-session.md)).
 
 ### 3.2 Child → hub (`session-hub report` and related commands)
 
@@ -586,7 +591,7 @@ claude-code-session-hub/
 | Status (status record) | A session's current state. The hub computes the status by applying the events oldest first (folding) and never stores it |
 | Fold | Applying events one by one, in order, to compute the latest state |
 | Event sourcing | A design that appends what happened instead of storing state, and computes state from what happened. This design is why the timeline can be traced |
-| Append-only | A storage discipline: an event, once written, is never rewritten or deleted |
+| Append-only | A storage discipline: an event, once written, is never rewritten. The single exception deletes a whole session on request (§3.1) |
 | Writer | The owner of an event file. The child writes `<id>.jsonl`; the parent's answers and instructions go to `<id>@parent.jsonl` |
 | seq | A sequence number per writer file. An event ID is `<file name>#<seq>` (for example `session_01ABC#3`) |
 | state | A session's state, one of the 12 values in §1.2. Examples: working, needs_human, review_ready |

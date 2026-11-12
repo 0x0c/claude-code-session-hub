@@ -94,8 +94,16 @@ class EventStore:
         """
         self.events_dir.mkdir(parents=True, exist_ok=True)
         path = self._path(session_id, writer)
-        with open(path, "a+", encoding="utf-8") as f:
+        while True:
+            f = open(path, "a+", encoding="utf-8")
             fcntl.flock(f, fcntl.LOCK_EX)
+            if os.fstat(f.fileno()).st_nlink > 0:
+                break
+            # delete_session() unlinked the file while we waited for the lock; reopen the path
+            # so the event lands in a fresh file instead of vanishing with the unlinked one.
+            fcntl.flock(f, fcntl.LOCK_UN)
+            f.close()
+        with f:
             try:
                 f.seek(0)
                 last = 0
@@ -112,6 +120,29 @@ class EventStore:
             finally:
                 fcntl.flock(f, fcntl.LOCK_UN)
         return self._decorate(ev, path)
+
+    def delete_session(self, session_id: str) -> int:
+        """Physically delete every file of a session and return how many events they held.
+
+        This is the one exception to append-only writing (SH-0001). It removes the session's own
+        file and every `<session_id>@<writer>.jsonl` file. A return value of 0 means the store
+        held no such session.
+        """
+        _check_id(session_id, "session_id")
+        deleted = 0
+        for path in self._session_files(session_id):
+            try:
+                f = open(path, "r+", encoding="utf-8")
+            except FileNotFoundError:
+                continue
+            with f:
+                fcntl.flock(f, fcntl.LOCK_EX)
+                try:
+                    deleted += len(self._read_file(path))
+                    path.unlink(missing_ok=True)
+                finally:
+                    fcntl.flock(f, fcntl.LOCK_UN)
+        return deleted
 
     # ---- Reading -------------------------------------------------------
     @staticmethod
@@ -146,12 +177,14 @@ class EventStore:
                 out.append(self._decorate(ev, path))
         return out
 
+    def _session_files(self, session_id: str) -> list[Path]:
+        return [p for p in self._files() if p.stem == session_id or p.stem.startswith(session_id + "@")]
+
     def read(self, session_id: str) -> list[dict]:
         _check_id(session_id, "session_id")
         events = []
-        for path in self._files():
-            if path.stem == session_id or path.stem.startswith(session_id + "@"):
-                events.extend(e for e in self._read_file(path) if e["session_id"] == session_id)
+        for path in self._session_files(session_id):
+            events.extend(e for e in self._read_file(path) if e["session_id"] == session_id)
         return sorted(events, key=sort_key)
 
     def read_all(self) -> dict[str, list[dict]]:
