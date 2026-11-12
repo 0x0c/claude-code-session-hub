@@ -34,7 +34,7 @@ Session Hubは、親のClaude Codeセッションが多数のサブセッショ�
 - コードのコメント、docstring、スキル、プロンプト、コミットメッセージ、プルリクエストの文章は**英語**で書きます。
 - 利用者が読む文書は**日英の2言語**で用意します。英語の原文`<name>.md`の隣に日本語版`<name>.ja.md`を置きます。対象は`README`、`AGENTS`、`docs/*`、`proposals/README`、各プロポーザルです。両方を同じ変更で更新してください。`scripts/check_docs.py`と`scripts/proposals.py lint`が、対になるファイルがそろっていること、1行目で互いにリンクしていること、見出しの構成が同じであることを確認します。
 - 文章を書く前や直す前に、[`document-writing`](.claude/skills/document-writing/SKILL.md)と、言語ごとの[`english-document-writing`](.claude/skills/english-document-writing/SKILL.md)または[`japanese-document-writing`](.claude/skills/japanese-document-writing/SKILL.md)を読み込んでください。これらは下書きの形を決めるもので、書き終えてからの校正用ではありません。
-- ダッシュボードの表示、CLIのメッセージ、hookがモデルに渡す文は、現在は日本語の製品文言です。プロポーザルで変更を決めるまでは、そのままにしてください。
+- ダッシュボードは多言語化しています。表示する文言はすべて`session_hub/templates/dashboard.html`の`MESSAGES`表に英語と日本語で入っており、文言を変えるときは両方を更新します。サーバーが送る表示用の文字列（コレクションの名前やグループ名）は、`{"en": ..., "ja": ...}`の形でも書けます。CLIのメッセージとhookがモデルに渡す文は、現在も日本語の製品文言です。プロポーザルで変更を決めるまでは、そのままにしてください。
 
 ## 守る原則
 
@@ -117,6 +117,7 @@ scripts/check.sh
   ```
 
   そのうえで`python3 scripts/demo.py --push http://127.0.0.1:8765`を実行するか、`HUB_URL`を設定して`session-hub`コマンドを実行すると、更新がリアルタイムに届きます。
+- ダッシュボードの見た目を変えたら、`node scripts/screenshots.js`でREADMEのスクリーンショット（`docs/images/`、日英両方）を作り直してください。デモデータの言語は`scripts/demo.py --lang en|ja`、ページの言語は`?lang=en|ja`で選べます。
 - サーバーのプロセスは`python3 -m session_hub serve`として動きます。止めるときは`pkill -f "session_hub serve"`を使ってください。`session-hub serve`というパターンでは一致しません。
 
 ### リポジトリの管理

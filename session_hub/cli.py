@@ -123,7 +123,7 @@ def cmd_collection(a):
         print(json.dumps(col, ensure_ascii=False, indent=2))
     else:
         titles = {s["session_id"]: s.get("title") or s["session_id"] for s in snap["sessions"]}
-        print(collections.render_markdown(col, titles), end="")
+        print(collections.render_markdown(col, titles, a.lang), end="")
 
 
 def cmd_heartbeat(a):
@@ -335,6 +335,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     s = sub.add_parser("collection", help="コレクションを Markdown / JSON で出力")
     s.add_argument("name"); s.add_argument("--format", choices=("markdown", "json"), default="markdown")
+    s.add_argument("--lang", choices=("ja", "en"), default=collections.DEFAULT_LANG)
     s.add_argument("--pull", action="store_true"); s.set_defaults(func=cmd_collection)
 
     s = sub.add_parser("heartbeat", help="生存通知と usage 記録（hook 用）")

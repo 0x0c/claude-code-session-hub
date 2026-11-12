@@ -6,6 +6,8 @@ Session Hub lets a parent Claude Code session follow many sub-sessions in real t
 few tokens on it. Sub-sessions push short status updates to a local hub server, and the hub shows
 them on a browser dashboard.
 
+![The Session Hub dashboard: sessions that need attention on the left, the live timeline on the right, and a glow on the message that just arrived](docs/images/dashboard-en.png)
+
 - **Push, not polling.** Each sub-session runs the `session-hub` command whenever its state changes.
   The hub streams that update to the browser dashboard at once over Server-Sent Events (SSE).
 - **Attention first.** The dashboard lists the sessions that need attention at the top: waiting for a
@@ -26,6 +28,49 @@ them on a browser dashboard.
 [docs/DESIGN.md](docs/DESIGN.md) covers the design rationale and the protocol, and its
 [glossary](docs/DESIGN.md#appendix-a-glossary) defines the terms.
 
+## How it works
+
+Each sub-session is a separate Claude Code process. It reports to one hub server on the loopback
+interface, and the hub keeps every report as an append-only event. Everything you see is computed
+from those events.
+
+```mermaid
+flowchart LR
+  subgraph S["Sub-sessions (separate Claude Code processes)"]
+    A["Sub-session A"]
+    B["Sub-session B"]
+  end
+  A -- "session-hub report / ask / learn" --> H
+  B -- "hooks: heartbeat, tokens, progress" --> H
+  H["Hub server<br/>127.0.0.1:8765"] -- "append" --> ST[("Event store<br/>events/*.jsonl")]
+  ST -- "project" --> V["Views and collections<br/>sessions, timeline, knowledge"]
+  V -- "SSE, real time" --> D["Browser dashboard"]
+  V -- "session-hub attention<br/>a few lines" --> P["Parent session"]
+  A -. "escalation notice<br/>needs human, ready for review, failed, done" .-> P
+  P -. "answer or command" .-> A
+```
+
+1. **A sub-session pushes a message** whenever its state changes. The agent runs `session-hub`
+   for meaningful changes (a question, a phase, a pull request), and the hooks send heartbeats,
+   token usage, and task progress without spending model tokens. If the hub is down, the message
+   goes straight into the shared store and appears once the hub starts.
+2. **The hub appends the message to the event store**, the single source of truth. Each file has a
+   single writer, so the store never needs merging.
+3. **Views and collections are projections** of the events: the session list, the timeline, and the
+   knowledge base. A new way to accumulate updates is a new collection definition, not new storage.
+4. **The browser receives each change over SSE** and makes the affected cards glow for a few
+   seconds. The parent reads the few lines of `session-hub attention` instead of transcripts.
+5. **The parent is woken only when it must act.** A sub-session sends its parent a one-line
+   escalation notice for four transitions alone: needs a human, ready for review, failed, or done.
+
+The knowledge tab gathers what sub-sessions learned. When two sessions report the same caveat, the
+dashboard shows one card that lists both reporters.
+
+![The knowledge tab: findings grouped into caveats, open issues, decisions, how-tos, and insights](docs/images/knowledge-en.png)
+
+The dashboard follows the browser's language (English or Japanese). Switch it with the button in
+the header, or open the page with `?lang=en` or `?lang=ja`.
+
 ## Requirements
 
 Session Hub needs Python 3.10 or later and uses the standard library alone. It runs without
@@ -36,7 +81,7 @@ installation as `bin/session-hub`. To install it as the `session-hub` command, r
 1. Generate a demo store that holds three hours of history.
 
    ```bash
-   python3 scripts/demo.py --store /tmp/hub-demo
+   python3 scripts/demo.py --store /tmp/hub-demo --lang en
    ```
 
 2. Start the hub server on that store.

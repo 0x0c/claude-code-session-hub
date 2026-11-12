@@ -35,6 +35,7 @@ def session_view(events: list[dict], now: datetime | None = None,
         st = nxt
 
     st["gate"] = schema.ready_gate(st)
+    st["gate_codes"] = schema.ready_gate_codes(st)
     age_min = (now - schema.parse_ts(st["heartbeat"])).total_seconds() / 60
     st["stale"] = st["state"] in ACTIVE_STATES and age_min >= stale_minutes
     att = st.get("attention") or {}

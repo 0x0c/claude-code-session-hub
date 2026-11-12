@@ -95,8 +95,8 @@ python3 scripts/proposals.py list --grep dashboard
 
 Add an unformed idea here as one bullet. Promote it to a numbered proposal once its scope is clear.
 
-- **English product strings.** The dashboard labels, the CLI messages, and the text that the hooks
-  inject are Japanese. Switching them to English, or making them selectable, changes what every
-  user sees and needs its own proposal.
+- **English CLI and hook strings.** The dashboard is localized into English and Japanese, but the
+  CLI messages and the text that the hooks inject are still Japanese. Switching them to English, or
+  making them selectable, changes what every user and agent sees and needs its own proposal.
 - **A prose linter for documentation.** The writing skills are a review-time norm today. A
   mechanical floor such as textlint could catch long sentences and filler before review.

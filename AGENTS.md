@@ -50,8 +50,11 @@ origin of its content.
   and the layer for the language: [`english-document-writing`](.claude/skills/english-document-writing/SKILL.md)
   or [`japanese-document-writing`](.claude/skills/japanese-document-writing/SKILL.md). They shape the
   draft; they are not a proofreading pass.
-- The dashboard labels, the CLI messages, and the text the hooks inject are Japanese product strings
-  today. Leave them as they are unless a proposal changes them.
+- The dashboard is localized: every label lives in the `MESSAGES` table of
+  `session_hub/templates/dashboard.html`, in English and Japanese, and a change to a label updates
+  both. Display strings that the server sends (collection labels and groups) may be a
+  `{"en": ..., "ja": ...}` map. The CLI messages and the text the hooks inject are still Japanese
+  product strings; leave them as they are unless a proposal changes them.
 
 ## Ground rules
 
@@ -175,6 +178,9 @@ We verified these facts with APM 0.35.1 by installing this repository into a scr
 
   Then push live updates with `python3 scripts/demo.py --push http://127.0.0.1:8765`, or run
   `session-hub` commands with `HUB_URL` set.
+- Regenerate the README screenshots (`docs/images/`, both languages) with
+  `node scripts/screenshots.js` after any visible change to the dashboard. Pick the demo data's
+  language with `scripts/demo.py --lang en|ja` and the page's language with `?lang=en|ja`.
 - The server runs as `python3 -m session_hub serve`, so stop it with
   `pkill -f "session_hub serve"`; a pattern on `session-hub serve` does not match.
 

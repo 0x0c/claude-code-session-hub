@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ja">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -149,39 +149,40 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
 <body>
 <header>
   <h1>Session Hub</h1>
-  <span class="conn" id="conn" role="status" title="サブセッションからの push を受信すると即時に反映します"><span class="dot"></span><span id="connText">接続中…</span></span>
+  <span class="conn" id="conn" role="status" data-i18n-title="conn.title"><span class="dot"></span><span id="connText"></span></span>
   <div class="kpis">
-    <span>セッション <b id="kSessions">0</b></span>
-    <span>要対応 <b id="kAction">0</b></span>
-    <span>作業中 <b id="kActive">0</b></span>
-    <span>トークン 入力 <b id="kIn">0</b> / 出力 <b id="kOut">0</b></span>
-    <span>更新 <b id="kUpdated">-</b></span>
+    <span><span data-i18n="kpi.sessions"></span> <b id="kSessions">0</b></span>
+    <span><span data-i18n="kpi.action"></span> <b id="kAction">0</b></span>
+    <span><span data-i18n="kpi.active"></span> <b id="kActive">0</b></span>
+    <span><span data-i18n="kpi.tokens"></span> <b id="kIn">0</b> / <span data-i18n="kpi.out"></span> <b id="kOut">0</b></span>
+    <span><span data-i18n="kpi.updated"></span> <b id="kUpdated">-</b></span>
   </div>
-  <button class="iconbtn" id="notifyBtn" aria-pressed="false" title="要対応になったら通知">通知</button>
-  <button class="iconbtn" id="themeBtn" title="テーマ切替">テーマ</button>
+  <button class="iconbtn" id="notifyBtn" aria-pressed="false" data-i18n="btn.notify" data-i18n-title="btn.notifyTitle"></button>
+  <button class="iconbtn" id="langBtn" data-i18n="btn.lang" data-i18n-title="btn.langTitle"></button>
+  <button class="iconbtn" id="themeBtn" data-i18n="btn.theme" data-i18n-title="btn.themeTitle"></button>
 </header>
 
 <main>
   <section class="panel" aria-labelledby="sessionsTitle">
-    <h2 id="sessionsTitle">セッション <span class="chip" id="clearSel" hidden style="cursor:pointer">選択解除</span></h2>
+    <h2 id="sessionsTitle"><span data-i18n="sessions.title"></span> <span class="chip" id="clearSel" hidden style="cursor:pointer" data-i18n="sessions.clear"></span></h2>
     <div id="sessions"></div>
   </section>
 
   <section class="panel" aria-labelledby="tlTitle">
-    <h2 id="tlTitle"><span id="tlName">タイムライン</span> <span class="chip" id="tlScope">すべて</span></h2>
+    <h2 id="tlTitle"><span id="tlName"></span> <span class="chip" id="tlScope"></span></h2>
     <div class="toolbar">
       <div class="tabs" role="tablist">
-        <button role="tab" aria-selected="true" data-view="feed">フィード</button>
-        <button role="tab" aria-selected="false" data-view="lanes">スイムレーン</button>
+        <button role="tab" aria-selected="true" data-view="feed" data-i18n="tab.feed"></button>
+        <button role="tab" aria-selected="false" data-view="lanes" data-i18n="tab.lanes"></button>
         <span id="colTabs" style="display:contents"></span>
       </div>
-      <select id="fSession" aria-label="セッションで絞り込み"><option value="">すべてのセッション</option></select>
-      <input type="search" id="fText" placeholder="要約・質問・回答を検索" aria-label="検索">
+      <select id="fSession" data-i18n-aria="filter.sessionAria"><option value=""></option></select>
+      <input type="search" id="fText" data-i18n-aria="filter.searchAria">
       <label><input type="checkbox" id="fHeartbeat"> heartbeat</label>
-      <label><input type="checkbox" id="fOrder"> 古い順</label>
+      <label><input type="checkbox" id="fOrder"> <span data-i18n="filter.oldest"></span></label>
     </div>
     <div class="types" id="fTypes"></div>
-    <button class="newbar" id="newbar">新着 <span id="newCount">0</span> 件 ↑</button>
+    <button class="newbar" id="newbar"><span id="newbarText"></span> ↑</button>
     <div id="feedView" class="feed" aria-live="polite"></div>
     <div id="colView" hidden></div>
     <div id="lanesView" hidden>
@@ -198,18 +199,146 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
   // `hub export` embeds the snapshot here (static mode)
   const EMBEDDED = /*__HUB_SNAPSHOT__*/null;
 
-  const STATE = {
-    needs_human: ["人間待ち", "--s-needs"], review_ready: ["レビュー可", "--s-review"],
-    review_pending: ["レビュー条件未達", "--s-wait"],
-    failed: ["失敗", "--s-fail"], stale: ["停滞?", "--s-stale"], working: ["作業中", "--s-work"],
-    planning: ["計画中", "--s-work"], waiting_ci: ["CI待ち", "--s-wait"], blocked: ["ブロック", "--s-block"],
-    in_review: ["レビュー中", "--s-wait"], changes_requested: ["修正依頼", "--s-needs"],
-    done: ["完了", "--s-done"], abandoned: ["中止", "--s-done"], queued: ["待機", "--s-queue"],
+  // ---- Localization ----
+  // Every string the page shows comes from MESSAGES. The language is chosen from ?lang=, then the
+  // viewer's saved choice, then the browser's language; the header button switches it.
+  const MESSAGES = {
+    en: {
+      "conn.title": "Updates from sub-sessions appear the moment the hub receives them",
+      "conn.connecting": "Connecting…", "conn.live": "Live (receiving pushes)", "conn.retry": "Reconnecting…",
+      "conn.polling": "Polling (every 5 s)", "conn.down": "Disconnected", "conn.static": "Static snapshot ({ts})",
+      "kpi.sessions": "Sessions", "kpi.action": "Needs action", "kpi.active": "Working",
+      "kpi.tokens": "Tokens in", "kpi.out": "out", "kpi.updated": "Updated",
+      "btn.notify": "Notify", "btn.notifyTitle": "Notify me when a session needs action",
+      "btn.theme": "Theme", "btn.themeTitle": "Switch between light and dark",
+      "btn.lang": "日本語", "btn.langTitle": "表示を日本語に切り替える",
+      "sessions.title": "Sessions", "sessions.clear": "Clear selection",
+      "tl.title": "Timeline", "tl.all": "All", "tab.feed": "Feed", "tab.lanes": "Swimlanes",
+      "filter.sessionAria": "Filter by session", "filter.allSessions": "All sessions",
+      "filter.searchAria": "Search", "filter.textFeed": "Search summaries, questions, and answers",
+      "filter.textCol": "Search titles, bodies, and tags", "filter.oldest": "Oldest first",
+      "newbar": "{n} new",
+      "state.needs_human": "Needs human", "state.review_ready": "Ready for review",
+      "state.review_pending": "Not yet reviewable", "state.failed": "Failed", "state.stale": "Stale?",
+      "state.working": "Working", "state.planning": "Planning", "state.waiting_ci": "Waiting for CI",
+      "state.blocked": "Blocked", "state.in_review": "In review", "state.changes_requested": "Changes requested",
+      "state.done": "Done", "state.abandoned": "Abandoned", "state.queued": "Queued",
+      "type.start": "Start", "type.report": "Report", "type.ask": "Question", "type.answer": "Answer",
+      "type.command": "Command", "type.ready": "Ready", "type.pr": "PR/CI", "type.done": "Done",
+      "type.fail": "Failure", "type.finding": "Finding", "type.heartbeat": "heartbeat",
+      "ago.now": "just now", "ago.min": "{n} min ago", "ago.hour": "{n} h ago", "ago.day": "{n} d ago",
+      "sessions.empty": "No reports yet. They appear here when a sub-session runs `session-hub start`.",
+      "group.action": "Needs action", "group.active": "Working and waiting", "group.done": "Done",
+      "card.progress": "{done}/{total} · ≈{rem} left", "card.threads": " · {n} open threads",
+      "card.showTimeline": "Show the timeline of {name}", "card.working": "Working",
+      "ask.blocking": " (blocked)", "ask.nonblocking": " (continuing with the default)",
+      "ask.answer": "Answer: session-hub answer {sid} --qid {q} --value <value>", "gate.prefix": "Missing: ",
+      "gate.no_pr": "no PR", "gate.ci": "CI: {v}", "gate.conflict": "merge conflict",
+      "gate.threads": "{v} open threads", "gate.question": "unanswered question",
+      "gate.self_review": "self-review", "gate.tests_added": "tests", "gate.description": "PR description",
+      "gate.tasks": "tasks left: {v}", "ci.unknown": "unknown",
+      "ev.obsolete": " (obsolete)", "ev.next": "Next: {v}", "chip.phase": "Phase {from} → {to}",
+      "chip.tasks": "Tasks {a} → {b}", "chip.resolved": "Q{q} resolved", "chip.ready": "Self-check updated",
+      "chip.confidence": "Confidence {v}", "events.empty": "No matching events", "opt.default": " (default)",
+      "details": "Details", "lanes.empty": "No data", "lanes.aria": "How each session's state changed over time",
+      "lanes.now": "now", "lanes.legend": "● question = orange / answer = blue / other = black",
+      "col.count": "{n} items", "col.showObsolete": " Show obsolete", "col.emptyFiltered": "No items match the filters",
+      "col.empty": "Nothing yet. Items appear here when a sub-session records them with `session-hub learn`.",
+      "col.groupCount": "{n} items", "col.count_one": "1 item", "col.groupCount_one": "1 item",
+      "ago.min_one": "1 min ago", "tag.search": "Search for this tag", "chip.obsolete": "Obsolete",
+      "k.reported": "{s} sessions / {n} reports", "k.by": "Reported by:",
+      "th.title": "Title", "th.kind": "Kind", "th.reporters": "Reported by", "th.last_ts": "Last",
+      "th.first_ts": "First", "th.body": "Body", "th.count": "Count", "th.tags": "Tags",
+    },
+    ja: {
+      "conn.title": "サブセッションからの push を受信すると即時に反映します",
+      "conn.connecting": "接続中…", "conn.live": "リアルタイム（push 受信中）", "conn.retry": "再接続中…",
+      "conn.polling": "ポーリング（5秒）", "conn.down": "切断", "conn.static": "静的スナップショット（{ts}）",
+      "kpi.sessions": "セッション", "kpi.action": "要対応", "kpi.active": "作業中",
+      "kpi.tokens": "トークン 入力", "kpi.out": "出力", "kpi.updated": "更新",
+      "btn.notify": "通知", "btn.notifyTitle": "要対応になったら通知",
+      "btn.theme": "テーマ", "btn.themeTitle": "テーマ切替",
+      "btn.lang": "English", "btn.langTitle": "Switch the display to English",
+      "sessions.title": "セッション", "sessions.clear": "選択解除",
+      "tl.title": "タイムライン", "tl.all": "すべて", "tab.feed": "フィード", "tab.lanes": "スイムレーン",
+      "filter.sessionAria": "セッションで絞り込み", "filter.allSessions": "すべてのセッション",
+      "filter.searchAria": "検索", "filter.textFeed": "要約・質問・回答を検索",
+      "filter.textCol": "タイトル・本文・タグを検索", "filter.oldest": "古い順",
+      "newbar": "新着 {n} 件",
+      "state.needs_human": "人間待ち", "state.review_ready": "レビュー可",
+      "state.review_pending": "レビュー条件未達", "state.failed": "失敗", "state.stale": "停滞?",
+      "state.working": "作業中", "state.planning": "計画中", "state.waiting_ci": "CI待ち",
+      "state.blocked": "ブロック", "state.in_review": "レビュー中", "state.changes_requested": "修正依頼",
+      "state.done": "完了", "state.abandoned": "中止", "state.queued": "待機",
+      "type.start": "開始", "type.report": "報告", "type.ask": "質問", "type.answer": "回答",
+      "type.command": "指示", "type.ready": "準備完了", "type.pr": "PR/CI", "type.done": "完了",
+      "type.fail": "失敗", "type.finding": "知見", "type.heartbeat": "heartbeat",
+      "ago.now": "たった今", "ago.min": "{n}分前", "ago.hour": "{n}時間前", "ago.day": "{n}日前",
+      "sessions.empty": "まだ報告がありません。子セッションで `session-hub start` を実行すると表示されます。",
+      "group.action": "要対応", "group.active": "作業中・待機", "group.done": "完了",
+      "card.progress": "{done}/{total} 残≈{rem}", "card.threads": " 指摘{n}",
+      "card.showTimeline": "{name} のタイムラインを表示", "card.working": "作業中",
+      "ask.blocking": "（停止中）", "ask.nonblocking": "（既定値で継続中）",
+      "ask.answer": "回答: session-hub answer {sid} --qid {q} --value <値>", "gate.prefix": "未達: ",
+      "gate.no_pr": "PRなし", "gate.ci": "CI:{v}", "gate.conflict": "コンフリクト",
+      "gate.threads": "未解決の指摘{v}件", "gate.question": "未回答の質問",
+      "gate.self_review": "自己レビュー未完", "gate.tests_added": "テスト未完", "gate.description": "PR説明未完",
+      "gate.tasks": "残タスク:{v}", "ci.unknown": "不明",
+      "ev.obsolete": "（廃止）", "ev.next": "次: {v}", "chip.phase": "段階 {from} → {to}",
+      "chip.tasks": "タスク {a} → {b}", "chip.resolved": "Q{q} 解決", "chip.ready": "自己チェック更新",
+      "chip.confidence": "確信度 {v}", "events.empty": "該当するイベントはありません", "opt.default": "（既定）",
+      "details": "詳細", "lanes.empty": "データがありません", "lanes.aria": "セッションごとの状態の推移",
+      "lanes.now": "現在", "lanes.legend": "● 質問=橙 / 回答=青 / その他=黒",
+      "col.count": "{n} 件", "col.showObsolete": " 廃止済みも表示", "col.emptyFiltered": "条件に合う項目はありません",
+      "col.empty": "まだありません。サブセッションが `session-hub learn` で記録すると、ここに集まります。",
+      "col.groupCount": "{n} 件", "tag.search": "このタグで検索", "chip.obsolete": "廃止",
+      "k.reported": "{s} セッション / {n} 回報告", "k.by": "報告:",
+      "th.title": "タイトル", "th.kind": "種類", "th.reporters": "報告元", "th.last_ts": "最終",
+      "th.first_ts": "初出", "th.body": "本文", "th.count": "回数", "th.tags": "タグ",
+    },
   };
-  const TYPES = {
-    start: "開始", report: "報告", ask: "質問", answer: "回答", command: "指示",
-    ready: "準備完了", pr: "PR/CI", done: "完了", fail: "失敗", finding: "知見", heartbeat: "heartbeat",
+  const LANGS = Object.keys(MESSAGES);
+  function initialLang() {
+    const q = new URLSearchParams(location.search).get("lang");
+    if (LANGS.includes(q)) return q;
+    try { const saved = localStorage.getItem("hub.lang"); if (LANGS.includes(saved)) return saved; } catch (_) {}
+    const nav = (navigator.languages && navigator.languages[0]) || navigator.language || "en";
+    return nav.toLowerCase().startsWith("ja") ? "ja" : "en";
+  }
+  let LANG = initialLang();
+  let LOCALE = LANG === "ja" ? "ja-JP" : "en-US";
+  function t(key, params = {}) {
+    // A "<key>_one" message, when the language has one, covers a count of exactly one.
+    if (params.n === 1 && MESSAGES[LANG][key + "_one"]) key += "_one";
+    const text = (MESSAGES[LANG] && MESSAGES[LANG][key]) ?? MESSAGES.en[key] ?? key;
+    return text.replace(/\{(\w+)\}/g, (_, k) => String(params[k] ?? ""));
+  }
+  // A display string from the server is either plain or a {"en": ..., "ja": ...} map.
+  const L = (v) => (v && typeof v === "object" ? (v[LANG] ?? v.en ?? Object.values(v)[0]) : v);
+  // The review gate's unmet conditions arrive as codes; older snapshots carry preformatted text.
+  function gateText(s) {
+    if (!s.gate_codes) return s.gate || [];
+    return s.gate_codes.map((g) => {
+      let v = g.value;
+      if (g.code === "ci" && v === "unknown") v = t("ci.unknown");
+      if (g.code === "tasks") v = v.slice(0, 3).join(", ") + (v.length > 3 ? "…" : "");
+      return t("gate." + g.code, { v });
+    });
+  }
+
+  const STATE_COLORS = {
+    needs_human: "--s-needs", review_ready: "--s-review", review_pending: "--s-wait", failed: "--s-fail",
+    stale: "--s-stale", working: "--s-work", planning: "--s-work", waiting_ci: "--s-wait", blocked: "--s-block",
+    in_review: "--s-wait", changes_requested: "--s-needs", done: "--s-done", abandoned: "--s-done",
+    queued: "--s-queue",
   };
+  const TYPE_KEYS = ["start", "report", "ask", "answer", "command", "ready", "pr", "done", "fail", "finding", "heartbeat"];
+  let STATE, TYPES;
+  function buildLabels() {
+    STATE = Object.fromEntries(Object.entries(STATE_COLORS).map(([k, c]) => [k, [t("state." + k), c]]));
+    TYPES = Object.fromEntries(TYPE_KEYS.map((k) => [k, t("type." + k)]));
+  }
+  buildLabels();
   const ESCALATE = new Set(["needs_human", "review_ready", "failed", "done"]);
 
   // ---- Glow on message receipt ----
@@ -273,13 +402,13 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
   const ago = (ts) => {
     if (!ts) return "-";
     const s = Math.max(0, (Date.now() - Date.parse(ts)) / 1000);
-    if (s < 60) return "たった今";
-    if (s < 3600) return Math.floor(s / 60) + "分前";
-    if (s < 86400) return Math.floor(s / 3600) + "時間前";
-    return Math.floor(s / 86400) + "日前";
+    if (s < 60) return t("ago.now");
+    if (s < 3600) return t("ago.min", { n: Math.floor(s / 60) });
+    if (s < 86400) return t("ago.hour", { n: Math.floor(s / 3600) });
+    return t("ago.day", { n: Math.floor(s / 86400) });
   };
-  const hhmm = (ts) => new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
-  const dayOf = (ts) => new Date(ts).toLocaleDateString([], { year: "numeric", month: "short", day: "numeric", weekday: "short" });
+  const hhmm = (ts) => new Date(ts).toLocaleTimeString(LOCALE, { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+  const dayOf = (ts) => new Date(ts).toLocaleDateString(LOCALE, { year: "numeric", month: "short", day: "numeric", weekday: "short" });
   const sessionName = (sid) => {
     const s = db.sessions.find((x) => x.session_id === sid);
     return (s && s.title) || sid;
@@ -293,11 +422,12 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     const box = $("sessions");
     box.replaceChildren();
     if (!db.sessions.length) {
-      box.append(el("div", { class: "empty" }, "まだ報告がありません。子セッションで `session-hub start` を実行すると表示されます。"));
+      box.append(el("div", { class: "empty" }, t("sessions.empty")));
       return;
     }
-    const groups = [["要対応", (s) => s.needs_action], ["作業中・待機", (s) => !s.needs_action && !["done", "abandoned"].includes(s.state)],
-                    ["完了", (s) => ["done", "abandoned"].includes(s.state)]];
+    const groups = [[t("group.action"), (s) => s.needs_action],
+                    [t("group.active"), (s) => !s.needs_action && !["done", "abandoned"].includes(s.state)],
+                    [t("group.done"), (s) => ["done", "abandoned"].includes(s.state)]];
     for (const [title, pred] of groups) {
       const list = db.sessions.filter(pred);
       if (!list.length) continue;
@@ -313,8 +443,8 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     const u = s.usage || {};
     const meta = [
       s.task_ref && el("span", {}, s.task_ref),
-      p.total ? el("span", {}, `${p.done}/${p.total} 残≈${p.remaining}`) : null,
-      pr.number ? el("span", {}, `PR#${pr.number}` + (pr.ci ? ` CI:${pr.ci}` : "") + (pr.unresolved_threads != null ? ` 指摘${pr.unresolved_threads}` : "")) : null,
+      p.total ? el("span", {}, t("card.progress", { done: p.done, total: p.total, rem: p.remaining })) : null,
+      pr.number ? el("span", {}, `PR#${pr.number}` + (pr.ci ? ` CI:${pr.ci}` : "") + (pr.unresolved_threads != null ? t("card.threads", { n: pr.unresolved_threads }) : "")) : null,
       s.phase && el("span", {}, s.phase),
       (u.input || u.output) ? el("span", {}, `${fmtNum(u.input)}/${fmtNum(u.output)} tok`) : null,
       u.cost_usd != null ? el("span", {}, `$${Number(u.cost_usd).toFixed(2)}`) : null,
@@ -322,13 +452,13 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     ];
     const card = el("div", glowProps([glowKey.session(s.session_id)], {
       class: "card" + (ui.session === s.session_id ? " selected" : ""), tabindex: "0", role: "button",
-      "aria-label": `${s.title || s.session_id} のタイムラインを表示`,
+      "aria-label": t("card.showTimeline", { name: s.title || s.session_id }),
       onclick: () => selectSession(ui.session === s.session_id ? "" : s.session_id),
       onkeydown: (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); card.click(); } },
     }),
       el("div", { class: "row1" },
         isActive(s)
-          ? el("span", { class: "spinner", role: "img", "aria-label": "作業中" })
+          ? el("span", { class: "spinner", role: "img", "aria-label": t("card.working") })
           : el("span", { class: "dot", style: { background: laneColor(s.session_id) } }),
         el("span", { class: "title", title: s.session_id }, s.title || s.session_id),
         badge(stateKey(s))),
@@ -339,13 +469,13 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     const a = s.attention;
     if (a) {
       card.append(el("div", { class: "ask" },
-        el("div", {}, el("b", {}, `Q${a.qid} ${a.kind}${a.blocking ? "（停止中）" : "（既定値で継続中）"}: `), a.question || ""),
+        el("div", {}, el("b", {}, `Q${a.qid} ${a.kind}${a.blocking ? t("ask.blocking") : t("ask.nonblocking")}: `), a.question || ""),
         a.options && a.options.length
           ? el("div", { class: "opts" }, a.options.map((o) => el("span", { class: "opt" + (o === a.default ? " def" : "") }, o)))
           : null,
-        el("div", { class: "meta" }, `回答: session-hub answer ${s.session_id} --qid ${a.qid} --value <値>`)));
+        el("div", { class: "meta" }, t("ask.answer", { sid: s.session_id, q: a.qid }))));
     }
-    if (stateKey(s) === "review_pending") card.append(el("div", { class: "meta" }, "未達: " + s.gate.join(" / ")));
+    if (stateKey(s) === "review_pending") card.append(el("div", { class: "meta" }, t("gate.prefix") + gateText(s).join(" / ")));
     if (s.last_error && s.state === "failed") card.append(el("div", { class: "summary", style: { color: "var(--s-fail)" } }, s.last_error));
     return card;
   }
@@ -371,31 +501,31 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     if (e.type === "fail") return e.last_error || e.summary || "";
     if (e.type === "pr") {
       const p = e.pr || {};
-      return [p.number && `PR#${p.number}`, p.ci && `CI:${p.ci}`, p.unresolved_threads != null && `指摘${p.unresolved_threads}`, p.review].filter(Boolean).join(" ");
+      return [p.number && `PR#${p.number}`, p.ci && `CI:${p.ci}`, p.unresolved_threads != null && t("card.threads", { n: p.unresolved_threads }).trim(), p.review].filter(Boolean).join(" ");
     }
     if (e.type === "finding") {
       const f = e.finding || {};
-      return `${f.title || ""}` + (f.status === "obsolete" ? "（廃止）" : "");
+      return `${f.title || ""}` + (f.status === "obsolete" ? t("ev.obsolete") : "");
     }
     if (e.type === "heartbeat") {
       const u = e.usage || {};
       return `in ${fmtNum(u.input)} / out ${fmtNum(u.output)}` + (u.context_pct != null ? ` ctx ${u.context_pct}%` : "");
     }
-    return [e.summary, e.next && `次: ${e.next}`, e.note].filter(Boolean).join(" / ");
+    return [e.summary, e.next && t("ev.next", { v: e.next }), e.note].filter(Boolean).join(" / ");
   }
 
   function changeChips(e) {
     const d = e.diff || {};
     const chips = [];
     if (d.state) chips.push(el("span", { class: "chip" }, `${(STATE[d.state.from] || [d.state.from])[0]} → `, badge(d.state.to)));
-    if (d.phase) chips.push(el("span", { class: "chip" }, `段階 ${d.phase.from || "-"} → ${d.phase.to || "-"}`));
+    if (d.phase) chips.push(el("span", { class: "chip" }, t("chip.phase", { from: d.phase.from || "-", to: d.phase.to || "-" })));
     if (d.progress) {
-      const f = d.progress.from || {}, t = d.progress.to || {};
-      chips.push(el("span", { class: "chip" }, `タスク ${f.done ?? 0}/${f.total ?? 0} → ${t.done}/${t.total}`));
+      const f = d.progress.from || {}, to = d.progress.to || {};
+      chips.push(el("span", { class: "chip" }, t("chip.tasks", { a: `${f.done ?? 0}/${f.total ?? 0}`, b: `${to.done}/${to.total}` })));
     }
-    if (d.attention && d.attention.to == null && d.attention.from) chips.push(el("span", { class: "chip" }, `Q${d.attention.from.qid} 解決`));
-    if (d.ready) chips.push(el("span", { class: "chip" }, "自己チェック更新"));
-    if (d.confidence) chips.push(el("span", { class: "chip" }, `確信度 ${d.confidence.to}`));
+    if (d.attention && d.attention.to == null && d.attention.from) chips.push(el("span", { class: "chip" }, t("chip.resolved", { q: d.attention.from.qid })));
+    if (d.ready) chips.push(el("span", { class: "chip" }, t("chip.ready")));
+    if (d.confidence) chips.push(el("span", { class: "chip" }, t("chip.confidence", { v: d.confidence.to })));
     return chips;
   }
 
@@ -403,7 +533,7 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     const box = $("feedView");
     const events = filteredEvents();
     box.replaceChildren();
-    if (!events.length) { box.append(el("div", { class: "empty" }, "該当するイベントはありません")); return; }
+    if (!events.length) { box.append(el("div", { class: "empty" }, t("events.empty"))); return; }
     let lastDay = null;
     let hbRun = [];
     const flushHb = () => {
@@ -437,10 +567,10 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
           e.phase && !(e.diff || {}).phase ? el("span", { class: "chip" }, e.phase) : null),
         eventText(e) ? el("div", { class: "text" }, eventText(e)) : null,
         e.type === "ask" && e.attention && e.attention.options && e.attention.options.length
-          ? el("div", { class: "changes" }, e.attention.options.map((o) => el("span", { class: "chip" }, o + (o === e.attention.default ? "（既定）" : ""))))
+          ? el("div", { class: "changes" }, e.attention.options.map((o) => el("span", { class: "chip" }, o + (o === e.attention.default ? t("opt.default") : ""))))
           : null,
         el("div", { class: "changes" }, changeChips(e)),
-        el("details", {}, el("summary", {}, "詳細"), el("pre", {}, JSON.stringify(stripEvent(e), null, 2)))));
+        el("details", {}, el("summary", {}, t("details")), el("pre", {}, JSON.stringify(stripEvent(e), null, 2)))));
     return row;
   }
   const stripEvent = (e) => { const { state_after, ...rest } = e; return rest; };
@@ -451,7 +581,7 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     box.replaceChildren();
     const sessions = db.sessions.filter((s) => !ui.session || s.session_id === ui.session);
     const all = [...db.events.values()];
-    if (!sessions.length || !all.length) { box.append(el("div", { class: "empty" }, "データがありません")); return; }
+    if (!sessions.length || !all.length) { box.append(el("div", { class: "empty" }, t("lanes.empty"))); return; }
     const times = all.map((e) => Date.parse(e.ts));
     const t0 = Math.min(...times), t1 = Math.max(Date.now(), Math.max(...times));
     const labelW = 160, laneH = 30, top = 22;
@@ -462,7 +592,7 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     const svg = document.createElementNS(NS, "svg");
     const height = top + sessions.length * laneH + 6;
     svg.setAttribute("width", width); svg.setAttribute("height", height);
-    svg.setAttribute("role", "img"); svg.setAttribute("aria-label", "セッションごとの状態の推移");
+    svg.setAttribute("role", "img"); svg.setAttribute("aria-label", t("lanes.aria"));
     const mk = (tag, attrs, text) => {
       const n = document.createElementNS(NS, tag);
       for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
@@ -472,11 +602,11 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     // Time axis
     const ticks = 6;
     for (let i = 0; i <= ticks; i++) {
-      const t = t0 + ((t1 - t0) * i) / ticks;
-      mk("line", { x1: x(t), x2: x(t), y1: top - 4, y2: height, class: "grid" });
-      const d = new Date(t);
-      mk("text", { x: x(t), y: 12, "text-anchor": i === 0 ? "start" : i === ticks ? "end" : "middle" },
-        (t1 - t0 > 86400000 ? `${d.getMonth() + 1}/${d.getDate()} ` : "") + hhmm(t));
+      const tick = t0 + ((t1 - t0) * i) / ticks;
+      mk("line", { x1: x(tick), x2: x(tick), y1: top - 4, y2: height, class: "grid" });
+      const d = new Date(tick);
+      mk("text", { x: x(tick), y: 12, "text-anchor": i === 0 ? "start" : i === ticks ? "end" : "middle" },
+        (t1 - t0 > 86400000 ? `${d.getMonth() + 1}/${d.getDate()} ` : "") + hhmm(tick));
     }
     sessions.forEach((s, i) => {
       const y = top + i * laneH;
@@ -501,7 +631,7 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
         const key = j === segs.length - 1 && s.stale ? "stale" : g.state;
         const rect = mk("rect", { x: x(g.from), y: y + 8, width: Math.max(6, x(to) - x(g.from)), height: laneH - 16, rx: 3,
           fill: css((STATE[key] || [0, "--s-queue"])[1]), opacity: 0.85 });
-        tip(rect, () => `${(STATE[key] || [key])[0]}\n${new Date(g.from).toLocaleString()} 〜 ${j + 1 < segs.length ? new Date(to).toLocaleString() : "現在"}`);
+        tip(rect, () => `${(STATE[key] || [key])[0]}\n${new Date(g.from).toLocaleString(LOCALE)} – ${j + 1 < segs.length ? new Date(to).toLocaleString(LOCALE) : t("lanes.now")}`);
       });
       for (const e of evs) {
         if (e.type === "heartbeat") continue;
@@ -515,7 +645,7 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     const legend = $("legend");
     legend.replaceChildren(...Object.entries(STATE).map(([, [label, color]]) =>
       el("span", {}, el("i", { style: { background: `var(${color})` } }), label)),
-      el("span", {}, "● 質問=橙 / 回答=青 / その他=黒"));
+      el("span", {}, t("lanes.legend")));
   }
 
   const tipEl = $("tip");
@@ -551,10 +681,10 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     document.title = (action ? `(${action}) ` : "") + "Session Hub";
     const sel = $("fSession");
     const cur = sel.value;
-    sel.replaceChildren(el("option", { value: "" }, "すべてのセッション"),
+    sel.replaceChildren(el("option", { value: "" }, t("filter.allSessions")),
       ...db.sessions.map((s) => el("option", { value: s.session_id }, s.title || s.session_id)));
     sel.value = cur;
-    $("tlScope").textContent = ui.session ? sessionName(ui.session) : "すべて";
+    $("tlScope").textContent = ui.session ? sessionName(ui.session) : t("tl.all");
     $("clearSel").hidden = !ui.session;
   }
 
@@ -585,8 +715,7 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     $("fTypes").hidden = isCol;
     $("fHeartbeat").parentElement.hidden = isCol;
     $("fOrder").parentElement.hidden = isCol;
-    $("fText").placeholder = isCol ? "タイトル・本文・タグを検索" : "要約・質問・回答を検索";
-    $("tlName").textContent = isCol ? db.collections[v.slice(4)].label : "タイムライン";
+    updateViewText();
     render();
   }
 
@@ -596,12 +725,12 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
   function renderColTabs() {
     const box = $("colTabs");
     const names = Object.keys(db.collections);
-    if (box.dataset.sig !== names.join(",") + "|" + names.map((n) => db.collections[n].active).join(",")) {
-      box.dataset.sig = names.join(",") + "|" + names.map((n) => db.collections[n].active).join(",");
+    if (box.dataset.sig !== LANG + names.join(",") + "|" + names.map((n) => db.collections[n].active).join(",")) {
+      box.dataset.sig = LANG + names.join(",") + "|" + names.map((n) => db.collections[n].active).join(",");
       box.replaceChildren(...names.map((n) => {
         const c = db.collections[n];
-        return el("button", { role: "tab", "data-view": "col:" + n, title: c.description || c.label,
-          onclick: () => setView("col:" + n) }, `${c.label} (${c.active})`);
+        return el("button", { role: "tab", "data-view": "col:" + n, title: L(c.description) || L(c.label),
+          onclick: () => setView("col:" + n) }, `${L(c.label)} (${c.active})`);
       }));
     }
     document.querySelectorAll(".tabs button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.view === ui.view)));
@@ -636,10 +765,10 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     const items = collectionItems(col);
     const groupsOn = ui.colGroups[name] || (ui.colGroups[name] = new Set());
     const bar = el("div", { class: "colbar" },
-      col.description ? el("span", { class: "desc" }, col.description) : null,
-      el("span", {}, `${items.length} 件`),
+      col.description ? el("span", { class: "desc" }, L(col.description)) : null,
+      el("span", {}, t("col.count", { n: items.length })),
       el("label", {}, el("input", { type: "checkbox", ...(ui.showObsolete ? { checked: true } : {}),
-        onchange: (e) => { ui.showObsolete = e.target.checked; render(); } }), " 廃止済みも表示"));
+        onchange: (e) => { ui.showObsolete = e.target.checked; render(); } }), t("col.showObsolete")));
     box.append(bar);
     if (view.type === "cards" && view.group_by) {
       const counts = {};
@@ -647,11 +776,10 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
       const order = [...(view.order || []), ...Object.keys(counts).filter((g) => !(view.order || []).includes(g))];
       bar.append(...order.filter((g) => counts[g]).map((g) => el("button", { class: "iconbtn", "aria-pressed": String(!groupsOn.has(g)),
         onclick: () => { groupsOn.has(g) ? groupsOn.delete(g) : groupsOn.add(g); render(); } },
-        `${(view.groups || {})[g] || g} ${counts[g]}`)));
+        `${L((view.groups || {})[g]) || g} ${counts[g]}`)));
     }
     if (!items.length) {
-      box.append(el("div", { class: "empty" }, col.items.length ? "条件に合う項目はありません" :
-        "まだありません。サブセッションが `session-hub learn` で記録すると、ここに集まります。"));
+      box.append(el("div", { class: "empty" }, col.items.length ? t("col.emptyFiltered") : t("col.empty")));
       return;
     }
     if (view.type === "table") return box.append(collectionTable(col, items));
@@ -668,8 +796,8 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
       if (!groups.has(g)) continue;
       const color = `var(${GROUP_COLOR[g] || "--s-queue"})`;
       box.append(el("div", { class: "kgroup" },
-        by ? el("h3", {}, el("span", { class: "badge", style: { background: color } }, (view.groups || {})[g] || g || "-"),
-          `${groups.get(g).length} 件`) : null,
+        by ? el("h3", {}, el("span", { class: "badge", style: { background: color } }, L((view.groups || {})[g]) || g || "-"),
+          t("col.groupCount", { n: groups.get(g).length })) : null,
         el("div", { class: "kgrid" }, groups.get(g).map((it) => knowledgeCard(it, color)))));
     }
   }
@@ -680,13 +808,13 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
       el("div", { class: "ktitle" }, it.title || it.summary || it.key),
       it.body ? el("div", { class: "kbody" }, it.body) : null,
       el("div", { class: "kmeta" },
-        (it.tags || []).map((t) => el("span", { class: "chip", style: { cursor: "pointer" }, title: "このタグで検索",
-          onclick: () => { $("fText").value = t; ui.text = t; render(); } }, "#" + t)),
+        (it.tags || []).map((tag) => el("span", { class: "chip", style: { cursor: "pointer" }, title: t("tag.search"),
+          onclick: () => { $("fText").value = tag; ui.text = tag; render(); } }, "#" + tag)),
         (it.scopes || []).map((sc) => el("span", { class: "chip" }, "@" + sc)),
-        (it.status || "active") !== "active" ? el("span", { class: "chip" }, "廃止") : null),
+        (it.status || "active") !== "active" ? el("span", { class: "chip" }, t("chip.obsolete")) : null),
       el("div", { class: "kmeta" },
-        it.count > 1 ? el("b", {}, `${it.reporters.length} セッション / ${it.count} 回報告`) : null,
-        "報告:", sourceLinks(it), el("span", { "data-ago": it.last_ts }, ago(it.last_ts))));
+        it.count > 1 ? el("b", {}, t("k.reported", { s: it.reporters.length, n: it.count })) : null,
+        t("k.by"), sourceLinks(it), el("span", { "data-ago": it.last_ts }, ago(it.last_ts))));
   }
 
   function collectionTable(col, items) {
@@ -697,7 +825,8 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
       const v = it[c];
       return el("td", {}, Array.isArray(v) ? v.join(", ") : v == null ? "" : typeof v === "object" ? JSON.stringify(v) : String(v));
     };
-    const label = { title: "タイトル", kind: "種類", reporters: "報告元", last_ts: "最終", first_ts: "初出", body: "本文", count: "回数", tags: "タグ" };
+    const label = Object.fromEntries(["title", "kind", "reporters", "last_ts", "first_ts", "body", "count", "tags"]
+      .map((c) => [c, t("th." + c)]));
     return el("div", { class: "ctable-wrap" }, el("table", { class: "ctable" },
       el("thead", {}, el("tr", {}, cols.map((c) => el("th", {}, label[c] || c)))),
       el("tbody", {}, items.map((it) => el("tr", glowProps((it.sources || []).map((s) => glowKey.event(s.event_id))),
@@ -730,7 +859,7 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     const visible = fresh.filter((e) => e.type !== "heartbeat" || ui.heartbeat);
     if (visible.length && window.scrollY > 200 && !ui.asc) {
       ui.unseen += visible.length;
-      $("newCount").textContent = ui.unseen;
+      $("newbarText").textContent = t("newbar", { n: ui.unseen });
       $("newbar").classList.add("show");
     }
     render();
@@ -756,25 +885,28 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
   }
 
   // ---- Connection (SSE, falling back to polling after repeated failures) ----
-  function setConn(kind, text) {
+  // The connection label is stored as a message key, so a language switch can re-render it.
+  let connState = { kind: "", key: "conn.connecting", params: {} };
+  function setConn(kind, key, params = {}) {
+    connState = { kind, key, params };
     $("conn").className = "conn " + kind;
-    $("connText").textContent = text;
+    $("connText").textContent = t(key, params);
   }
 
   let failures = 0, pollTimer = null;
   function connect() {
     if (!("EventSource" in window)) return startPolling();
     const es = new EventSource("api/stream");
-    es.addEventListener("snapshot", (m) => { failures = 0; setConn("live", "リアルタイム（push 受信中）"); loadSnapshot(JSON.parse(m.data)); });
+    es.addEventListener("snapshot", (m) => { failures = 0; setConn("live", "conn.live"); loadSnapshot(JSON.parse(m.data)); });
     es.addEventListener("update", (m) => applyUpdate(JSON.parse(m.data)));
     es.onerror = () => {
       failures++;
-      setConn("retry", "再接続中…");
+      setConn("retry", "conn.retry");
       if (failures >= 5) { es.close(); startPolling(); }
     };
   }
   function startPolling() {
-    setConn("retry", "ポーリング（5秒）");
+    setConn("retry", "conn.polling");
     const tick = async () => {
       try {
         const r = await fetch("api/snapshot", { cache: "no-store" });
@@ -782,7 +914,7 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
         const known = new Set(db.events.keys());
         if (!db.generated_at) loadSnapshot(snap);
         else applyUpdate({ ...snap, events: snap.events.filter((e) => !known.has(e.id) || JSON.stringify(db.events.get(e.id)) !== JSON.stringify(e)) });
-      } catch (_) { setConn("", "切断"); }
+      } catch (_) { setConn("", "conn.down"); }
       pollTimer = setTimeout(tick, 5000);
     };
     tick();
@@ -796,12 +928,46 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
   $("fText").addEventListener("input", (e) => { clearTimeout(textTimer); textTimer = setTimeout(() => { ui.text = e.target.value; render(); }, 150); });
   $("fHeartbeat").addEventListener("change", (e) => { ui.heartbeat = e.target.checked; render(); });
   $("fOrder").addEventListener("change", (e) => { ui.asc = e.target.checked; render(); });
-  $("fTypes").append(...Object.entries(TYPES).filter(([t]) => t !== "heartbeat").map(([t, label]) =>
-    el("button", { "aria-pressed": "true", onclick: (ev) => {
-      ui.types.has(t) ? ui.types.delete(t) : ui.types.add(t);
-      ev.currentTarget.setAttribute("aria-pressed", String(ui.types.has(t)));
-      render();
-    } }, label)));
+  function renderTypeFilters() {
+    $("fTypes").replaceChildren(...Object.entries(TYPES).filter(([type]) => type !== "heartbeat").map(([type, label]) =>
+      el("button", { "aria-pressed": String(ui.types.has(type)), onclick: (ev) => {
+        ui.types.has(type) ? ui.types.delete(type) : ui.types.add(type);
+        ev.currentTarget.setAttribute("aria-pressed", String(ui.types.has(type)));
+        render();
+      } }, label)));
+  }
+
+  // The panel title and the search placeholder depend on the current view as well as the language.
+  function updateViewText() {
+    const col = ui.view.startsWith("col:") && db.collections[ui.view.slice(4)];
+    $("fText").placeholder = col ? t("filter.textCol") : t("filter.textFeed");
+    $("tlName").textContent = col ? L(col.label) : t("tl.title");
+  }
+
+  // Fill every node marked with data-i18n, data-i18n-title, or data-i18n-aria in the current language.
+  function applyStaticText() {
+    document.documentElement.lang = LANG;
+    document.querySelectorAll("[data-i18n]").forEach((n) => { n.textContent = t(n.dataset.i18n); });
+    document.querySelectorAll("[data-i18n-title]").forEach((n) => { n.title = t(n.dataset.i18nTitle); });
+    document.querySelectorAll("[data-i18n-aria]").forEach((n) => n.setAttribute("aria-label", t(n.dataset.i18nAria)));
+    $("connText").textContent = t(connState.key, connState.params);
+    $("newbarText").textContent = t("newbar", { n: ui.unseen });
+    updateViewText();
+  }
+
+  function setLang(lang) {
+    LANG = lang;
+    LOCALE = lang === "ja" ? "ja-JP" : "en-US";
+    try { localStorage.setItem("hub.lang", lang); } catch (_) {}
+    buildLabels();
+    applyStaticText();
+    renderTypeFilters();
+    $("colTabs").dataset.sig = ""; // force the collection tabs to re-render their labels
+    setView(ui.view);
+  }
+  $("langBtn").addEventListener("click", () => setLang(LANG === "ja" ? "en" : "ja"));
+  applyStaticText();
+  renderTypeFilters();
   $("newbar").addEventListener("click", () => {
     ui.unseen = 0; $("newbar").classList.remove("show"); window.scrollTo({ top: 0, behavior: "smooth" });
   });
@@ -822,14 +988,14 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     try { localStorage.setItem("hub.theme", root.dataset.theme); } catch (_) {}
     if (ui.view === "lanes") renderLanes();
   });
-  try { const t = localStorage.getItem("hub.theme"); if (t) document.documentElement.dataset.theme = t; } catch (_) {}
+  try { const theme = localStorage.getItem("hub.theme"); if (theme) document.documentElement.dataset.theme = theme; } catch (_) {}
   window.addEventListener("resize", () => { if (ui.view === "lanes") renderLanes(); });
   // Refresh the "N minutes ago" labels periodically
   setInterval(() => {
     document.querySelectorAll("[data-ago]").forEach((n) => { n.textContent = ago(n.dataset.ago); });
   }, 15000);
 
-  if (EMBEDDED) { setConn("", `静的スナップショット（${new Date(EMBEDDED.generated_at).toLocaleString()}）`); loadSnapshot(EMBEDDED); }
+  if (EMBEDDED) { setConn("", "conn.static", { ts: new Date(EMBEDDED.generated_at).toLocaleString(LOCALE) }); loadSnapshot(EMBEDDED); }
   else connect();
 })();
 </script>

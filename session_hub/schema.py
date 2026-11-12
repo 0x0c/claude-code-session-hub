@@ -238,25 +238,47 @@ def diff_status(before: dict, after: dict) -> dict:
     return out
 
 
-def ready_gate(st: dict) -> list[str]:
-    """Apply the review-ready gate (DESIGN.md §4.1) and return the unmet reasons (empty means passed)."""
-    reasons = []
+def ready_gate_codes(st: dict) -> list[dict]:
+    """Apply the review-ready gate (DESIGN.md §4.1) and return the unmet conditions as codes.
+
+    Each item is {"code": ..., "value": ...}. The dashboard localizes the codes; the CLI formats
+    them with ready_gate(). An empty list means the gate passed.
+    """
+    reasons: list[dict] = []
     pr = st.get("pr") or {}
     ready = st.get("ready") or {}
     if not pr.get("number"):
-        reasons.append("PRなし")
+        reasons.append({"code": "no_pr"})
     if pr.get("number") and pr.get("ci") != "pass":
-        reasons.append(f"CI:{pr.get('ci') or '不明'}")
+        reasons.append({"code": "ci", "value": pr.get("ci") or "unknown"})
     if pr.get("mergeable") is False:
-        reasons.append("コンフリクト")
+        reasons.append({"code": "conflict"})
     if (pr.get("unresolved_threads") or 0) > 0:
-        reasons.append(f"未解決の指摘{pr['unresolved_threads']}件")
+        reasons.append({"code": "threads", "value": pr["unresolved_threads"]})
     if st.get("attention"):
-        reasons.append("未回答の質問")
-    for key, label in (("self_review", "自己レビュー"), ("tests_added", "テスト"), ("description", "PR説明")):
+        reasons.append({"code": "question"})
+    for key in ("self_review", "tests_added", "description"):
         if not ready.get(key):
-            reasons.append(f"{label}未完")
+            reasons.append({"code": key})
     left = [t["t"] for t in st.get("tasks") or [] if t["s"] in ("todo", "doing")]
     if left:
-        reasons.append("残タスク:" + ",".join(left[:3]) + ("…" if len(left) > 3 else ""))
+        reasons.append({"code": "tasks", "value": left})
     return reasons
+
+
+_GATE_JA = {
+    "no_pr": lambda v: "PRなし",
+    "ci": lambda v: f"CI:{'不明' if v == 'unknown' else v}",
+    "conflict": lambda v: "コンフリクト",
+    "threads": lambda v: f"未解決の指摘{v}件",
+    "question": lambda v: "未回答の質問",
+    "self_review": lambda v: "自己レビュー未完",
+    "tests_added": lambda v: "テスト未完",
+    "description": lambda v: "PR説明未完",
+    "tasks": lambda v: "残タスク:" + ",".join(v[:3]) + ("…" if len(v) > 3 else ""),
+}
+
+
+def ready_gate(st: dict) -> list[str]:
+    """Return the unmet gate conditions as the CLI's (Japanese) messages; empty means passed."""
+    return [_GATE_JA[r["code"]](r.get("value")) for r in ready_gate_codes(st)]

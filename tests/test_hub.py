@@ -124,6 +124,39 @@ class CollectionsTest(TmpMixin, unittest.TestCase):
             self.learn("a", kind="rumor", title="x")
 
 
+class LocalizationTest(TmpMixin, unittest.TestCase):
+    def test_gate_codes_back_the_cli_messages(self):
+        core.record(self.store, "s1", {"type": "start", "tasks": [{"t": "a", "s": "doing"}]})
+        st = core.record(self.store, "s1", {"type": "pr", "actor": "script", "pr": {"number": 3}})["status"]
+        codes = schema.ready_gate_codes(st)
+        self.assertEqual([c["code"] for c in codes],
+                         ["ci", "self_review", "tests_added", "description", "tasks"])
+        self.assertEqual(codes[0]["value"], "unknown")
+        self.assertEqual(schema.ready_gate(st)[0], "CI:不明")  # the CLI keeps its Japanese wording
+        view_st = view.snapshot(self.store.read_all())["sessions"][0]
+        self.assertEqual(view_st["gate_codes"], codes)
+
+    def test_localized_display_strings(self):
+        label = {"en": "Knowledge", "ja": "ナレッジ"}
+        self.assertEqual(collections.localized(label, "en"), "Knowledge")
+        self.assertEqual(collections.localized(label), "ナレッジ")  # the CLI default stays Japanese
+        self.assertEqual(collections.localized({"en": "Only English"}, "ja"), "Only English")
+        self.assertEqual(collections.localized("plain", "en"), "plain")
+
+    def test_markdown_sink_language(self):
+        (self.store.root).mkdir(parents=True, exist_ok=True)
+        (self.store.root / "collections.json").write_text(json.dumps([
+            {"name": "knowledge", "sinks": [{"type": "markdown", "path": "K.en.md", "lang": "en"},
+                                            {"type": "markdown", "path": "K.ja.md"}]}]))
+        defs = collections.load_definitions(self.store.root)
+        core.record(self.store, "a", {"type": "finding", "finding": {"kind": "caveat", "title": "x"}})
+        snap = view.snapshot(self.store.read_all(), defs=defs)
+        collections.write_sinks(defs, snap["collections"], self.store.root)
+        self.assertTrue((self.store.root / "K.en.md").read_text().startswith("# Knowledge\n"))
+        self.assertIn("## Caveats", (self.store.root / "K.en.md").read_text())
+        self.assertTrue((self.store.root / "K.ja.md").read_text().startswith("# ナレッジ\n"))
+
+
 class StoreTest(TmpMixin, unittest.TestCase):
     def test_per_writer_files_and_ordering(self):
         self.store.append("s1", {"type": "report", "summary": "1"})

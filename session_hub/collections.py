@@ -29,14 +29,20 @@ from pathlib import Path
 BUILTIN: list[dict] = [
     {
         "name": "knowledge",
-        "label": "ナレッジ",
-        "description": "サブセッションが作業中に見つけた知見・注意点・決定事項",
+        # Display strings may be a plain string or a {"en": ..., "ja": ...} map; the dashboard
+        # picks the viewer's language, and sinks and the CLI use their own (see localized()).
+        "label": {"en": "Knowledge", "ja": "ナレッジ"},
+        "description": {"en": "Findings, caveats, and decisions that sub-sessions discovered while working",
+                        "ja": "サブセッションが作業中に見つけた知見・注意点・決定事項"},
         "match": {"type": ["finding"]},
         "reduce": {"type": "aggregate", "payload": "finding", "key": ["key|title"]},
         "view": {
             "type": "cards", "group_by": "kind",
-            "groups": {"caveat": "注意点", "issue": "未解決の問題", "decision": "決定事項",
-                       "howto": "手順・ノウハウ", "insight": "知見"},
+            "groups": {"caveat": {"en": "Caveats", "ja": "注意点"},
+                       "issue": {"en": "Open issues", "ja": "未解決の問題"},
+                       "decision": {"en": "Decisions", "ja": "決定事項"},
+                       "howto": {"en": "How-tos", "ja": "手順・ノウハウ"},
+                       "insight": {"en": "Insights", "ja": "知見"}},
             "order": ["caveat", "issue", "decision", "howto", "insight"],
         },
         "sinks": [],
@@ -44,6 +50,14 @@ BUILTIN: list[dict] = [
 ]
 
 REDUCERS = ("log", "latest", "aggregate")
+DEFAULT_LANG = "ja"  # the CLI's and the sinks' language until a proposal changes it
+
+
+def localized(value, lang: str = DEFAULT_LANG):
+    """Resolve a display string that is either plain or a {"en": ..., "ja": ...} map."""
+    if isinstance(value, dict):
+        return value.get(lang) or value.get("en") or next(iter(value.values()), "")
+    return value
 VIEWS = ("cards", "table")
 
 
@@ -189,12 +203,13 @@ def project_all(defs: list[dict], events: list[dict]) -> dict:
 
 # ---- Writing out (sinks) --------------------------------------------------
 
-def render_markdown(col: dict, session_titles: dict[str, str] | None = None) -> str:
+def render_markdown(col: dict, session_titles: dict[str, str] | None = None,
+                    lang: str = DEFAULT_LANG) -> str:
     titles = session_titles or {}
     view = col["view"]
-    lines = [f"# {col['label']}", ""]
+    lines = [f"# {localized(col['label'], lang)}", ""]
     if col.get("description"):
-        lines += [col["description"], ""]
+        lines += [localized(col["description"], lang), ""]
     items = [it for it in col["items"] if it.get("status", "active") == "active"]
     group_by = view.get("group_by")
     groups: dict[str, list[dict]] = {}
@@ -205,7 +220,7 @@ def render_markdown(col: dict, session_titles: dict[str, str] | None = None) -> 
         if g not in groups:
             continue
         if group_by:
-            lines += [f"## {(view.get('groups') or {}).get(g, g or '-')}", ""]
+            lines += [f"## {localized((view.get('groups') or {}).get(g, g or '-'), lang)}", ""]
         for it in groups[g]:
             lines.append(f"### {it.get('title') or it.get('summary') or it['key']}")
             meta = []
@@ -233,7 +248,7 @@ def write_sinks(defs: list[dict], projected: dict, store_root: Path,
             if root not in path.parents:  # Never write outside the store
                 raise CollectionError(f"sink の path はストアの中を指定してください: {sink['path']}")
             if sink["type"] == "markdown":
-                text = render_markdown(col, session_titles)
+                text = render_markdown(col, session_titles, sink.get("lang", DEFAULT_LANG))
             else:
                 text = "".join(json.dumps(it, ensure_ascii=False) + "\n" for it in col["items"])
             old = path.read_text(encoding="utf-8") if path.exists() else None

@@ -397,8 +397,9 @@ the first condition that failed.
 
 ## 5. Dashboard
 
-The dashboard's labels are Japanese product strings. Where a reader must find a label on screen,
-this section gives the literal label in parentheses after its English meaning.
+The dashboard is localized into English and Japanese. It follows the browser's language, and a
+header button or the `?lang=en` / `?lang=ja` parameter switches it. Where this section quotes a
+label, it gives the English label and the Japanese label in parentheses.
 
 ### 5.1 Output formats
 
