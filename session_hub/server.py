@@ -29,7 +29,7 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import resources
 
-from . import core, schema, view
+from . import collections, core, schema, view
 from .store import EventStore
 
 MAX_BODY = 64 * 1024
@@ -52,10 +52,22 @@ class Hub:
         self.lock = threading.Lock()        # snapshot とクライアント集合
         self.write_lock = threading.Lock()  # 記録 → 配信 を 1 件ずつ直列化
         self.clients: set[queue.Queue] = set()
-        self.snap = view.snapshot(store.read_all())
+        self.defs = collections.load_definitions(store.root)
+        self.snap = self._build()
+        self._write_sinks(self.snap)
         self._event_index = self._index(self.snap)
         self._sig = store.signature()
         self._stop = threading.Event()
+
+    def _build(self) -> dict:
+        return view.snapshot(self.store.read_all(), defs=self.defs)
+
+    def _write_sinks(self, snap: dict) -> None:
+        titles = {x["session_id"]: x.get("title") or x["session_id"] for x in snap["sessions"]}
+        try:
+            collections.write_sinks(self.defs, snap["collections"], self.store.root, titles)
+        except (OSError, collections.CollectionError) as exc:
+            print(f"hub: sink write failed: {exc}", flush=True)
 
     @staticmethod
     def _index(snap: dict) -> dict[str, str]:
@@ -108,7 +120,7 @@ class Hub:
     # ---- 配信 ----
     def publish(self, force: bool = False) -> bool:
         """ストアの内容から snapshot を作り直し、変化分を全クライアントへ送る。"""
-        snap = view.snapshot(self.store.read_all())
+        snap = self._build()
         index = self._index(snap)
         with self.lock:
             changed = [e for e in snap["events"] if self._event_index.get(e["id"]) != index[e["id"]]]
@@ -117,7 +129,10 @@ class Hub:
             if changed or removed or force:
                 self._broadcast("update", {"generated_at": snap["generated_at"],
                                            "sessions": snap["sessions"], "total": snap["total"],
+                                           "collections": snap["collections"],
                                            "events": changed, "removed": removed})
+        if changed or removed:
+            self._write_sinks(snap)
         return bool(changed or removed)
 
     def run(self) -> None:

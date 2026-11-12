@@ -9,7 +9,7 @@ from contextlib import redirect_stdout
 from pathlib import Path
 from unittest import mock
 
-from session_hub import client, core, hooks, local_state, schema, view
+from session_hub import client, collections, core, hooks, local_state, schema, view
 from session_hub.server import make_server
 from session_hub.store import EventStore
 
@@ -75,6 +75,53 @@ class SchemaTest(TmpMixin, unittest.TestCase):
         self.assertEqual(view.attention_lines(snap), ["FL b boom"])
         start = next(e for e in snap["events"] if e["session_id"] == "a")
         self.assertEqual(start["diff"]["state"], {"from": "queued", "to": "planning"})
+
+
+class CollectionsTest(TmpMixin, unittest.TestCase):
+    def learn(self, sid, **f):
+        return core.record(self.store, sid, {"type": "finding", "finding": f})
+
+    def test_knowledge_aggregates_across_sessions(self):
+        self.learn("a", kind="caveat", title="Redis 6.2  の SCAN", body="詳細", tags=["CI"], scope="tests/")
+        self.learn("b", kind="caveat", title="redis 6.2 の scan", tags=["redis"], scope="search/")
+        self.learn("b", kind="decision", title="上限 120")
+        snap = view.snapshot(self.store.read_all())
+        items = snap["collections"]["knowledge"]["items"]
+        self.assertEqual(len(items), 2)
+        cav = next(i for i in items if i["kind"] == "caveat")
+        self.assertEqual((cav["count"], cav["reporters"], cav["tags"]), (2, ["a", "b"], ["ci", "redis"]))
+        self.assertEqual((cav["body"], cav["scopes"]), ("詳細", ["search/", "tests/"]))
+        self.learn("a", kind="caveat", title="Redis 6.2 の SCAN", status="obsolete")
+        snap = view.snapshot(self.store.read_all())
+        self.assertEqual(snap["collections"]["knowledge"]["active"], 1)
+        self.assertEqual(view.knowledge_lines(snap), ["[decision] 上限 120"])
+
+    def test_user_defined_collection_and_sink(self):
+        (self.store.root).mkdir(parents=True, exist_ok=True)
+        (self.store.root / "collections.json").write_text(json.dumps([
+            {"name": "knowledge", "sinks": [{"type": "markdown", "path": "out/K.md"}]},
+            {"name": "pr", "label": "PR", "match": {"type": ["pr"]},
+             "reduce": {"type": "latest", "payload": None, "key": ["session_id"]}, "view": {"type": "table"}},
+        ]))
+        defs = collections.load_definitions(self.store.root)
+        core.record(self.store, "a", {"type": "pr", "actor": "script", "pr": {"number": 1}})
+        core.record(self.store, "a", {"type": "pr", "actor": "script", "pr": {"ci": "pass"}})
+        self.learn("a", kind="howto", title="make up で起動")
+        snap = view.snapshot(self.store.read_all(), defs=defs)
+        self.assertEqual(len(snap["collections"]["pr"]["items"]), 1)
+        written = collections.write_sinks(defs, snap["collections"], self.store.root)
+        self.assertIn("make up で起動", (self.store.root / "out/K.md").read_text())
+        self.assertEqual(len(written), 1)
+        self.assertEqual(collections.write_sinks(defs, snap["collections"], self.store.root), [])  # 変化なし
+
+    def test_invalid_definitions(self):
+        with self.assertRaises(collections.CollectionError):
+            collections._validate({"name": "x", "reduce": {"type": "zzz"}})
+        with self.assertRaises(collections.CollectionError):
+            defs = [collections._validate({"name": "x", "sinks": [{"type": "jsonl", "path": "../../evil"}]})]
+            collections.write_sinks(defs, {"x": {"items": []}}, self.store.root)
+        with self.assertRaises(schema.SchemaError):
+            self.learn("a", kind="rumor", title="x")
 
 
 class StoreTest(TmpMixin, unittest.TestCase):

@@ -30,6 +30,7 @@ EVENT_TYPES = (
     "heartbeat",  # 生存通知・usage（hook）
     "done",
     "fail",
+    "finding",    # 作業で判明した知見・注意点など（コレクションへ集約される）
 )
 
 ACTORS = ("child", "parent", "hook", "human", "script")
@@ -37,11 +38,14 @@ ATTENTION_KINDS = ("decision", "clarification", "credential", "permission", "rev
 TASK_STATES = ("todo", "doing", "done", "skip")
 TASK_SIZES = {"S": 1, "M": 3, "L": 8}
 CONFIDENCE = ("high", "med", "low")
+FINDING_KINDS = ("caveat", "insight", "decision", "howto", "issue")
+FINDING_STATUS = ("active", "obsolete")
 
 # 自由記述の上限文字数
 LIMITS = {
     "summary": 80, "next": 80, "note": 200, "question": 200, "last_error": 120,
     "title": 80, "task": 40, "option": 40, "value": 200,
+    "body": 600, "tag": 30, "scope": 120, "key": 80,
 }
 
 
@@ -67,7 +71,13 @@ def parse_ts(ts: str) -> datetime:
 def clip(value: str | None, key: str) -> str | None:
     if value is None:
         return None
-    value = " ".join(str(value).split())
+    if key == "body":  # 本文は改行を残す（行内の空白だけ詰める）
+        lines = [" ".join(ln.split()) for ln in str(value).splitlines()]
+        value = "\n".join(lines).strip()
+        while "\n\n\n" in value:
+            value = value.replace("\n\n\n", "\n\n")
+    else:
+        value = " ".join(str(value).split())
     limit = LIMITS.get(key)
     if limit and len(value) > limit:
         value = value[: limit - 1] + "…"
@@ -114,6 +124,25 @@ def normalize_event(ev: dict) -> dict:
         att["options"] = [clip(o, "option") for o in att.get("options") or []]
         att.setdefault("blocking", True)
         att.setdefault("qid", ev["seq"])
+
+    fnd = ev.get("finding")
+    if ev["type"] == "finding":
+        if not isinstance(fnd, dict) or not fnd.get("title"):
+            raise SchemaError("finding イベントには finding.title が必要です")
+        _check_enum(fnd.get("kind", "insight"), FINDING_KINDS, "finding.kind")
+        _check_enum(fnd.get("status", "active"), FINDING_STATUS, "finding.status")
+        tags = fnd.get("tags") or []
+        if not isinstance(tags, list):
+            raise SchemaError("finding.tags は配列です")
+        ev["finding"] = {k: v for k, v in {
+            "kind": fnd.get("kind", "insight"),
+            "title": clip(fnd["title"], "title"),
+            "body": clip(fnd.get("body"), "body"),
+            "tags": sorted({clip(str(t).lower(), "tag") for t in tags if str(t).strip()})[:10],
+            "scope": clip(fnd.get("scope"), "scope"),
+            "key": clip(fnd.get("key"), "key"),
+            "status": fnd.get("status", "active"),
+        }.items() if v not in (None, "")}
 
     if ev["type"] == "ask" and not att:
         raise SchemaError("ask イベントには attention が必要です")

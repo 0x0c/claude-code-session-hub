@@ -5,6 +5,7 @@
 - サブセッションは状態が変わるたびに `session-hub` コマンドでハブへ **push** し、ハブはそれを**即座に**ブラウザのダッシュボードへ配信します（SSE。ポーリングなし）。
 - ダッシュボードでは、要対応（人間待ち・失敗・レビュー可・停滞）を先頭に一覧し、作業中のセッションにはスピナーを表示します。届いた報告は**タイムライン**（フィード / スイムレーン）で時系列にたどれます。
 - 親セッションはトランスクリプトを読まず、`session-hub attention` の数行だけで判断します。
+- サブセッションが作業で判明した知見・注意点・決定事項は `session-hub learn` で **1 か所（ナレッジ）に集まり**、同じ発見は 1 件にまとまります。どこにどうためて、どう見せるかは**コレクション**として宣言的に定義でき（`collections.json`）、ダッシュボードにタブとして表示され、Markdown などへの書き出しもできます。
 - Claude Code プラグインとして、報告手順のスキルと、報告漏れを防ぐ hook（heartbeat・トークン使用量・進捗の自動送信、作業中のまま終了しようとしたときの確認）を同梱しています。
 
 設計の背景・プロトコル・用語は [docs/DESIGN.md](docs/DESIGN.md) を参照してください。
@@ -89,6 +90,28 @@ session-hub flush
 ```
 
 `flush` は、届かずに outbox へ溜まったイベントを再送します。
+
+知見・注意点の記録と参照:
+
+```bash
+session-hub learn --kind caveat --title "CI の Redis は 6.2" --body "根拠と対処" --tag ci --scope tests/
+session-hub knowledge --scope tests/ [--kind caveat] [--body]
+session-hub collection knowledge [--format json]
+```
+
+`--kind` は caveat / issue / decision / howto / insight です。同じタイトルの知見は 1 件にまとまり、`--obsolete` で廃止にできます。`collection` はコレクション全体を Markdown（既定）か JSON で出力します。
+
+### コレクションの追加
+
+ストア直下に `collections.json` を置くと、組み込みの「ナレッジ」に加えて、更新をためる先と表示を宣言的に追加・変更できます。ダッシュボードにはコレクションごとのタブが自動で表示されます。詳しくは [DESIGN.md §3.7](docs/DESIGN.md) を参照してください。
+
+```json
+[
+  {"name": "knowledge", "sinks": [{"type": "markdown", "path": "KNOWLEDGE.md"}]},
+  {"name": "decisions", "label": "決定ログ", "match": {"type": ["finding"], "kind": ["decision"]},
+   "reduce": {"type": "log", "payload": "finding"}, "view": {"type": "table", "columns": ["title", "body", "reporters"]}}
+]
+```
 
 親セッション・人間:
 

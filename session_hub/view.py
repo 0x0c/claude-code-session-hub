@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from . import schema
+from . import collections, schema
 
 STALE_MINUTES = 30
 
@@ -51,7 +51,9 @@ def session_view(events: list[dict], now: datetime | None = None,
     return st, timeline
 
 
-def snapshot(all_events: dict[str, list[dict]], now: datetime | None = None) -> dict:
+def snapshot(all_events: dict[str, list[dict]], now: datetime | None = None,
+             defs: list[dict] | None = None) -> dict:
+    """ダッシュボード用の全データ。defs はコレクション定義（省略時は組み込みのみ）。"""
     sessions, events = [], []
     for sid, evs in all_events.items():
         if not evs:
@@ -64,7 +66,44 @@ def snapshot(all_events: dict[str, list[dict]], now: datetime | None = None) -> 
     total = {"cost_usd": round(sum((s["usage"].get("cost_usd") or 0) for s in sessions), 4),
              "input": sum((s["usage"].get("input") or 0) for s in sessions),
              "output": sum((s["usage"].get("output") or 0) for s in sessions)}
-    return {"generated_at": schema.now_iso(), "sessions": sessions, "events": events, "total": total}
+    defs = defs if defs is not None else collections.load_definitions(None)
+    cols = collections.project_all(defs, events)
+    return {"generated_at": schema.now_iso(), "sessions": sessions, "events": events, "total": total,
+            "collections": cols}
+
+
+def knowledge_lines(snap: dict, name: str = "knowledge", kinds: list[str] | None = None,
+                    tags: list[str] | None = None, scope: str | None = None, limit: int = 30,
+                    with_body: bool = False) -> list[str]:
+    """コレクションを LLM に渡しやすい短い行にする（新しい子への引き継ぎなど）。"""
+    col = snap.get("collections", {}).get(name)
+    if not col:
+        return []
+    out = []
+    for it in col["items"]:
+        if it.get("status", "active") != "active":
+            continue
+        if kinds and it.get("kind") not in kinds:
+            continue
+        if tags and not set(tags) & set(it.get("tags") or []):
+            continue
+        if scope and not any(scope in s or s in scope for s in it.get("scopes") or []):
+            continue
+        head = f"[{it.get('kind', '-')}] {it.get('title') or it['key']}"
+        extra = []
+        if it.get("tags"):
+            extra.append("#" + " #".join(it["tags"]))
+        if it.get("scopes"):
+            extra.append("@" + ",".join(it["scopes"]))
+        if it["count"] > 1:
+            extra.append(f"x{it['count']}")
+        line = head + (f" ({' '.join(extra)})" if extra else "")
+        if with_body and it.get("body"):
+            line += "\n    " + it["body"].replace("\n", "\n    ")
+        out.append(line)
+        if len(out) >= limit:
+            break
+    return out
 
 
 # ---- テキスト出力（親 LLM / ターミナル向け） -------------------------------

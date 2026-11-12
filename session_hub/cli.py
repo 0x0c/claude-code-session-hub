@@ -1,8 +1,8 @@
 """session-hub コマンド。
 
-子セッション:  session-hub start / report / ask / ready / pr / done / fail
+子セッション:  session-hub start / report / ask / ready / pr / done / fail / learn
                HUB_URL があればハブサーバーへ push、なければローカルのストアに書く
-親セッション:  session-hub attention / log / status / answer / command
+親セッション:  session-hub attention / log / status / answer / command / knowledge / collection
 人間:          session-hub serve（リアルタイムダッシュボード） / session-hub export（静的 HTML）
 hook:          session-hub hook session-start|stop|todo（stdin に hook の JSON）
 """
@@ -15,7 +15,7 @@ import os
 import sys
 from pathlib import Path
 
-from . import client, core, local_state, schema, view
+from . import client, collections, core, local_state, schema, view
 from .store import EventStore, current_session_id
 from .usage import usage_from_transcript
 
@@ -107,6 +107,30 @@ def cmd_fail(a):
     _record(a, {k: v for k, v in {"type": "fail", "last_error": a.error, "summary": a.summary}.items() if v is not None})
 
 
+def cmd_learn(a):
+    finding = {"kind": a.kind, "title": a.title, "body": a.body, "tags": a.tag or [],
+               "scope": a.scope, "key": a.key, "status": "obsolete" if a.obsolete else "active"}
+    _record(a, {"type": "finding", "finding": {k: v for k, v in finding.items() if v not in (None, "")}})
+
+
+def cmd_knowledge(a):
+    lines = view.knowledge_lines(_snap(a), name=a.collection, kinds=a.kind, tags=a.tag, scope=a.scope,
+                                 limit=a.limit, with_body=a.body)
+    print("\n".join(lines) if lines else "(該当なし)")
+
+
+def cmd_collection(a):
+    snap = _snap(a)
+    col = snap.get("collections", {}).get(a.name)
+    if not col:
+        sys.exit(f"session-hub: コレクション {a.name!r} はありません（{', '.join(snap.get('collections', {}))}）")
+    if a.format == "json":
+        print(json.dumps(col, ensure_ascii=False, indent=2))
+    else:
+        titles = {s["session_id"]: s.get("title") or s["session_id"] for s in snap["sessions"]}
+        print(collections.render_markdown(col, titles), end="")
+
+
 def cmd_heartbeat(a):
     usage = {}
     if a.transcript:
@@ -149,7 +173,7 @@ def _snap(a):
     store = EventStore(a.store)
     if getattr(a, "pull", False):
         store.pull()
-    return view.snapshot(store.read_all())
+    return view.snapshot(store.read_all(), defs=collections.load_definitions(store.root))
 
 
 def cmd_attention(a):
@@ -251,6 +275,28 @@ def build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser("fail", help="失敗"); s.add_argument("--error", required=True)
     s.add_argument("--summary"); s.set_defaults(func=cmd_fail)
 
+    s = sub.add_parser("learn", help="作業で判明した知見・注意点を記録（ナレッジに集約される）")
+    s.add_argument("--kind", default="insight", choices=schema.FINDING_KINDS,
+                   help="caveat=注意点 insight=知見 decision=決定事項 howto=手順 issue=未解決の問題")
+    s.add_argument("--title", required=True, help="1 行の要点（80 文字まで）。同じ要点は 1 件にまとまる")
+    s.add_argument("--body", help="詳細・根拠・対処（600 文字まで）")
+    s.add_argument("--tag", action="append", help="例: --tag ci --tag redis")
+    s.add_argument("--scope", help="関係する場所（パス、モジュール、サービス名など）")
+    s.add_argument("--key", help="まとめる単位を明示したいときのキー（既定は title）")
+    s.add_argument("--obsolete", action="store_true", help="同じ要点を「もう当てはまらない」にする")
+    s.set_defaults(func=cmd_learn)
+
+    s = sub.add_parser("knowledge", help="集まった知見を短い行で表示（LLM への引き継ぎ用）")
+    s.add_argument("--collection", default="knowledge")
+    s.add_argument("--kind", action="append", choices=schema.FINDING_KINDS)
+    s.add_argument("--tag", action="append"); s.add_argument("--scope")
+    s.add_argument("--limit", type=int, default=30); s.add_argument("--body", action="store_true")
+    s.add_argument("--pull", action="store_true"); s.set_defaults(func=cmd_knowledge)
+
+    s = sub.add_parser("collection", help="コレクションを Markdown / JSON で出力")
+    s.add_argument("name"); s.add_argument("--format", choices=("markdown", "json"), default="markdown")
+    s.add_argument("--pull", action="store_true"); s.set_defaults(func=cmd_collection)
+
     s = sub.add_parser("heartbeat", help="生存通知と usage 記録（hook 用）")
     s.add_argument("--transcript"); s.add_argument("--cost", type=float)
     s.add_argument("--context-pct", type=int); s.set_defaults(func=cmd_heartbeat)
@@ -297,7 +343,7 @@ def main(argv: list[str] | None = None) -> None:
     args = build_parser().parse_args(argv)
     try:
         args.func(args)
-    except schema.SchemaError as e:
+    except (schema.SchemaError, collections.CollectionError) as e:
         sys.exit(f"session-hub: {e}")
 
 

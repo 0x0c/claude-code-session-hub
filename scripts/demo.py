@@ -78,6 +78,22 @@ def seed(store: EventStore) -> None:
         tasks=[{"t": "置換", "s": "doing", "size": "M"}, {"t": "テスト", "s": "todo", "size": "M"}])
     add(E, 47, type="report", summary="sharp のビルドを試行中")
 
+    # 作業中に判明した知見・注意点（ナレッジに集約される）
+    def learn(sid, minutes_ago, kind, title, body=None, tags=(), scope=None):
+        add(sid, minutes_ago, type="finding", finding={"kind": kind, "title": title, "body": body,
+                                                       "tags": list(tags), "scope": scope})
+    learn(B, 80, "caveat", "CI の Redis は 6.2 で SCAN の順序が本番(7.x)と違う",
+          "順序に依存するテストは CI だけ落ちる。テストでは結果をソートして比較する。", ["ci", "redis"], "tests/")
+    learn(C, 60, "caveat", "CI の Redis は 6.2 で SCAN の順序が本番(7.x)と違う", None, ["redis"], "search/indexer.py")
+    learn(A, 140, "howto", "ローカルで Redis を使うテストは make redis-up が必要",
+          "docker compose -f dev/redis.yml up -d と同じ。CI では services で起動済み。", ["redis", "dev"])
+    learn(A, 30, "decision", "レート制限はスライディングウィンドウ方式にする",
+          "固定ウィンドウは境界でバーストを許すため不採用。", ["api", "rate-limit"], "api/middleware/")
+    learn(D, 56, "issue", "peer 依存の衝突で npm ci が通らない",
+          "eslint-plugin-x@5 が eslint@9 を要求。他の依存は eslint@8 固定。", ["deps", "npm"], "package.json")
+    learn(C, 100, "insight", "検索インデックスの全件再構築は約 40 分かかる",
+          "夜間バッチ以外で走らせると API のレイテンシが悪化する。", ["search", "perf"])
+
     # 親の回答の履歴（過去の質問）
     add(C, 100, type="ask", attention={"kind": "clarification", "question": "既存インデックスは残す?", "options": ["残す", "削除"],
         "default": "残す", "blocking": False})
