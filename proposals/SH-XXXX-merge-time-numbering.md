@@ -9,7 +9,7 @@
 | Author | [@0x0c](https://github.com/0x0c) |
 | Status | **In progress** |
 | Topic | Developer workflow |
-| Implementing PR | — |
+| Implementing PR | [#4](https://github.com/0x0c/claude-code-session-hub/pull/4) |
 | Related | — |
 <!-- /SH-METADATA -->
 
