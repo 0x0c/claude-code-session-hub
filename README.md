@@ -39,7 +39,7 @@ python3 scripts/demo.py --push http://127.0.0.1:8765
 
 ### 1. ハブサーバーを起動する
 
-子セッションから届く場所で起動します。localhost 以外で待ち受けるときはトークンが必須です。
+子セッションから届く場所で起動します（手元の PC を外部に公開する構成は想定していません。常時動いているサーバーに置くか、サブセッションをローカルで動かす場合は `HUB_STORE` を共有してください）。localhost 以外で待ち受けるときはトークンが必須です。
 
 ```bash
 HUB_STORE=/var/lib/session-hub HUB_TOKEN=<長いランダム文字列> session-hub serve --host 0.0.0.0 --port 8765
