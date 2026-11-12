@@ -106,7 +106,7 @@ def session_start(payload: dict) -> str:
     if shim and str(shim.parent) not in os.environ.get("PATH", "").split(":"):
         cmd = str(shim)
     lines = [f"[session-hub] このセッションの状況はダッシュボードに push される（session_id={sid}）。"
-             f" session-hub:report スキルの手順で、状態が変わるたびに `{cmd}` で報告すること。"]
+             f" session-hub-report スキルの手順で、状態が変わるたびに `{cmd}` で報告すること。"]
     if not st.get("started"):
         lines.append(f"未登録: 最初に `{cmd} start --title \"<作業名>\" --task \"<タスク>=todo\" ...` を実行する。")
     else:

@@ -1,5 +1,5 @@
 ---
-name: orchestrate
+name: session-hub-orchestrate
 description: 親セッションとして、Session Hub を使ってサブセッションを起動・監視・応答する手順。create_session でサブセッションを作るとき、[HUB/1] で始まるメッセージをサブセッションから受け取ったとき、サブセッションの状況を確認したいときに使う。トランスクリプトを読まずに状況を把握してトークンを節約する。
 ---
 
@@ -16,7 +16,7 @@ description: 親セッションとして、Session Hub を使ってサブセッ�
 ## 子を起動するとき
 
 `prompts/child-append-system-prompt.md` の本文を `{{PARENT_SESSION_ID}}` と `{{TITLE}}` を置き換えて追加のシステムプロンプトとして渡し、
-作業内容だけを本文の指示にする。長い手順は渡さない（子は session-hub:report スキルを必要時に読む）。
+作業内容だけを本文の指示にする。長い手順は渡さない（子は session-hub-report スキルを必要時に読む）。
 
 - ローカル: 別プロセスの Claude Code として起動する（各子が固有のセッション ID を持つ必要がある）。
   `claude -p "<作業内容>" --append-system-prompt "<置き換えた本文>"` を Bash のバックグラウンド実行で起動する。

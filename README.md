@@ -94,8 +94,8 @@ Agent ツールのサブエージェントは親と同じセッション ID に�
 
 | 種類 | 内容 |
 |---|---|
-| スキル `session-hub:report` | いつ・何を報告するか（子用） |
-| スキル `session-hub:orchestrate` | 子の起動・`[HUB/1]` への対応・回答の仕方（親用） |
+| スキル `session-hub-report` | いつ・何を報告するか（子用） |
+| スキル `session-hub-orchestrate` | 子の起動・`[HUB/1]` への対応・回答の仕方（親用） |
 | SessionStart hook | `~/.local/bin/session-hub` を用意し、`HUB_AUTOSTART=1` ならサーバーを起動し、未登録なら `start` を促す 2 行を注入 |
 | PostToolUse hook | TodoWrite / TaskCreate / TaskUpdate → タスク進捗と作業中タスク名を自動送信 |
 | Stop hook | ターン終了ごとに heartbeat とトークン使用量を自動送信。作業中のまま終えようとしたら 1 回だけ報告を促す（`HUB_STOP_GUARD=0` で無効） |

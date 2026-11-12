@@ -1,0 +1,8 @@
+# APM（Agent Package Manager）用のメタデータ。
+# プラグイン構成（.claude-plugin/ + skills/ + hooks/）のまま配布するため、
+# .apm/ や dependencies は置かない（置くと APM レイアウトとして解釈される）。
+name: claude-code-session-hub
+version: "0.1.0"
+description: Session Hub skills and hooks for reporting sub-session status
+author: 0x0c
+license: MIT

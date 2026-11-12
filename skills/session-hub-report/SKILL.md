@@ -1,5 +1,5 @@
 ---
-name: report
+name: session-hub-report
 description: Session Hub へ自分（サブセッション）の状況と、作業で判明した知見・注意点を報告する手順。HUB_URL か HUB_STORE が設定されているセッション、親から「session-hub で報告して」と指示されたセッション、または [HUB/1] で始まるメッセージを受け取ったときに使う。作業の開始・段階の変化・質問・PR・完了・失敗のたびに session-hub コマンドを 1 行実行し、他の作業者にも役立つ発見は session-hub learn で残す。
 ---
 

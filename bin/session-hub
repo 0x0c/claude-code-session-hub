@@ -1,5 +1,43 @@
 #!/bin/sh
-# リポジトリ（またはプラグイン）を置いた場所から session_hub を実行するラッパー。
-# pip install しなくても使える。
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}" exec python3 -m session_hub "$@"
+# session-hub のラッパー。インストール方法を問わず session_hub パッケージを見つけて実行する。
+#
+# 探す順番:
+#   1. このスクリプトの 1 つ上（リポジトリのクローン、または Claude Code プラグインとして読み込まれた場合）
+#   2. 環境変数 HUB_HOME（パッケージを置いたディレクトリ）
+#   3. pip / uv tool などでインストール済みの session_hub
+#   4. apm でインストールされた場合の apm_modules/**/claude-code-session-hub
+#      （apm はこのラッパーだけを .claude/hooks/ にコピーし、本体は apm_modules に置くため）
+#
+# 見つからないとき、hook として呼ばれた場合は何もせず正常終了する（セッションを邪魔しない）。
+
+has_pkg() { [ -n "$1" ] && [ -f "$1/session_hub/__init__.py" ]; }
+
+SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
+ROOT="$(cd "$SELF_DIR/.." && pwd)"
+
+if has_pkg "$ROOT"; then
+  PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}" exec python3 -m session_hub "$@"
+fi
+if has_pkg "$HUB_HOME"; then
+  PYTHONPATH="$HUB_HOME${PYTHONPATH:+:$PYTHONPATH}" exec python3 -m session_hub "$@"
+fi
+if python3 -c "import session_hub" >/dev/null 2>&1; then
+  exec python3 -m session_hub "$@"
+fi
+for base in "${CLAUDE_PROJECT_DIR:-}" "$PWD" "$HOME/.apm" "$HOME"; do
+  [ -n "$base" ] && [ -d "$base/apm_modules" ] || continue
+  for cand in "$base"/apm_modules/*/claude-code-session-hub "$base"/apm_modules/*/*/claude-code-session-hub; do
+    if has_pkg "$cand"; then
+      PYTHONPATH="$cand${PYTHONPATH:+:$PYTHONPATH}" exec python3 -m session_hub "$@"
+    fi
+  done
+done
+
+if [ "$1" = "hook" ]; then
+  exit 0
+fi
+echo "session-hub: session_hub パッケージが見つかりません。次のいずれかでインストールしてください:" >&2
+echo "  pip install git+https://github.com/0x0c/claude-code-session-hub" >&2
+echo "  apm install 0x0c/claude-code-session-hub   （プロジェクト内では apm_modules から自動で見つけます）" >&2
+echo "  または HUB_HOME にリポジトリのパスを設定する" >&2
+exit 127

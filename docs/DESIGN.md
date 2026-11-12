@@ -168,7 +168,7 @@ queued → planning → working ⇄ waiting_ci
 
 ### 3.2 子 → ハブ（`session-hub report` ほか）
 
-子エージェントには「状態が変わったら 1 行の Bash を叩く」ことだけを課す（手順は `skills/report/SKILL.md`）。
+子エージェントには「状態が変わったら 1 行の Bash を叩く」ことだけを課す（手順は `skills/session-hub-report/SKILL.md`）。
 
 ```bash
 session-hub start --title "認証APIのレート制限" --task-ref "#128" --task "設計=todo:S" --task "実装=todo:M"
@@ -230,7 +230,7 @@ push 型では、子が報告しない限りダッシュボードは古いまま
 | 層 | 仕組み | トークン | 担保する内容 |
 |---|---|---|---|
 | 1. 自動送信（hook） | `Stop` hook → heartbeat とトークン使用量 / `PostToolUse(TodoWrite・TaskCreate・TaskUpdate)` → 進捗と作業中タスク名、着手時に planning→working | 0 | 「生きているか」「どこまで進んだか」 |
-| 2. 手順（スキル + 起動プロンプト） | `skills/report/SKILL.md`（いつ・何を送るかの表）、`prompts/child-append-system-prompt.md`（5 行の常駐ルール）、`SessionStart` hook が未登録なら `start` を促す 2 行を注入 | 小 | 意味情報（段階・質問・PR・完了） |
+| 2. 手順（スキル + 起動プロンプト） | `skills/session-hub-report/SKILL.md`（いつ・何を送るかの表）、`prompts/child-append-system-prompt.md`（5 行の常駐ルール）、`SessionStart` hook が未登録なら `start` を促す 2 行を注入 | 小 | 意味情報（段階・質問・PR・完了） |
 | 3. 終了時ガード | `Stop` hook が、最後に報告した状態が planning / working のまま、または未登録のままターンを終えようとしたら **1 回だけ** block して報告を促す（`stop_hook_active` で無限ループを防止、`HUB_STOP_GUARD=0` で無効化） | 1 ターン分（必要時のみ） | 「作業中のまま放置」の防止。ぐるぐる表示の正しさ |
 
 - hook は `HUB_URL` / `HUB_STORE` が未設定なら何もしないので、プラグインを常時有効にしても他の作業に影響しない。
@@ -420,8 +420,8 @@ claude-code-session-hub/
   bin/session-hub         インストール不要のラッパー
   .claude-plugin/         Claude Code プラグイン定義（plugin.json, marketplace.json）
   hooks/hooks.json        プラグインの hook 設定
-  skills/report/          子セッション用スキル（いつ・何を報告するか）
-  skills/orchestrate/     親セッション用スキル（起動・応答・確認）
+  skills/session-hub-report/       子セッション用スキル（いつ・何を報告するか）
+  skills/session-hub-orchestrate/  親セッション用スキル（起動・応答・確認）
   prompts/child-append-system-prompt.md   create_session に渡す短い常駐ルール
   scripts/demo.py         デモデータと疑似 push
   tests/
@@ -525,7 +525,7 @@ claude-code-session-hub/
 | SessionStart hook | セッション開始時に動く。コマンドを使えるようにし、未登録なら登録を促す短い文をコンテキストへ入れる |
 | PostToolUse hook | ツール実行後に動く。TodoWrite などのタスク操作を進捗としてハブへ送る |
 | Stop hook | ターン終了時に動く。heartbeat を送り、作業中のまま終えようとしていたら 1 回だけ報告を促す |
-| スキル | 必要なときに読み込まれる手順書。子用 `session-hub:report`、親用 `session-hub:orchestrate` |
+| スキル | 必要なときに読み込まれる手順書。子用 `session-hub-report`、親用 `session-hub-orchestrate` |
 | `append_system_prompt` | `create_session` で子に常に効かせる追加指示。本ツールでは 5 行の報告ルールを渡す |
 | `send_message` | セッション間でメッセージを送る機能。届くと受け手のターンが動くのでトークンを使う。エスカレーションと指示にだけ使う |
 | `get_session` / `status_bucket` | セッションの状態を取得する機能と、その大まかな状態（working / blocked / failed など）。停滞の確認に使う |
