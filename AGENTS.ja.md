@@ -35,7 +35,7 @@ Session Hubは、親のClaude Codeセッションが多数のサブセッショ�
 - 利用者が読む文書は**日英の2言語**で用意します。英語の原文`<name>.md`の隣に日本語版`<name>.ja.md`を置きます。対象は`README`、`AGENTS`、`docs/*`、`proposals/README`、各プロポーザルです。両方を同じ変更で更新してください。`scripts/check_docs.py`と`scripts/proposals.py lint`が、対になるファイルがそろっていること、1行目で互いにリンクしていること、見出しの構成が同じであることを確認します。
 - 略語は、各文書で最初に使うときに正式な名称のあとへ括弧書きで添えます。英語では「Server-Sent Events (SSE)」、日本語では「Server-Sent Events（SSE）」のように書きます。`scripts/acronyms.py`がこれを確認します。新しい略語を使い始めるときは、その表に略語と正式な名称を追加してください。
 - 文章を書く前や直す前に、[`document-writing`](.claude/skills/document-writing/SKILL.md)と、言語ごとの[`english-document-writing`](.claude/skills/english-document-writing/SKILL.md)または[`japanese-document-writing`](.claude/skills/japanese-document-writing/SKILL.md)を読み込んでください。これらは下書きの形を決めるもので、書き終えてからの校正用ではありません。
-- ダッシュボードは多言語化しています。表示する文言はすべて`session_hub/templates/dashboard.html`の`MESSAGES`表に英語と日本語で入っており、文言を変えるときは両方を更新します。サーバーが送る表示用の文字列（コレクションの名前やグループ名）は、`{"en": ..., "ja": ...}`の形でも書けます。CLIのメッセージとhookがモデルに渡す文は、現在も日本語の製品文言です。プロポーザルで変更を決めるまでは、そのままにしてください。
+- ダッシュボードは多言語化しています。表示する文言はすべて`session_hub/templates/dashboard.html`の`MESSAGES`表に英語と日本語で入っており、文言を変えるときは両方を更新します。サーバーが送る表示用の文字列（コレクションの名前やグループ名）は、`{"en": ..., "ja": ...}`の形でも書けます。コマンドラインインターフェース（CLI）のメッセージとhookがモデルに渡す文は英語です。
 
 ## 守る原則
 

@@ -58,7 +58,7 @@ class SchemaTest(TmpMixin, unittest.TestCase):
         core.record(self.store, "s1", {"type": "start", "tasks": [{"t": "a", "s": "doing"}]})
         res = core.record(self.store, "s1", {"type": "ready", "ready": {"self_review": True}})
         self.assertIsNone(res["escalate"])
-        self.assertIn("PRなし", schema.ready_gate(res["status"]))
+        self.assertIn("no PR", schema.ready_gate(res["status"]))
         core.record(self.store, "s1", {"type": "pr", "actor": "script",
                                        "pr": {"number": 3, "ci": "pass", "mergeable": True, "unresolved_threads": 0}})
         core.record(self.store, "s1", {"type": "report", "state": "working", "tasks": [{"t": "a", "s": "done"}]})
@@ -132,14 +132,15 @@ class LocalizationTest(TmpMixin, unittest.TestCase):
         self.assertEqual([c["code"] for c in codes],
                          ["ci", "self_review", "tests_added", "description", "tasks"])
         self.assertEqual(codes[0]["value"], "unknown")
-        self.assertEqual(schema.ready_gate(st)[0], "CI:不明")  # the CLI keeps its Japanese wording
+        self.assertEqual(schema.ready_gate(st)[0], "CI: unknown")
         view_st = view.snapshot(self.store.read_all())["sessions"][0]
         self.assertEqual(view_st["gate_codes"], codes)
 
     def test_localized_display_strings(self):
         label = {"en": "Knowledge", "ja": "ナレッジ"}
         self.assertEqual(collections.localized(label, "en"), "Knowledge")
-        self.assertEqual(collections.localized(label), "ナレッジ")  # the CLI default stays Japanese
+        self.assertEqual(collections.localized(label), "Knowledge")  # the CLI default is English
+        self.assertEqual(collections.localized(label, "ja"), "ナレッジ")
         self.assertEqual(collections.localized({"en": "Only English"}, "ja"), "Only English")
         self.assertEqual(collections.localized("plain", "en"), "plain")
 
@@ -147,7 +148,7 @@ class LocalizationTest(TmpMixin, unittest.TestCase):
         (self.store.root).mkdir(parents=True, exist_ok=True)
         (self.store.root / "collections.json").write_text(json.dumps([
             {"name": "knowledge", "sinks": [{"type": "markdown", "path": "K.en.md", "lang": "en"},
-                                            {"type": "markdown", "path": "K.ja.md"}]}]))
+                                            {"type": "markdown", "path": "K.ja.md", "lang": "ja"}]}]))
         defs = collections.load_definitions(self.store.root)
         core.record(self.store, "a", {"type": "finding", "finding": {"kind": "caveat", "title": "x"}})
         snap = view.snapshot(self.store.read_all(), defs=defs)
@@ -268,7 +269,7 @@ class HooksTest(TmpMixin, unittest.TestCase):
         self.assertEqual(self.run_hook("stop", {"stop_hook_active": True}), "")
         res = core.record(self.store, "kid", {"type": "start", "title": "x"})
         local_state.note("kid", {"type": "start"}, res)
-        self.assertIn("作業中", json.loads(self.run_hook("stop", {}))["reason"])
+        self.assertIn("still shows this session as working", json.loads(self.run_hook("stop", {}))["reason"])
         res = core.record(self.store, "kid", {"type": "done"})
         local_state.note("kid", {"type": "done"}, res)
         self.assertEqual(self.run_hook("stop", {}), "")

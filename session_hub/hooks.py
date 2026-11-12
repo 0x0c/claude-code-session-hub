@@ -101,18 +101,18 @@ def session_start(payload: dict) -> str:
     try:
         autostart_server()
     except OSError as exc:
-        print(f"session-hub: サーバーの自動起動に失敗: {exc}", file=sys.stderr)
+        print(f"session-hub: could not start the server automatically: {exc}", file=sys.stderr)
     sid = current_session_id()
     st = local_state.load(sid) if sid else {}
     cmd = "session-hub"
     if shim and str(shim.parent) not in os.environ.get("PATH", "").split(":"):
         cmd = str(shim)
-    lines = [f"[session-hub] このセッションの状況はダッシュボードに push される（session_id={sid}）。"
-             f" session-hub-report スキルの手順で、状態が変わるたびに `{cmd}` で報告すること。"]
+    lines = [f"[session-hub] This session's status is pushed to a dashboard (session_id={sid})."
+             f" Follow the session-hub-report skill: report with `{cmd}` whenever your state changes."]
     if not st.get("started"):
-        lines.append(f"未登録: 最初に `{cmd} start --title \"<作業名>\" --task \"<タスク>=todo\" ...` を実行する。")
+        lines.append(f"Not registered yet: first run `{cmd} start --title \"<work>\" --task \"<task>=todo\" ...`.")
     else:
-        lines.append(f"前回の報告: state={st.get('state')}。再開したら `{cmd} report --state working --summary ...`。")
+        lines.append(f"Last report: state={st.get('state')}. When you resume, run `{cmd} report --state working --summary ...`.")
     return "\n".join(lines)
 
 
@@ -133,13 +133,15 @@ def stop(payload: dict) -> str:
         return ""
     st = local_state.load(sid)
     if not st.get("started"):
-        reason = ("session-hub にまだ登録されていません。`session-hub start --title ...` で作業内容を登録してから"
-                  "ターンを終えてください（作業していないなら `session-hub start --state queued --title ...`）。")
+        reason = ("This session is not registered with session-hub yet. Register the work with "
+                  "`session-hub start --title ...` before ending the turn (if you are not working on "
+                  "anything, use `session-hub start --state queued --title ...`).")
     elif st.get("state") in ACTIVE_STATES:
-        reason = ("ダッシュボード上は「作業中」のままです。ターンを終える前に今の状態を 1 行で報告してください: "
-                  "完了→`session-hub done`、質問→`session-hub ask`、PR 準備完了→`session-hub ready ...`、"
-                  "CI/外部待ち→`session-hub report --state waiting_ci|blocked --summary ...`、"
-                  "失敗→`session-hub fail --error ...`。")
+        reason = ("The dashboard still shows this session as working. Before ending the turn, report "
+                  "the current state in one line: done -> `session-hub done`, a question -> "
+                  "`session-hub ask`, a PR ready for review -> `session-hub ready ...`, waiting for CI "
+                  "or something external -> `session-hub report --state waiting_ci|blocked --summary ...`, "
+                  "failed -> `session-hub fail --error ...`.")
     else:
         return ""
     return json.dumps({"decision": "block", "reason": reason}, ensure_ascii=False)

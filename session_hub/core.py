@@ -32,7 +32,7 @@ def merge_tasks(current: list[dict], specs: list[str]) -> list[dict]:
         state, _, size = rest.partition(":")
         name = name.strip()
         if not name:
-            raise schema.SchemaError(f"タスク名がありません: {spec!r}")
+            raise schema.SchemaError(f"missing task name: {spec!r}")
         if state == "-":
             tasks = [t for t in tasks if t["t"] != name]
             continue
@@ -59,7 +59,7 @@ def record(store: EventStore, session_id: str, fields: dict, writer: str | None 
     updates = fields.pop("task_updates", None)
     if updates:
         if not isinstance(updates, list) or not all(isinstance(u, str) for u in updates):
-            raise schema.SchemaError("task_updates は文字列の配列です")
+            raise schema.SchemaError("task_updates must be an array of strings")
         fields["tasks"] = merge_tasks(before["tasks"], updates)
     ev = store.append(session_id, fields, writer=writer)
     after = schema.fold(store.read(session_id))
@@ -70,7 +70,7 @@ def record(store: EventStore, session_id: str, fields: dict, writer: str | None 
             after["state"] != before["state"] or ev["type"] == "ask"):
         gate = schema.ready_gate(after) if after["state"] == "review_ready" else []
         if gate:
-            message += f"（レビュー条件未達のため親へは送らない: {', '.join(gate)}）"
+            message += f" (not sent to the parent: the review gate is not met: {', '.join(gate)})"
         else:
             escalate = escalation_line(after)
             message = escalate

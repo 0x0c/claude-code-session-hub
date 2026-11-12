@@ -56,8 +56,8 @@ origin of its content.
 - The dashboard is localized: every label lives in the `MESSAGES` table of
   `session_hub/templates/dashboard.html`, in English and Japanese, and a change to a label updates
   both. Display strings that the server sends (collection labels and groups) may be a
-  `{"en": ..., "ja": ...}` map. The CLI messages and the text the hooks inject are still Japanese
-  product strings; leave them as they are unless a proposal changes them.
+  `{"en": ..., "ja": ...}` map. The command-line interface (CLI) messages and the text the hooks
+  inject are English.
 
 ## Ground rules
 

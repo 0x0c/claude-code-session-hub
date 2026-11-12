@@ -36,8 +36,8 @@ done
 if [ "$1" = "hook" ]; then
   exit 0
 fi
-echo "session-hub: session_hub パッケージが見つかりません。次のいずれかでインストールしてください:" >&2
+echo "session-hub: cannot find the session_hub package. Install it in one of these ways:" >&2
 echo "  pip install git+https://github.com/0x0c/claude-code-session-hub" >&2
-echo "  apm install 0x0c/claude-code-session-hub   （プロジェクト内では apm_modules から自動で見つけます）" >&2
-echo "  または HUB_HOME にリポジトリのパスを設定する" >&2
+echo "  apm install 0x0c/claude-code-session-hub   (inside a project, the wrapper finds apm_modules on its own)" >&2
+echo "  or set HUB_HOME to the path of a checkout" >&2
 exit 127

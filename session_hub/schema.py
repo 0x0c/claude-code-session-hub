@@ -86,7 +86,7 @@ def clip(value: str | None, key: str) -> str | None:
 
 def _check_enum(value, allowed, name):
     if value is not None and value not in allowed:
-        raise SchemaError(f"{name}={value!r} は不正です。候補: {', '.join(allowed)}")
+        raise SchemaError(f"invalid {name}={value!r}; choose one of: {', '.join(allowed)}")
 
 
 def normalize_event(ev: dict) -> dict:
@@ -94,7 +94,7 @@ def normalize_event(ev: dict) -> dict:
     ev = copy.deepcopy(ev)
     for key in ("session_id", "seq", "ts", "type"):
         if ev.get(key) in (None, ""):
-            raise SchemaError(f"{key} は必須です")
+            raise SchemaError(f"{key} is required")
     ev.setdefault("v", SCHEMA_VERSION)
     ev.setdefault("actor", "child")
     _check_enum(ev["type"], EVENT_TYPES, "type")
@@ -103,7 +103,7 @@ def normalize_event(ev: dict) -> dict:
     _check_enum(ev.get("confidence"), CONFIDENCE, "confidence")
     parse_ts(ev["ts"])  # Format check
     if not isinstance(ev["seq"], int) or ev["seq"] < 1:
-        raise SchemaError("seq は 1 以上の整数です")
+        raise SchemaError("seq must be an integer of 1 or more")
 
     for key in ("summary", "next", "note", "last_error", "title"):
         if key in ev:
@@ -128,12 +128,12 @@ def normalize_event(ev: dict) -> dict:
     fnd = ev.get("finding")
     if ev["type"] == "finding":
         if not isinstance(fnd, dict) or not fnd.get("title"):
-            raise SchemaError("finding イベントには finding.title が必要です")
+            raise SchemaError("a finding event needs finding.title")
         _check_enum(fnd.get("kind", "insight"), FINDING_KINDS, "finding.kind")
         _check_enum(fnd.get("status", "active"), FINDING_STATUS, "finding.status")
         tags = fnd.get("tags") or []
         if not isinstance(tags, list):
-            raise SchemaError("finding.tags は配列です")
+            raise SchemaError("finding.tags must be an array")
         ev["finding"] = {k: v for k, v in {
             "kind": fnd.get("kind", "insight"),
             "title": clip(fnd["title"], "title"),
@@ -145,10 +145,10 @@ def normalize_event(ev: dict) -> dict:
         }.items() if v not in (None, "")}
 
     if ev["type"] == "ask" and not att:
-        raise SchemaError("ask イベントには attention が必要です")
+        raise SchemaError("an ask event needs attention")
     if ev["type"] == "answer":
         if "qid" not in ev:
-            raise SchemaError("answer イベントには qid が必要です")
+            raise SchemaError("an answer event needs qid")
         ev["value"] = clip(ev.get("value"), "value")
     return ev
 
@@ -218,7 +218,7 @@ def task_progress(tasks: list[dict]) -> dict:
 def fold(events: list[dict]) -> dict:
     """Compute the status from one session's events in time order."""
     if not events:
-        raise SchemaError("events が空です")
+        raise SchemaError("events is empty")
     st = empty_status(events[0]["session_id"])
     for ev in events:  # The caller sorts events in time order
         st = apply_event(st, ev)
@@ -266,19 +266,19 @@ def ready_gate_codes(st: dict) -> list[dict]:
     return reasons
 
 
-_GATE_JA = {
-    "no_pr": lambda v: "PRなし",
-    "ci": lambda v: f"CI:{'不明' if v == 'unknown' else v}",
-    "conflict": lambda v: "コンフリクト",
-    "threads": lambda v: f"未解決の指摘{v}件",
-    "question": lambda v: "未回答の質問",
-    "self_review": lambda v: "自己レビュー未完",
-    "tests_added": lambda v: "テスト未完",
-    "description": lambda v: "PR説明未完",
-    "tasks": lambda v: "残タスク:" + ",".join(v[:3]) + ("…" if len(v) > 3 else ""),
+_GATE_TEXT = {
+    "no_pr": lambda v: "no PR",
+    "ci": lambda v: f"CI: {v}",
+    "conflict": lambda v: "merge conflict",
+    "threads": lambda v: f"{v} open threads",
+    "question": lambda v: "unanswered question",
+    "self_review": lambda v: "self-review not done",
+    "tests_added": lambda v: "tests not added",
+    "description": lambda v: "no PR description",
+    "tasks": lambda v: "tasks left: " + ", ".join(v[:3]) + ("…" if len(v) > 3 else ""),
 }
 
 
 def ready_gate(st: dict) -> list[str]:
-    """Return the unmet gate conditions as the CLI's (Japanese) messages; empty means passed."""
-    return [_GATE_JA[r["code"]](r.get("value")) for r in ready_gate_codes(st)]
+    """Return the unmet gate conditions as the CLI's messages; an empty list means the gate passed."""
+    return [_GATE_TEXT[r["code"]](r.get("value")) for r in ready_gate_codes(st)]

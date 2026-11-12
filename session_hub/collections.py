@@ -50,7 +50,14 @@ BUILTIN: list[dict] = [
 ]
 
 REDUCERS = ("log", "latest", "aggregate")
-DEFAULT_LANG = "ja"  # the CLI's and the sinks' language until a proposal changes it
+DEFAULT_LANG = "en"  # the language of the CLI output and of sinks that set no "lang"
+
+
+# The fixed words of the Markdown sink, per language.
+SINK_TEXT = {
+    "en": {"scope": "Applies to: ", "reported": "Reported by {who} ({n} reports, last {last})"},
+    "ja": {"scope": "対象: ", "reported": "報告: {who}（{n} 件、最終 {last}）"},
+}
 
 
 def localized(value, lang: str = DEFAULT_LANG):
@@ -69,17 +76,17 @@ class CollectionError(ValueError):
 
 def _validate(d: dict) -> dict:
     if not isinstance(d, dict) or not re.match(r"^[a-z0-9_-]{1,40}$", str(d.get("name", ""))):
-        raise CollectionError(f"コレクション名が不正です: {d.get('name') if isinstance(d, dict) else d!r}")
+        raise CollectionError(f"invalid collection name: {d.get('name') if isinstance(d, dict) else d!r}")
     d = {"label": d["name"], "description": "", "match": {}, "sinks": [], **d}
     d["reduce"] = {"type": "log", "payload": None, "key": [], **(d.get("reduce") or {})}
     d["view"] = {"type": "table", **(d.get("view") or {})}
     if d["reduce"]["type"] not in REDUCERS:
-        raise CollectionError(f"{d['name']}: reduce.type は {REDUCERS} のいずれかです")
+        raise CollectionError(f"{d['name']}: reduce.type must be one of {REDUCERS}")
     if d["view"]["type"] not in VIEWS:
-        raise CollectionError(f"{d['name']}: view.type は {VIEWS} のいずれかです")
+        raise CollectionError(f"{d['name']}: view.type must be one of {VIEWS}")
     for sink in d["sinks"]:
         if sink.get("type") not in ("markdown", "jsonl") or not sink.get("path"):
-            raise CollectionError(f"{d['name']}: sinks は {{type: markdown|jsonl, path}} です")
+            raise CollectionError(f"{d['name']}: each sink is {{type: markdown|jsonl, path}}")
     return d
 
 
@@ -90,7 +97,7 @@ def load_definitions(store_root: Path | None) -> list[dict]:
         try:
             user = json.loads(path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
-            raise CollectionError(f"collections.json を読めません: {e}") from e
+            raise CollectionError(f"cannot read collections.json: {e}") from e
         for d in user if isinstance(user, list) else user.get("collections", []):
             if d.get("enabled") is False:
                 defs.pop(d.get("name"), None)
@@ -207,6 +214,7 @@ def render_markdown(col: dict, session_titles: dict[str, str] | None = None,
                     lang: str = DEFAULT_LANG) -> str:
     titles = session_titles or {}
     view = col["view"]
+    lang = lang if lang in SINK_TEXT else DEFAULT_LANG
     lines = [f"# {localized(col['label'], lang)}", ""]
     if col.get("description"):
         lines += [localized(col["description"], lang), ""]
@@ -227,9 +235,10 @@ def render_markdown(col: dict, session_titles: dict[str, str] | None = None,
             if it.get("tags"):
                 meta.append(" ".join(f"`{t}`" for t in it["tags"]))
             if it.get("scopes"):
-                meta.append("対象: " + ", ".join(it["scopes"]))
+                meta.append(SINK_TEXT[lang]["scope"] + ", ".join(it["scopes"]))
             who = ", ".join(titles.get(s, s) for s in it["reporters"])
-            meta.append(f"報告: {who}（{it['count']} 件、最終 {it['last_ts'][:16].replace('T', ' ')}）")
+            meta.append(SINK_TEXT[lang]["reported"].format(who=who, n=it["count"],
+                                                            last=it["last_ts"][:16].replace("T", " ")))
             lines += ["", " / ".join(meta), ""]
             if it.get("body"):
                 lines += [it["body"], ""]
@@ -246,7 +255,7 @@ def write_sinks(defs: list[dict], projected: dict, store_root: Path,
         for sink in d.get("sinks") or []:
             path = (root / sink["path"]).resolve()
             if root not in path.parents:  # Never write outside the store
-                raise CollectionError(f"sink の path はストアの中を指定してください: {sink['path']}")
+                raise CollectionError(f"a sink path must be inside the store: {sink['path']}")
             if sink["type"] == "markdown":
                 text = render_markdown(col, session_titles, sink.get("lang", DEFAULT_LANG))
             else:

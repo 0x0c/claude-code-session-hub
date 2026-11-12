@@ -79,10 +79,10 @@ class Hub:
     # ---- Receiving (push) ----
     def ingest(self, payload: dict) -> dict:
         if not isinstance(payload, dict) or not isinstance(payload.get("fields"), dict):
-            raise schema.SchemaError("body は {session_id, writer?, fields:{...}} の形式です")
+            raise schema.SchemaError("the body must be {session_id, writer?, fields:{...}}")
         sid = payload.get("session_id")
         if not isinstance(sid, str):
-            raise schema.SchemaError("session_id は必須です")
+            raise schema.SchemaError("session_id is required")
         writer = payload.get("writer") or None
         fields = {k: v for k, v in payload["fields"].items() if k not in ("session_id", "seq", "ts")}
         with self.write_lock:
@@ -212,7 +212,7 @@ def make_handler(hub: Hub, token: str | None):
             if path == "/healthz":
                 return self._send(200, "ok", "text/plain")
             if not self._authorized():
-                return self._send(401, "unauthorized: URL に ?token=<HUB_TOKEN> を付けて開いてください",
+                return self._send(401, "unauthorized: open the page with ?token=<HUB_TOKEN> appended to the URL",
                                   "text/plain; charset=utf-8")
             if path in ("/", "/index.html") and "token=" in self.path:
                 # Accept the token from the URL once, then authenticate by cookie (removing the token from the URL)
@@ -282,7 +282,7 @@ def make_handler(hub: Hub, token: str | None):
 def make_server(store: EventStore, host: str = "127.0.0.1", port: int = 8765, token: str | None = None,
                 watch_files: bool = False, pull_every: float = 0) -> tuple[ThreadingHTTPServer, Hub]:
     if host not in ("127.0.0.1", "localhost", "::1") and not token:
-        raise SystemExit("hub: localhost 以外で待ち受けるときは HUB_TOKEN を設定してください")
+        raise SystemExit("session-hub: set HUB_TOKEN to listen on an address other than localhost")
     hub = Hub(store, watch_files=watch_files, pull_every=pull_every)
     httpd = ThreadingHTTPServer((host, port), make_handler(hub, token))
     httpd.daemon_threads = True

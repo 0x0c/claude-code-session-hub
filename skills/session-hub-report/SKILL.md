@@ -101,8 +101,8 @@ instructions, and respond as follows.
 
 ## Troubleshooting
 
-- `session-hub: ハブに届かないため outbox に保存しました` (the hub was unreachable, so the event went
-  to the outbox) → Keep working. The next send retries it automatically.
-- `session-hub: ... は不正です` (the value is invalid) → The value does not match the allowed set.
-  Pick again from the candidates shown.
+- `session-hub: the hub is unreachable; saved the event to the outbox` → Keep working. The next
+  send retries it automatically.
+- `session-hub: invalid ...; choose one of: ...` → The value does not match the allowed set. Pick
+  again from the candidates shown.
 - `session-hub` is not found → Use `~/.local/bin/session-hub` (the SessionStart hook creates it).

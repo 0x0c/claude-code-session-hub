@@ -33,8 +33,8 @@ subset and still believe it followed the norm.
   `proposals/SH-0001-<slug>.ja.md`). Write the mirror under
   [`japanese-document-writing`](../japanese-document-writing/SKILL.md), and update both files in the
   same change. Where a language layer overlaps these principles, its specific wording governs.
-  The dashboard's labels live in its `MESSAGES` table in both languages. The command-line interface (CLI) messages and the
-  hook texts are Japanese product strings; changing their language needs its own proposal.
+  The dashboard's labels live in its `MESSAGES` table in both languages. The command-line
+  interface (CLI) messages and the hook texts are English.
 - **Enforcement is a review-time norm, not a continuous integration (CI) gate.** Judging clarity, emphasis, and argument order
   needs semantic judgment, so people (and the self-review pass in the proposal skills) check it.
 

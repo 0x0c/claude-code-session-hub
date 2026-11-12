@@ -427,7 +427,7 @@ label, it gives the English label and the Japanese label in parentheses.
     A session that is merely waiting (for CI, on a blocker, or for a human) shows no spinner, and
     neither does a session suspected stale.
   - A "ready for review" claim that rests on the self-report alone, without passing the gate (§4.1),
-    shows as "review conditions not met" (レビュー条件未達) together with the unmet reason.
+    shows as "Not yet reviewable" (レビュー条件未達) together with the unmet reason.
 - **Timeline** (right): traces the reports from children in time order, in two forms.
   - **Feed**: events grouped by date. Each row shows the time, the session, the type, the text, and
     what the event changed (state A→B, phase, task count, a resolved question).

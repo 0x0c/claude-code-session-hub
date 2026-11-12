@@ -42,7 +42,7 @@ def current_session_id() -> str | None:
 
 def _check_id(value: str, name: str) -> str:
     if not SAFE_ID.match(value or "") or "@" in value:
-        raise schema.SchemaError(f"{name} に使えない文字が含まれています: {value!r}")
+        raise schema.SchemaError(f"{name} contains characters that are not allowed: {value!r}")
     return value
 
 

@@ -315,9 +315,10 @@ the dashboard.
 - **No instructions from the hub.** The hub never wakes or steers a sub-session. A person or the
   parent session delivers each answer, either as a message between sessions or by resuming a
   `claude -p` session.
-- **Pull request and continuous integration (CI) state are not fetched.** The review-ready check
-  uses the pull request and CI status that someone records with `session-hub pr`; nothing reads them
-  from GitHub.
+- **Session Hub does not query GitHub.** The pull request and continuous integration (CI) status on
+  the dashboard is what a sub-session reported with `session-hub pr`. If the CI result or the review
+  comments change after the sub-session ends its turn, the dashboard does not show the change until
+  someone reports it.
 - **Token counts, not prices.** The hooks sum token usage from the session transcript. A dollar
   cost appears only when someone records it with `--cost`.
 - **Stalls are inferred.** A working session counts as stalled after 30 minutes without a message.
@@ -326,8 +327,6 @@ the dashboard.
   the dashboard and push messages. Set a token if other users share the machine.
 - **Built for thousands of events.** The hub rebuilds its snapshot from the whole store on every
   message. A store that grows far beyond that needs incremental updates first.
-- **Japanese command-line interface (CLI) and hook text.** The dashboard is in English and
-  Japanese, but the CLI messages and the text that the hooks add to a session are Japanese only.
 
 ## Contributing
 
