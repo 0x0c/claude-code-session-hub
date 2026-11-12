@@ -1,0 +1,7 @@
+{
+  "name": "session-hub",
+  "version": "0.1.0",
+  "description": "サブセッションの状況を決まったプロトコルでハブへ push し、ダッシュボードで一覧・時系列表示する。報告漏れを防ぐ hook と手順スキルを含む。",
+  "license": "MIT",
+  "keywords": ["orchestration", "dashboard", "sessions", "status"]
+}

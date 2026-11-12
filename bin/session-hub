@@ -1,0 +1,5 @@
+#!/bin/sh
+# リポジトリ（またはプラグイン）を置いた場所から session_hub を実行するラッパー。
+# pip install しなくても使える。
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}" exec python3 -m session_hub "$@"

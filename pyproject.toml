@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "claude-code-session-hub"
+version = "0.1.0"
+description = "Claude Code のサブセッションの状況を push で集約し、リアルタイムのダッシュボードと時系列ビューで表示する"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+
+[project.scripts]
+session-hub = "session_hub.cli:main"
+
+[tool.setuptools]
+packages = ["session_hub"]
+
+[tool.setuptools.package-data]
+session_hub = ["templates/*.html"]

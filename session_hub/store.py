@@ -1,0 +1,198 @@
+"""イベントストア。
+
+レイアウト:
+    <store>/events/<session_id>.jsonl            子セッション自身が書くイベント
+    <store>/events/<session_id>@<writer>.jsonl   他者（親など）がそのセッション宛てに書くイベント
+
+1 ファイルの書き手は常に 1 人で、追記しかしない。
+そのため <store> を `hub/status` ブランチのクローンにして Git で共有しても、
+pull --rebase で衝突しない。seq はファイルごとの連番で、イベント ID は
+`<ファイル名>#<seq>`。セッション内の並びは (ts, 書き手, seq) で決める。
+"""
+
+from __future__ import annotations
+
+import fcntl
+import json
+import os
+import re
+import subprocess
+import time
+from pathlib import Path
+
+from . import schema
+
+SAFE_ID = re.compile(r"^[A-Za-z0-9_.-]{1,128}$")
+
+
+def default_store() -> Path:
+    return Path(os.environ.get("HUB_STORE", ".hub")).resolve()
+
+
+def current_session_id() -> str | None:
+    sid = os.environ.get("HUB_SESSION_ID")
+    if sid:
+        return sid
+    remote = os.environ.get("CLAUDE_CODE_REMOTE_SESSION_ID")
+    if remote:
+        # CCR の内部 ID (cse_...) を get_session で使う session_... 形式に揃える
+        return "session_" + remote[4:] if remote.startswith("cse_") else remote
+    return os.environ.get("CLAUDE_CODE_SESSION_ID")
+
+
+def _check_id(value: str, name: str) -> str:
+    if not SAFE_ID.match(value or "") or "@" in value:
+        raise schema.SchemaError(f"{name} に使えない文字が含まれています: {value!r}")
+    return value
+
+
+def sort_key(ev: dict) -> tuple:
+    return (ev["ts"], ev.get("writer") or "", ev["seq"])
+
+
+class EventStore:
+    def __init__(self, root: Path | str | None = None):
+        self.root = Path(root) if root else default_store()
+        self.events_dir = self.root / "events"
+
+    # ---- 書き込み -------------------------------------------------------
+    def _path(self, session_id: str, writer: str | None) -> Path:
+        _check_id(session_id, "session_id")
+        if writer:
+            _check_id(writer, "writer")
+            return self.events_dir / f"{session_id}@{writer}.jsonl"
+        return self.events_dir / f"{session_id}.jsonl"
+
+    def _next_ts(self) -> str:
+        """ストア全体で単調増加する時刻（ミリ秒）を払い出す。
+
+        同じミリ秒に複数の書き手（子と親など）が書いても、時刻だけで順序が一意に決まるようにする。
+        """
+        clock = self.root / ".clock"
+        with open(clock, "a+", encoding="utf-8") as f:
+            fcntl.flock(f, fcntl.LOCK_EX)
+            try:
+                f.seek(0)
+                last = f.read().strip()
+                ts = schema.now_iso()
+                if last and ts <= last:
+                    ts = schema.iso_after(last)
+                f.seek(0)
+                f.truncate()
+                f.write(ts)
+                f.flush()
+            finally:
+                fcntl.flock(f, fcntl.LOCK_UN)
+        return ts
+
+    def append(self, session_id: str, fields: dict, writer: str | None = None) -> dict:
+        """seq と ts を採番してイベントを追記し、正規化済みイベントを返す。
+
+        writer を省略すると子セッション自身のファイルに書く。
+        親が回答・指示を書くときは writer="parent" などを指定する。
+        """
+        self.events_dir.mkdir(parents=True, exist_ok=True)
+        path = self._path(session_id, writer)
+        with open(path, "a+", encoding="utf-8") as f:
+            fcntl.flock(f, fcntl.LOCK_EX)
+            try:
+                f.seek(0)
+                last = 0
+                for line in f:
+                    try:
+                        last = max(last, json.loads(line).get("seq", 0))
+                    except (json.JSONDecodeError, AttributeError):
+                        continue
+                ev = {"session_id": session_id, "seq": last + 1, "ts": self._next_ts(), **fields}
+                ev = schema.normalize_event(ev)
+                f.seek(0, os.SEEK_END)
+                f.write(json.dumps(ev, ensure_ascii=False, separators=(",", ":")) + "\n")
+                f.flush()
+            finally:
+                fcntl.flock(f, fcntl.LOCK_UN)
+        return self._decorate(ev, path)
+
+    # ---- 読み込み -------------------------------------------------------
+    @staticmethod
+    def _decorate(ev: dict, path: Path) -> dict:
+        stem = path.stem
+        ev["writer"] = stem.split("@", 1)[1] if "@" in stem else None
+        ev["id"] = f"{stem}#{ev['seq']}"
+        return ev
+
+    def _files(self) -> list[Path]:
+        if not self.events_dir.exists():
+            return []
+        return sorted(self.events_dir.glob("*.jsonl"))
+
+    def session_ids(self) -> list[str]:
+        return sorted({p.stem.split("@", 1)[0] for p in self._files()})
+
+    def _read_file(self, path: Path) -> list[dict]:
+        out, seen = [], set()
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    ev = schema.normalize_event(json.loads(line))
+                except (json.JSONDecodeError, schema.SchemaError, TypeError, AttributeError):
+                    continue  # 壊れた行・不正な行は捨てて、残りを活かす
+                if ev["seq"] in seen:  # Git 由来の重複行
+                    continue
+                seen.add(ev["seq"])
+                out.append(self._decorate(ev, path))
+        return out
+
+    def read(self, session_id: str) -> list[dict]:
+        _check_id(session_id, "session_id")
+        events = []
+        for path in self._files():
+            if path.stem == session_id or path.stem.startswith(session_id + "@"):
+                events.extend(e for e in self._read_file(path) if e["session_id"] == session_id)
+        return sorted(events, key=sort_key)
+
+    def read_all(self) -> dict[str, list[dict]]:
+        return {sid: self.read(sid) for sid in self.session_ids()}
+
+    def signature(self) -> tuple:
+        """変更検知用。ファイルごとの (名前, サイズ, mtime)。"""
+        sig = []
+        for p in self._files():
+            try:
+                st = p.stat()
+            except FileNotFoundError:
+                continue
+            sig.append((p.name, st.st_size, st.st_mtime_ns))
+        return tuple(sig)
+
+    # ---- Git 同期 -------------------------------------------------------
+    def is_git(self) -> bool:
+        return (self.root / ".git").exists()
+
+    def _git(self, *args: str) -> subprocess.CompletedProcess:
+        return subprocess.run(["git", "-C", str(self.root), *args],
+                              capture_output=True, text=True, check=False)
+
+    def pull(self) -> bool:
+        if not self.is_git():
+            return False
+        return self._git("pull", "--rebase", "--quiet").returncode == 0
+
+    def sync(self, message: str = "hub: update", retries: int = 4, backoff: float = 2.0) -> bool:
+        """commit → pull --rebase → push。push 失敗時は指数バックオフで再試行。"""
+        if not self.is_git():
+            return False
+        self._git("add", "events")
+        if self._git("diff", "--cached", "--quiet").returncode != 0:
+            self._git("commit", "--quiet", "-m", message)
+        delay = backoff
+        for attempt in range(retries + 1):
+            self._git("pull", "--rebase", "--quiet")
+            if self._git("push", "--quiet").returncode == 0:
+                return True
+            if attempt < retries:
+                time.sleep(delay)
+                delay *= 2
+        return False

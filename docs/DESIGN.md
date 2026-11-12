@@ -2,6 +2,9 @@
 
 親セッション（オーケストレーター）が複数の子セッションを走らせるとき、その状況を **少ないトークンで**、**一目で** 把握するための仕組みの検討。
 
+> 実装状況: §8 のフェーズ 0・1・3・4 の大部分を実装済み（push 型ハブサーバー、時系列ビュー付きダッシュボード、報告スキルと hook）。
+> 使い方は [README](../README.md)、用語は [付録 A 用語集](#付録-a-用語集) を参照。
+
 ## 0. 目的と設計原則
 
 | 目的 | 具体的に知りたいこと |
@@ -120,51 +123,66 @@ queued → planning → working ⇄ waiting_ci
 | F. GitHub ラベル / PR 本文 / Issue コメント | 子→GitHub | 0 | 中 | 高 | 高（GitHub 上） | `hub:needs-human` などのラベルは GitHub 通知と連携できる。PR が無い段階では使えない |
 | G. CCR API のポーリング（`get_session` の `status_bucket`、`list_events` の `kinds` 絞り込み） | 親が取得 | 小〜大 | 中 | — | — | 子の協力不要の「真値」。ただし MCP ツールなので LLM が呼ぶ必要があり、`list_events` は重い。`get_session` だけに限定すれば安い |
 | H. ローカル実行時のトランスクリプト（`~/.claude/projects/**/*.jsonl`） | スクリプトが直接読む | 0 | 高 | 高 | — | ローカル並列実行時のみ。usage・最終ツール呼び出しなど事実情報が取れる |
+| **I. ハブサーバーへの HTTP push**（`POST /api/events`） | 子→サーバー→ブラウザ | 0 | **最高**（受信即配信） | 高（サーバーがストアへ追記） | **高** | サーバーが子から到達可能である必要がある（§9） |
 
-### 推奨: ハイブリッド
+### 採用: push 型（I）を主経路に
 
-- **状態の保存先**: A（Git orphan ブランチ）を正とし、C（Artifact DB）をオプションのミラー／表示層にする。Git は環境を選ばず監査ログにもなる。
+当初は Git ストアをポーリングする案（A）を推奨していたが、**ダッシュボードの即時性**を優先して push 型に変更した。
+
+- **子 → ハブ**: 子は状態が変わるたびに `session-hub` コマンドでハブサーバーへイベントを POST する（I）。
+  サーバーは検証してストアに追記し、その場で接続中のブラウザへ SSE で配信する。**サーバーもブラウザもポーリングしない。**
+- **届かないとき**: 子は送れなかったイベントを outbox（ローカル JSONL）に溜め、次の送信時に先に再送する。
+- **耐久性**: ストアは追記のみの JSONL。必要なら A（Git）として共有・保管できる（補助機能 `--pull-every`）。
 - **エスカレーション**: D を「親を起こすべき遷移」のときだけ使う（§3.3）。
 - **回答・指示**: E。
-- **死活の真値**: 親が定期実行時に G の `get_session` だけを呼び、`status_bucket` を突き合わせる（子が報告を忘れた／落ちたケースの検知）。
-- **人間向け通知**: F のラベルを補助的に（PR がある場合）。
-
----
+- **死活の真値**: 親が必要なときだけ G の `get_session` を呼び、`status_bucket` と突き合わせる。
+- **人間向け通知**: ダッシュボードのブラウザ通知、補助的に F のラベル。
 
 ## 3. プロトコル
 
 ### 3.1 構成要素
 
 ```
-┌─────────── 子セッション ───────────┐
-│ エージェント ── hub report ...  ─┐ │   (意味情報: state/phase/summary/質問)
-│ Stop hook ──── hub autosync ───┤ │   (事実情報: usage/heartbeat/branch/PR)
-│                                ▼ │
-│                     .hub/status.json ── git push ──► hub/status ブランチ
-│ 重要遷移時のみ ── send_message ──────────────────► 親 (1行)
-└──────────────────────────────────┘
-┌─────────── 親セッション / 人間 ──────┐
-│ hub sync    : hub/status を fetch + GitHub(PR/CI) を取得 + 判定   │
-│ hub render  : dashboard.md / dashboard.html / summary.json 生成   │
-│ hub attention: 要対応行だけを数行で出力（親 LLM が読むのはこれだけ）│
-│ 回答: send_message(子, "[HUB/1] answer q=1 v=120")               │
-└──────────────────────────────────┘
+┌──────────── 子セッション ────────────┐
+│ エージェント ── session-hub report ... ─┐   意味情報: state / phase / summary / 質問
+│ Stop hook ───── session-hub hook stop ─┤   事実情報: heartbeat / トークン使用量（0 トークン）
+│ PostToolUse ─── session-hub hook todo ─┤   TodoWrite 等 → 進捗（0 トークン）
+│                                        ▼
+│                    POST /api/events ─────────────┐   失敗時は outbox に保存し次回再送
+│ 重要遷移時のみ ── send_message ─────────► 親（1 行）│
+└────────────────────────────────────────┘          │
+                                                     ▼
+┌──────────── ハブサーバー（session-hub serve）─────────────┐
+│ 検証 → seq / 時刻を採番 → ストアへ追記（events/*.jsonl）      │
+│ → 状態を畳み込み、差分を SSE でブラウザへ即時配信             │
+└───────────────┬─────────────────────────────────────┘
+                ▼ GET /api/stream（SSE）          ▲ GET /api/snapshot
+         ブラウザのダッシュボード              親: session-hub attention
 ```
 
-### 3.2 子 → ストア（`hub report`）
+- **イベントソーシング**: 状態は保存しない。追記のみのイベント列を畳み込んで毎回求める。
+  イベント列そのものが時系列ビューの元データになり、「いつ何が変わったか」を後から完全にたどれる。
+- **書き手ごとのファイル**: `events/<session_id>.jsonl`（子）と `events/<session_id>@parent.jsonl`（親の回答・指示）。
+  1 ファイルの書き手は常に 1 人なので、Git で共有しても衝突しない。
+- **時刻の採番**: ストア全体で単調増加するミリ秒時刻をサーバーが付ける。到着順＝表示順で一貫する。
 
-子エージェントには「状態が変わったら 1 行の Bash を叩く」ことだけを課す。
+### 3.2 子 → ハブ（`session-hub report` ほか）
+
+子エージェントには「状態が変わったら 1 行の Bash を叩く」ことだけを課す（手順は `skills/report/SKILL.md`）。
 
 ```bash
-hub report --state working --phase implement --summary "ミドルウェア実装中" --next "テスト追加" --task "ミドルウェア=doing"
-hub ask --kind decision --q "1分あたりの上限は?" --opt 60 --opt 120 --opt 300 --default 120 --blocking
-hub ready --self-review --tests --description
-hub done --summary "PR #45 マージ済み"
+session-hub start --title "認証APIのレート制限" --task-ref "#128" --task "設計=todo:S" --task "実装=todo:M"
+session-hub report --phase implement --summary "ミドルウェア実装中" --task "実装=doing"
+session-hub ask --kind decision --q "1分あたりの上限は?" --opt 60 --opt 120 --opt 300 --default 120
+session-hub pr --number 45 --ci pending --state waiting_ci
+session-hub ready --self-review --tests --description
+session-hub done --summary "PR #45 マージ済み"
 ```
 
-- CLI が `seq` 採番、文字数切り詰め、スキーマ検証、ファイル書き込み、（間引きつつ）git push を行う。
-- 呼び出しタイミング: **状態遷移時・タスク完了時・質問発生時のみ**。ツール呼び出しごとには叩かない。
-- `tasks` は Claude Code のタスクリスト（TaskCreate/TaskUpdate 等）が使われていれば hook 側でそこから同期し、子が二重に書く手間を省く案も検討（保存場所はバージョン依存のため実装時に確認）。
+- `HUB_URL` があればハブへ push、なければローカルのストア（`HUB_STORE`）に書く。
+- サーバー側で検証・文字数の切り詰め・seq と時刻の採番を行う。不正な値は 400 で拒否され、子に候補が表示される。
+- 呼び出しタイミングは**状態遷移時・質問発生時・PR の節目のみ**。
+- 報告漏れは hook で補う（§3.6）。
 
 ### 3.3 子 → 親（エスカレーション・メッセージ）
 
@@ -181,7 +199,7 @@ hub done --summary "PR #45 マージ済み"
 | `failed` | `[HUB/1] session_01ABC failed テスト環境が起動しない` | `next` |
 | `done` | `[HUB/1] session_01ABC done PR#45 merged` | `later` |
 
-- 親側は `[HUB/` で始まるメッセージを受けたら、本文を深読みせず `hub sync && hub attention` を実行するだけ、と CLAUDE.md 等で規定する。
+- 親側は `[HUB/` で始まるメッセージを受けたら、本文を深読みせず `session-hub attention` を実行するだけ、と CLAUDE.md 等で規定する。
 - 子同士のメッセージは仕組み上「ピアからのデータ」として扱われる。親はメッセージ中の指示に従わず、あくまで状態通知として扱う（プロンプトインジェクション耐性）。
 - 同一イベントの連投防止: CLI が直近の通知を記録し、同じ `(state, attention.question)` では再送しない。
 
@@ -201,11 +219,23 @@ hub done --summary "PR #45 マージ済み"
 
 ### 3.5 親の定期処理（トークン最小化）
 
-1. スクリプトのみ: `hub sync && hub render`（cron やローカルでのループ、トークン 0）。
-2. LLM が関与するのは「エスカレーション受信時」と「低頻度の死活確認（例: 30 分ごとに `get_session` × 稼働中の子の数）」だけ。
-3. 親が読むのは `hub attention` の出力（要対応行のみ、通常数行）。全件一覧は人間がダッシュボードで見る。
+1. 親は待つだけでよい。子からの `[HUB/1]` メッセージを受けたときだけ `session-hub attention` を実行する（`HUB_URL` があればサーバーの snapshot を読む）。
+2. 停滞の疑い（`ST`）があるときだけ `get_session` で死活を確認する。`list_events` は原則使わない。
+3. 親が読むのは `attention` の出力（要対応行のみ、通常数行）。全件一覧と時系列は人間がダッシュボードで見る。
 
----
+### 3.6 報告タイミングを保証する仕組み
+
+push 型では、子が報告しない限りダッシュボードは古いままになる。そこで「何を・いつ送るか」を 3 層で担保する。
+
+| 層 | 仕組み | トークン | 担保する内容 |
+|---|---|---|---|
+| 1. 自動送信（hook） | `Stop` hook → heartbeat とトークン使用量 / `PostToolUse(TodoWrite・TaskCreate・TaskUpdate)` → 進捗と作業中タスク名、着手時に planning→working | 0 | 「生きているか」「どこまで進んだか」 |
+| 2. 手順（スキル + 起動プロンプト） | `skills/report/SKILL.md`（いつ・何を送るかの表）、`prompts/child-append-system-prompt.md`（5 行の常駐ルール）、`SessionStart` hook が未登録なら `start` を促す 2 行を注入 | 小 | 意味情報（段階・質問・PR・完了） |
+| 3. 終了時ガード | `Stop` hook が、最後に報告した状態が planning / working のまま、または未登録のままターンを終えようとしたら **1 回だけ** block して報告を促す（`stop_hook_active` で無限ループを防止、`HUB_STOP_GUARD=0` で無効化） | 1 ターン分（必要時のみ） | 「作業中のまま放置」の防止。ぐるぐる表示の正しさ |
+
+- hook は `HUB_URL` / `HUB_STORE` が未設定なら何もしないので、プラグインを常時有効にしても他の作業に影響しない。
+- hook はネットワーク失敗や例外でセッションを止めない（outbox に積むか、黙って終了コード 0）。
+- 「最後に何を報告したか」は子のローカル状態（`~/.cache/session-hub/state-<id>.json`）で判断し、ガードのためにネットワークを使わない。
 
 ## 4. 機械的に判定する項目（スクリプト側の責務）
 
@@ -244,33 +274,37 @@ hub done --summary "PR #45 マージ済み"
 
 | 形式 | 用途 |
 |---|---|
-| `summary.json` | 機械向け。他ツール連携、Artifact DB への投入 |
-| `dashboard.md` | Git 上でそのまま見られる。hub/status ブランチの README として置けば GitHub で閲覧可 |
-| `dashboard.html` | 単体 HTML。必要なら Artifact として公開（共有 DB 読み込み型にすればリアルタイム化） |
-| `hub attention` (stdout) | 親 LLM 向け。要対応のみ、1件1行 |
+| `session-hub serve` のダッシュボード | 人間向け。push 受信と同時に反映（SSE） |
+| `session-hub export --out dashboard.html` | スナップショットを埋め込んだ単体 HTML（共有・保存用、更新なし） |
+| `GET /api/snapshot` | 機械向け JSON |
+| `session-hub attention` | 親 LLM 向け。要対応のみ、1 件 1 行 |
+| `session-hub log [<session_id>]` | ターミナルで時系列を追う |
 
-### 5.2 一覧の表示イメージ
+### 5.2 画面構成
+
+- **ヘッダー**: 接続状態（リアルタイム / 再接続中 / ポーリング）、セッション数、要対応数、作業中数、トークン合計、最終更新。
+  要対応数はタブのタイトルにも `(3) Session Hub` の形で出る。ブラウザ通知（任意）で、人間待ち・レビュー可・失敗・完了・停滞への遷移を知らせる。
+- **セッション一覧**（左）: 「要対応 / 作業中・待機 / 完了」に分け、§4.3 の優先順で並べる。
+  各カードに状態バッジ、タスク進捗バー、残量、PR と CI、トークン・費用、最終更新、未回答の質問（選択肢と既定値、回答コマンド）。
+  **手を動かしている状態（planning / working / changes_requested）のセッションにはスピナー（ぐるぐる）を表示する。**
+  CI 待ち・ブロック・人間待ちなど「待っているだけ」の状態や、停滞の疑いがあるものには表示しない。
+  自己申告だけでゲート（§4.1）を通っていない「レビュー可」は「レビュー条件未達」と未達理由を表示する。
+- **タイムライン**（右）: 子から届いた報告を時系列でたどる。
+  - **フィード**: 日付ごとにイベントを並べ、各行に時刻、セッション、種別、本文、そのイベントで変わったこと（状態 A→B、段階、タスク数、質問の解決）を表示。
+    「詳細」で生のイベント JSON。新着はハイライトし、読んでいる途中で画面が動かないよう下にスクロール中は「新着 N 件」バーで知らせる。
+    絞り込み: セッション、イベント種別、全文検索、heartbeat の表示（連続するものは 1 行にまとめる）、新しい順 / 古い順。
+  - **スイムレーン**: セッションごとの横帯で、状態の推移を色の区間として表示。点はイベント（質問=橙、回答=青）。
+    ホバーで詳細、クリックでフィードの該当行へ移動。人間待ちの長さや停滞が一目で分かる。
+- スマホ幅（390px）でも横スクロールなしで読める。ライト / ダーク両対応。
+
+### 5.3 `session-hub attention` の出力（親が読む分）
 
 ```
-要対応 (2)
- ⚠ needs_human  認証APIのレート制限   #128  上限値は? [60|120*|300]          38分前
- ✓ review_ready ログ出力の構造化      PR#45 CI✓ 指摘0                         5分前
-作業中 (3)
- ▶ working      検索インデックス刷新   ▓▓▓▓▓░░░ 5/8 残≈6  テスト追加中       2分前   $3.10
- ⏳ waiting_ci   依存更新              PR#47 CI…                               9分前   $0.40
- ? stale        画像リサイズ           ▓▓░░░░ 2/6       最終更新 47分前              $1.20
-完了 (4)  合計 $12.40 / 入力 3.1M / 出力 0.4M
-```
-
-### 5.3 `hub attention` の出力（親が読む分）
-
-```
-NH session_01ABC #128 decision "1分あたりの上限は?" [60|120*|300] 38m
-RR session_01DEF PR#45 ci=pass threads=0
+NH session_01ABC #128 decision q=4 "1分あたりの上限は?" [60|120*|300] 38m
+FL session_04XYZ npm ci が ERESOLVE で失敗（peer 依存の衝突）
+RR session_01DEF #131 PR#45 ci=pass CI 緑、自己レビュー済み
 ST session_01GHI 47m since heartbeat
 ```
-
----
 
 ## 6. トークン節約のための追加策
 
@@ -287,45 +321,125 @@ ST session_01GHI 47m since heartbeat
 
 ---
 
-## 7. 実装構成案
+## 7. 実装構成
 
 ```
 claude-code-session-hub/
-  hub/                    # Python パッケージ（標準ライブラリのみで動かす）
-    schema.py             # スキーマ定義・検証・切り詰め
-    store_git.py          # hub/status ブランチの読み書き（fetch/rebase/push リトライ）
-    store_artifact.py     # (任意) Artifact DB 用の書き出し
-    github.py             # PR / CI / review threads の取得
-    gate.py               # §4 の判定
-    render.py             # md / html / json / attention
-    cli.py                # report, ask, ready, done, sync, render, attention
-  hooks/
-    stop_autosync.sh      # transcript_path から usage 合算、heartbeat 更新
-  templates/
-    dashboard.html
-  docs/
-    DESIGN.md             # 本書
-    PROTOCOL.md           # 子・親に読ませる短い規約（CLAUDE.md から参照）
-  schema/status.v1.json   # JSON Schema
+  session_hub/            Python パッケージ（標準ライブラリのみ）
+    schema.py             スキーマ定義・検証・畳み込み・レビュー可ゲート
+    store.py              追記型イベントストア（書き手ごとの JSONL、単調時刻、Git 同期）
+    core.py               記録処理とエスカレーション判定（CLI とサーバーで共通）
+    client.py             push クライアント（outbox による再送）
+    server.py             ハブサーバー（POST 受信、SSE 配信、トークン認証）
+    view.py               ダッシュボード / attention / log 用のデータ組み立て
+    hooks.py              Claude Code hook の処理（session-start / stop / todo）
+    local_state.py        子側のローカル状態（最後の報告状態、タスク ID 対応）
+    usage.py              トランスクリプトからのトークン集計
+    cli.py                session-hub コマンド
+    templates/dashboard.html
+  bin/session-hub         インストール不要のラッパー
+  .claude-plugin/         Claude Code プラグイン定義（plugin.json, marketplace.json）
+  hooks/hooks.json        プラグインの hook 設定
+  skills/report/          子セッション用スキル（いつ・何を報告するか）
+  skills/orchestrate/     親セッション用スキル（起動・応答・確認）
+  prompts/child-append-system-prompt.md   create_session に渡す短い常駐ルール
+  scripts/demo.py         デモデータと疑似 push
+  tests/
 ```
-
-子・親へのルールは `PROTOCOL.md` に短くまとめ、`create_session` の `append_system_prompt` で渡す（子に長い説明を毎回読ませない）。
 
 ## 8. 段階的な進め方
 
-| フェーズ | 内容 | 完了条件 |
+| フェーズ | 内容 | 状況 |
 |---|---|---|
-| 0 | スキーマ + `hub report/ask/done` + Git ストア + `dashboard.md` | 手動で 2〜3 セッションの状態が一覧できる |
-| 1 | Stop hook で usage・heartbeat 自動記録 | 子が何もしなくてもコストと最終更新が出る |
-| 2 | GitHub 連携とレビュー可ゲート | `review_ready` が機械判定される |
-| 3 | エスカレーション通知と親の運用ルール | 親が `[HUB/1]` を受けたときだけ動く |
-| 4 | HTML / Artifact ダッシュボード | ブラウザ・スマホで閲覧できる |
-| 5 | 停滞検知・予算アラート・集約通知 | §4.2 が自動で出る |
+| 0 | スキーマ + 報告コマンド + ストア + 一覧 | 実装済み |
+| 1 | Stop hook で usage・heartbeat 自動記録、TodoWrite 連携 | 実装済み |
+| 2 | GitHub から PR / CI / 指摘数を自動取得してゲート判定 | 判定ロジックは実装済み。取得は `session-hub pr` での手動記録のみ |
+| 3 | エスカレーション通知と親の運用ルール | 実装済み（`[HUB/1]` 行の出力、orchestrate スキル） |
+| 4 | リアルタイムダッシュボードと時系列ビュー | 実装済み（push + SSE） |
+| 5 | 停滞検知・予算アラート・集約通知 | 停滞検知のみ実装済み |
 
 ## 9. 未決事項
 
-1. **正となるストア**: Git orphan ブランチ（推奨）か、Artifact DB か。後者は即時性とスマホでの見やすさが勝るが、ローカル実行や他ツールとの連携は Git の方が楽。
-2. **実行環境**: 子はクラウドセッション（`create_session`）中心か、ローカルの並列実行も含むか。ローカルを含むならトランスクリプト直読み（§2-H）が使える。
-3. **GitHub 情報の取得手段**: スクリプトから `gh` / GitHub API を直接叩けるか（クラウド環境では制限があるため、親が MCP で取得して渡す形になる可能性）。
+1. **ハブサーバーの置き場所**: クラウドの子セッションから届く URL が必要。候補は (a) 常時動いている小さなサーバー（VM・コンテナ）に `HUB_TOKEN` 付きで置く、(b) 手元の PC で動かしてトンネルで公開する。
+   どちらの場合も子の環境のネットワーク許可リストにそのホストを追加し、トークンは環境変数ではなくネットワークシークレットとして登録するのが望ましい。
+   サーバーに届かない環境向けの代替として、Artifact の共有 DB を受け口にする案も残っている。
+2. **実行環境**: 子はクラウドセッション（`create_session`）中心か、ローカルの並列実行も含むか。ローカルのみなら `HUB_STORE` を共有するだけでよい。
+3. **GitHub 情報の自動取得**（フェーズ 2）: サーバーから GitHub API を叩くか、親が取得して `session-hub pr` で記録するか。
 4. **自動化の範囲**: `review_ready` 時に PR の draft 解除やレビュアー割り当てまで自動で行うか。
-5. **予算**: セッション単位・全体のコスト上限と、超過時の挙動（通知のみ / 停止）。
+5. **予算**: セッション単位・全体のコスト上限と、超過時の挙動（通知のみ / 停止）。費用は今はトークン数のみ自動記録（金額は `--cost` で任意）。
+6. **規模**: 受信のたびに全イベントから状態を作り直している。数千イベント程度までは問題ないが、それを超えるなら差分更新にする。
+
+---
+
+## 付録 A 用語集
+
+### 登場人物・構成要素
+
+| 用語 | 意味 |
+|---|---|
+| 親セッション（オーケストレーター） | 子セッションを起動し、質問への回答やレビュー依頼などの判断をするセッション。ダッシュボードを見る人間を含めて「親側」と呼ぶこともある |
+| 子セッション / サブセッション | 親から作業を任されて動くセッション。自分の状況をハブへ報告する |
+| ハブ / ハブサーバー | `session-hub serve` で動くサーバー。子からの報告を受け取り、保存し、ブラウザへ配信する |
+| ストア | イベントを保存するディレクトリ（`HUB_STORE`、既定 `.hub`）。`events/*.jsonl` が本体 |
+| ダッシュボード | ハブが配信する Web 画面。セッション一覧とタイムラインからなる |
+| `session-hub` | 本ツールのコマンド。子の報告、親の確認・回答、サーバー起動、hook の処理をすべて担う |
+| プラグイン | 本リポジトリを Claude Code のプラグインとして読み込んだもの。スキル・hook・コマンドをまとめて子セッションに配る |
+
+### データとプロトコル
+
+| 用語 | 意味 |
+|---|---|
+| イベント | 子や親が送る 1 件の報告（JSON 1 行）。種類は start / report / ask / answer / command / ready / pr / heartbeat / done / fail |
+| ステータス（ステータスレコード） | あるセッションの「今の状態」。イベント列を古い順に適用（畳み込み）して求める。保存はしない |
+| 畳み込み（fold） | イベントを 1 件ずつ順に当てはめて最新の状態を計算すること |
+| イベントソーシング | 状態ではなく「起きた出来事」を追記で保存し、状態は出来事から計算する設計。時系列をたどれるのはこのため |
+| 追記のみ（append-only） | 書いたイベントを後から書き換えない・消さない保存方式 |
+| 書き手（writer） | イベントファイルの持ち主。子自身は `<id>.jsonl`、親の回答・指示は `<id>@parent.jsonl` |
+| seq | 書き手ファイルごとの連番。イベント ID は `<ファイル名>#<seq>`（例 `session_01ABC#3`） |
+| state | セッションの状態（§1.2 の 12 種類）。例: working、needs_human、review_ready |
+| phase | 作業段階。plan / implement / test / fix / docs / self_review など |
+| attention | 人間・親への質問。種類（kind）、質問文、選択肢、既定値、停止中かどうか（blocking）を持つ |
+| qid | 質問の番号。回答（answer）がどの質問に対するものかを示す |
+| blocking / non-blocking | 回答が来るまで止まっている質問 / 既定値で先に進めている質問 |
+| tasks / progress / 残量 | タスク一覧と、完了数・総数。残量は未完了タスクの規模（S=1, M=3, L=8）の合計 |
+| heartbeat | 「まだ生きている」ことを示す自動イベント。トークン使用量も運ぶ |
+| usage | トークン使用量（input / output / cache_read / cache_write）と任意で費用・コンテキスト使用率 |
+| `HUB/1` | 親子間メッセージの書式とその版。`[HUB/1] <id> <state> <短文>`（子→親）、`[HUB/1] cmd=<命令> ...`（親→子） |
+| エスカレーション | 親を起こすべき遷移（人間待ち・レビュー可・失敗・完了）のときにだけ、子が親へ 1 行送ること |
+| コマンド（cmd） | 親から子への指示。answer / report / pause / resume / rebase / abort |
+
+### 判定と表示
+
+| 用語 | 意味 |
+|---|---|
+| 要対応 | 人間か親が何かすべきセッション。人間待ち・失敗・レビュー可・停滞の疑い |
+| レビュー可ゲート | 「レビューに出してよいか」の機械判定。PR あり、CI 成功、コンフリクトなし、未解決の指摘 0、未回答の質問なし、自己チェック済み、残タスクなし（§4.1） |
+| レビュー条件未達 | 子は「レビュー可」と申告したが、ゲートを通っていない状態。未達の理由を表示する |
+| 自己申告 / 自己チェック | 子が `session-hub ready` で申告する、自己レビュー・テスト追加・PR 説明の完了 |
+| 停滞（stale） | 作業中のはずなのに一定時間（既定 30 分）報告がないこと。落ちている可能性がある |
+| 優先度 | ダッシュボードの並び順（§4.3）。人間待ち（停止中）が最上位 |
+| スピナー（ぐるぐる） | 子が手を動かしている状態（計画中・作業中・修正対応中）を示す回転アイコン |
+| フィード | タイムラインの表示形式の一つ。イベントを時刻順に並べた一覧 |
+| スイムレーン | タイムラインの表示形式の一つ。セッションごとの横帯に状態の推移を色で示す |
+
+### 通信と仕組み
+
+| 用語 | 意味 |
+|---|---|
+| push 型 | 子が変化のたびにハブへ送り、ハブがすぐ画面へ送る方式。受け手が定期的に見に行く「ポーリング」の反対 |
+| ポーリング | 一定間隔で変化がないか確認しに行く方式。本ツールでは補助機能（`--watch-files`、`--pull-every`、ブラウザの SSE が使えないときの代替）にだけ使う |
+| SSE（Server-Sent Events） | サーバーからブラウザへ、接続を張ったまま次々とデータを送る仕組み。ダッシュボードの即時反映に使う |
+| snapshot / update | SSE で送るデータ。接続直後に全体（snapshot）、以後は変化分（update） |
+| outbox | ハブに届かなかったイベントを子の手元に溜めるファイル。次の送信時に先に再送する |
+| `HUB_URL` / `HUB_TOKEN` | 子・親が使うハブの URL と認証トークン |
+| `HUB_STORE` | ストアのディレクトリ。`HUB_URL` がないときは子もここへ直接書く |
+| `HUB_SESSION_ID` | 自セッションの ID。未設定なら Claude Code の環境変数から求める |
+| hook | Claude Code が特定のタイミングで自動実行するコマンド。本ツールでは SessionStart・PostToolUse・Stop を使う |
+| SessionStart hook | セッション開始時に動く。コマンドを使えるようにし、未登録なら登録を促す短い文をコンテキストへ入れる |
+| PostToolUse hook | ツール実行後に動く。TodoWrite などのタスク操作を進捗としてハブへ送る |
+| Stop hook | ターン終了時に動く。heartbeat を送り、作業中のまま終えようとしていたら 1 回だけ報告を促す |
+| スキル | 必要なときに読み込まれる手順書。子用 `session-hub:report`、親用 `session-hub:orchestrate` |
+| `append_system_prompt` | `create_session` で子に常に効かせる追加指示。本ツールでは 5 行の報告ルールを渡す |
+| `send_message` | セッション間でメッセージを送る機能。届くと受け手のターンが動くのでトークンを使う。エスカレーションと指示にだけ使う |
+| `get_session` / `status_bucket` | セッションの状態を取得する機能と、その大まかな状態（working / blocked / failed など）。停滞の確認に使う |
+| `list_events` | 子のトランスクリプトを読む機能。重いので原則使わない |

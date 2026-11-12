@@ -1,0 +1,15 @@
+{
+  "description": "session-hub: heartbeat・トークン使用量・進捗の自動送信と、報告漏れの検知。HUB_URL / HUB_STORE が未設定なら何もしない。",
+  "hooks": {
+    "SessionStart": [
+      { "hooks": [ { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/session-hub\" hook session-start", "timeout": 10 } ] }
+    ],
+    "PostToolUse": [
+      { "matcher": "TodoWrite|TaskCreate|TaskUpdate",
+        "hooks": [ { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/session-hub\" hook todo", "timeout": 10 } ] }
+    ],
+    "Stop": [
+      { "hooks": [ { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/session-hub\" hook stop", "timeout": 20 } ] }
+    ]
+  }
+}

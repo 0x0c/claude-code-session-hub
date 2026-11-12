@@ -1,0 +1,11 @@
+{
+  "name": "session-hub",
+  "owner": { "name": "0x0c" },
+  "plugins": [
+    {
+      "name": "session-hub",
+      "source": "./",
+      "description": "サブセッションの状況共有（報告スキル、自動報告 hook、ダッシュボード）"
+    }
+  ]
+}
