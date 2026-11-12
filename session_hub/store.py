@@ -26,7 +26,7 @@ SAFE_ID = re.compile(r"^[A-Za-z0-9_.-]{1,128}$")
 
 
 def default_store() -> Path:
-    return Path(os.environ.get("HUB_STORE", ".hub")).resolve()
+    return Path(os.environ.get("HUB_STORE", ".hub")).expanduser().resolve()
 
 
 def current_session_id() -> str | None:
@@ -52,7 +52,7 @@ def sort_key(ev: dict) -> tuple:
 
 class EventStore:
     def __init__(self, root: Path | str | None = None):
-        self.root = Path(root) if root else default_store()
+        self.root = Path(root).expanduser() if root else default_store()
         self.events_dir = self.root / "events"
 
     # ---- 書き込み -------------------------------------------------------

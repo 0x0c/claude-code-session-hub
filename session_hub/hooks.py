@@ -14,11 +14,14 @@ from __future__ import annotations
 import json
 import os
 import re
+import subprocess
 import sys
+import urllib.parse
 from pathlib import Path
 
-from . import client, core, local_state
-from .store import EventStore, current_session_id
+from . import client, local_state
+from .deliver import deliver
+from .store import current_session_id
 from .usage import usage_from_transcript
 
 ACTIVE_STATES = ("planning", "working", "changes_requested")
@@ -33,17 +36,10 @@ def send(fields: dict, writer: str | None = None) -> dict | None:
     sid = current_session_id()
     if not sid:
         return None
-    url = client.hub_url()
-    if url:
-        try:
-            res = client.push(url, {"session_id": sid, "writer": writer, "fields": fields},
-                              token=os.environ.get("HUB_TOKEN"))
-        except ValueError:
-            return None
-    else:
-        res = core.record(EventStore(), sid, fields, writer=writer)
-    local_state.note(sid, fields, res)
-    return res
+    try:
+        return deliver(sid, fields, writer=writer)[0]
+    except ValueError:
+        return None
 
 
 def _read_payload() -> dict:
@@ -73,10 +69,37 @@ def install_shim() -> Path | None:
     return shim
 
 
+def autostart_server() -> str | None:
+    """HUB_AUTOSTART=1 のとき、ローカルのハブサーバーが動いていなければ裏で起動する。
+
+    ローカル運用専用: HUB_URL が 127.0.0.1 / localhost を指し、HUB_STORE があるときだけ動く。
+    複数のセッションが同時に起動しても、ポートを取れなかった側はすぐ終了するだけで害はない。
+    """
+    url = client.hub_url()
+    store = os.environ.get("HUB_STORE")
+    if os.environ.get("HUB_AUTOSTART") != "1" or not url or not store or not client.is_loopback(url):
+        return None
+    if client.healthy(url):
+        return "running"
+    parts = urllib.parse.urlsplit(url)
+    log = Path(store).expanduser() / ".server.log"
+    log.parent.mkdir(parents=True, exist_ok=True)
+    env = {**os.environ, "PYTHONPATH": str(PLUGIN_ROOT) + os.pathsep + os.environ.get("PYTHONPATH", "")}
+    with open(log, "ab") as out:
+        subprocess.Popen(
+            [sys.executable, "-m", "session_hub", "serve", "--host", parts.hostname, "--port", str(parts.port or 80)],
+            env=env, stdin=subprocess.DEVNULL, stdout=out, stderr=out, start_new_session=True)
+    return "started"
+
+
 def session_start(payload: dict) -> str:
     shim = install_shim()
     if not enabled():
         return ""
+    try:
+        autostart_server()
+    except OSError as exc:
+        print(f"session-hub: サーバーの自動起動に失敗: {exc}", file=sys.stderr)
     sid = current_session_id()
     st = local_state.load(sid) if sid else {}
     cmd = "session-hub"

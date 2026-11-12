@@ -188,6 +188,18 @@ class ServerTest(TmpMixin, unittest.TestCase):
             client.get_snapshot(self.url)  # トークンなしの読み取りも拒否
         self.assertEqual(client.get_snapshot(self.url, "tok")["sessions"], [])
 
+    def test_local_fallback_writes_shared_store_when_server_down(self):
+        from session_hub.deliver import deliver
+        env = {"HUB_URL": "http://127.0.0.1:9", "HUB_STORE": str(self.store.root),
+               "HUB_OUTBOX": str(self.dir / "outbox.jsonl"), "HUB_STATE_DIR": str(self.dir / "st")}
+        with mock.patch.dict(os.environ, env):
+            res, mode = deliver("c9", {"type": "start", "title": "down"})
+            self.assertEqual((mode, res["status"]["state"]), ("store", "planning"))
+            self.assertFalse(Path(env["HUB_OUTBOX"]).exists())
+        # サーバーは次の更新でストアから読み直すので、停止中のメッセージも画面に出る
+        client.post(self.url, {"session_id": "c8", "fields": {"type": "start"}}, token="tok")
+        self.assertIn("c9", [s["session_id"] for s in client.get_snapshot(self.url, "tok")["sessions"]])
+
     def test_outbox_flush(self):
         env = {"HUB_OUTBOX": str(self.dir / "outbox.jsonl")}
         with mock.patch.dict(os.environ, env):

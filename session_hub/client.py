@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import os
 import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -48,6 +49,21 @@ def post(url: str, payload: dict, token: str | None = None) -> dict:
         raise PushError(f"hub server unreachable: {e}") from e
 
 
+LOOPBACK = ("127.0.0.1", "localhost", "::1")
+
+
+def is_loopback(url: str) -> bool:
+    return (urllib.parse.urlsplit(url).hostname or "") in LOOPBACK
+
+
+def healthy(url: str, timeout: float = 0.7) -> bool:
+    try:
+        with urllib.request.urlopen(url + "/healthz", timeout=timeout) as res:
+            return res.status == 200
+    except (urllib.error.URLError, TimeoutError, OSError):
+        return False
+
+
 def get_snapshot(url: str, token: str | None = None) -> dict:
     req = urllib.request.Request(url + "/api/snapshot")
     if token:
@@ -59,7 +75,7 @@ def get_snapshot(url: str, token: str | None = None) -> dict:
         raise PushError(f"hub server unreachable: {e}") from e
 
 
-def _spool(payload: dict) -> None:
+def spool(payload: dict) -> None:
     path = _outbox_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "a", encoding="utf-8") as f:
@@ -97,5 +113,5 @@ def push(url: str, payload: dict, token: str | None = None) -> dict | None:
         flush(url, token)
         return post(url, payload, token)
     except PushError:
-        _spool(payload)
+        spool(payload)
         return None

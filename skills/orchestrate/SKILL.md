@@ -10,16 +10,18 @@ description: 親セッションとして、Session Hub を使ってサブセッ�
 
 ## 前提（初回だけ）
 
-1. ハブサーバーが動いていて、子セッションから到達できる URL がある（`session-hub serve`、README 参照）。
-2. 子の環境で `HUB_URL` が設定され、このプラグイン（session-hub）が有効になっている。
-   トークンは環境変数に平文で置かず、可能ならハブのホストに対するネットワークシークレット
-   （Authorization: Bearer）として登録する。自分の環境でも同じ `HUB_URL` を使う。
+ローカル運用（現在の構成）: 全セッションで `HUB_URL=http://127.0.0.1:8765` と同じ `HUB_STORE` が設定され、
+このプラグインが有効になっている。`session-hub doctor` で確認できる。サーバーは `HUB_AUTOSTART=1` なら自動で起動する。
 
 ## 子を起動するとき
 
-`create_session` の `append_system_prompt` に、`prompts/child-append-system-prompt.md` の本文を
-`{{PARENT_SESSION_ID}}` と `{{TITLE}}` を置き換えて渡す。`prompt` には作業内容だけを書く。
-長い手順は渡さない（子は session-hub:report スキルを必要時に読む）。
+`prompts/child-append-system-prompt.md` の本文を `{{PARENT_SESSION_ID}}` と `{{TITLE}}` を置き換えて追加のシステムプロンプトとして渡し、
+作業内容だけを本文の指示にする。長い手順は渡さない（子は session-hub:report スキルを必要時に読む）。
+
+- ローカル: 別プロセスの Claude Code として起動する（各子が固有のセッション ID を持つ必要がある）。
+  `claude -p "<作業内容>" --append-system-prompt "<置き換えた本文>"` を Bash のバックグラウンド実行で起動する。
+  Agent ツールのサブエージェントは親と同じセッション ID になるので、子として数えたいなら使わない。
+- クラウド: `create_session` の `append_system_prompt` に渡す。
 
 ## ナレッジを使う
 
@@ -56,7 +58,17 @@ session-hub attention
 session-hub answer <session_id> --qid <n> --value <値>
 ```
 
-出力された `[HUB/1] cmd=answer q=<n> v=<値>` をそのまま `send_message` で子へ送る。
+出力された `[HUB/1] cmd=answer q=<n> v=<値>` を子へ届ける。
+
+- 子が動いているセッションでメッセージを受け取れる場合: セッション間メッセージ（`SendMessage` / `send_message`）で送る。
+- `claude -p` で起動して質問で止まった子: そのセッションを再開して渡す。ローカル運用ではハブのセッション ID が
+  Claude Code のセッション ID と同じなので、そのまま使える。
+
+```bash
+claude -p --resume <session_id> "[HUB/1] cmd=answer q=<n> v=<値>"
+```
+
+止まる時間を減らすため、戻せる判断は `--non-blocking`（既定値で進める）で聞くよう子に任せる。
 ほかの指示も同様に `session-hub command <session_id> --cmd report|pause|resume|rebase|abort --arg key=value`
 を実行し、出力行を送る。
 

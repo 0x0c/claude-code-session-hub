@@ -30,53 +30,85 @@ HUB_STORE=/tmp/hub-demo bin/session-hub serve
 python3 scripts/demo.py --push http://127.0.0.1:8765
 ```
 
-## 本番での構成
+## 使い方（ローカル運用）
+
+サブセッションを手元の PC で動かし、全セッションで同じストア（`HUB_STORE`）を共有する構成です。
+ハブサーバーは `127.0.0.1` でのみ待ち受けるので、PC を外部に公開しません。
 
 ```
-子セッション ──POST──► ハブサーバー（session-hub serve）──SSE──► ブラウザ
-   └─ [HUB/1] 行だけ send_message ──► 親セッション ──GET snapshot──┘
+サブセッション A ─┐ POST（127.0.0.1）
+サブセッション B ─┼──────────► ハブサーバー ──SSE──► ブラウザ（http://127.0.0.1:8765/）
+サブセッション C ─┘                 │
+        └ サーバー停止中は共有ストアへ直接書く ─► ~/.session-hub/events/*.jsonl ◄─ 起動時に読み込み
 ```
 
-### 1. ハブサーバーを起動する
-
-子セッションから届く場所で起動します（手元の PC を外部に公開する構成は想定していません。常時動いているサーバーに置くか、サブセッションをローカルで動かす場合は `HUB_STORE` を共有してください）。localhost 以外で待ち受けるときはトークンが必須です。
-
-```bash
-HUB_STORE=/var/lib/session-hub HUB_TOKEN=<長いランダム文字列> session-hub serve --host 0.0.0.0 --port 8765
-```
-
-ブラウザでは最初に `http://<host>:8765/?token=<HUB_TOKEN>` を開きます（以後は cookie で認証され、URL からトークンは消えます）。
-TLS は前段のリバースプロキシなどで終端してください。
-
-### 2. 子セッションの環境を用意する
-
-- 環境変数 `HUB_URL=https://<ハブのURL>` を設定する。
-- ハブのホストをネットワーク許可リストに追加する。
-- トークンは環境変数に平文で置かず、可能ならハブのホスト宛ての `Authorization: Bearer` ネットワークシークレットとして登録する（その場合 `HUB_TOKEN` は不要）。
-- このリポジトリを Claude Code プラグインとして有効にする。
+### 1. プラグインを入れる
 
 ```text
 /plugin marketplace add 0x0c/claude-code-session-hub
 /plugin install session-hub@session-hub
 ```
 
-プラグインを有効にすると、次が子セッションに入ります。`HUB_URL` も `HUB_STORE` もないセッションでは hook は何もしません。
+### 2. 全セッション共通の設定を書く
+
+`~/.claude/settings.json`（ユーザー設定。全プロジェクトのセッションに効く）に次を追加します。
+
+```json
+{
+  "env": {
+    "HUB_URL": "http://127.0.0.1:8765",
+    "HUB_STORE": "~/.session-hub",
+    "HUB_AUTOSTART": "1"
+  }
+}
+```
+
+- `HUB_AUTOSTART=1` にすると、最初に始まったセッションがハブサーバーを裏で起動します（ログは `~/.session-hub/.server.log`）。自分で起動する場合は外して `session-hub serve` を実行します。
+- サーバーが止まっている間のメッセージは共有ストアに直接書かれ、サーバーが起動すると画面に出ます。失われることはありません。
+- 特定のプロジェクトだけで使うなら、そのプロジェクトの `.claude/settings.local.json` に書きます。
+
+### 3. 確認する
+
+```bash
+session-hub doctor
+```
+
+URL・サーバーの応答・ストアの書き込み可否・コマンドの場所・未送信の有無を確認できます。ブラウザで http://127.0.0.1:8765/ を開けばダッシュボードです。
+
+### 4. サブセッションを動かす
+
+ローカルでは各サブセッションが別々の Claude Code セッション（別のセッション ID）である必要があります。
+
+- **人間が並行して起動する**: 別のターミナルや worktree、デスクトップアプリの並行セッションで `claude` を起動する。指示の冒頭に [prompts/child-append-system-prompt.md](prompts/child-append-system-prompt.md) の内容を含めるか、次のように渡す。
+- **親がバックグラウンドで起動する**:
+
+```bash
+claude -p "<作業内容>" --append-system-prompt "$(sed -e 's/{{PARENT_SESSION_ID}}/<親のID>/' -e 's/{{TITLE}}/<作業名>/' prompts/child-append-system-prompt.md)"
+```
+
+Agent ツールのサブエージェントは親と同じセッション ID になるため、別のサブセッションとしては表示されません（区別したい場合はサブエージェントの指示で `session-hub --session <固有のID> ...` を使わせます）。
+
+### プラグインで入るもの
+
+`HUB_URL` も `HUB_STORE` もないセッションでは、hook は何もしません。
 
 | 種類 | 内容 |
 |---|---|
 | スキル `session-hub:report` | いつ・何を報告するか（子用） |
 | スキル `session-hub:orchestrate` | 子の起動・`[HUB/1]` への対応・回答の仕方（親用） |
-| SessionStart hook | `~/.local/bin/session-hub` を用意し、未登録なら `start` を促す 2 行を注入 |
+| SessionStart hook | `~/.local/bin/session-hub` を用意し、`HUB_AUTOSTART=1` ならサーバーを起動し、未登録なら `start` を促す 2 行を注入 |
 | PostToolUse hook | TodoWrite / TaskCreate / TaskUpdate → タスク進捗と作業中タスク名を自動送信 |
 | Stop hook | ターン終了ごとに heartbeat とトークン使用量を自動送信。作業中のまま終えようとしたら 1 回だけ報告を促す（`HUB_STOP_GUARD=0` で無効） |
 
-### 3. 親から子を起動する
+### （参考）クラウドのサブセッションで使う場合
 
-`create_session` の `append_system_prompt` に [prompts/child-append-system-prompt.md](prompts/child-append-system-prompt.md) の本文を、`{{PARENT_SESSION_ID}}` と `{{TITLE}}` を置き換えて渡します。
+クラウドのセッションから届く常設サーバーにハブを置き、`HUB_TOKEN` を設定して `session-hub serve --host 0.0.0.0` で起動します。
+子の環境で `HUB_URL` を設定し、ハブのホストをネットワーク許可リストに加え、トークンは `Authorization: Bearer` のネットワークシークレットとして登録します。
+ブラウザでは最初に `?token=<HUB_TOKEN>` を付けて開きます。手元の PC を外部に公開する構成は想定していません。
 
 ## コマンド早見表
 
-子セッション（`HUB_URL` があれば push、なければ `HUB_STORE` に直接書く）:
+子セッション（`HUB_URL` へ push。届かなければ `HUB_STORE` に直接書く）:
 
 ```bash
 session-hub start --title "作業名" --task-ref "#128" --task "設計=todo:S" --task "実装=todo:M"
@@ -87,9 +119,10 @@ session-hub ready --self-review --tests --description
 session-hub done --summary "PR #45"
 session-hub fail --error "原因"
 session-hub flush
+session-hub doctor
 ```
 
-`flush` は、届かずに outbox へ溜まったイベントを再送します。
+`flush` は、届かずに outbox へ溜まったイベントを再送します。`doctor` は設定を確認します。
 
 知見・注意点の記録と参照:
 
@@ -138,6 +171,7 @@ session-hub export --out dashboard.html
 | `HUB_SESSION_ID` | 自セッション ID（未設定なら Claude Code の環境変数から取得） |
 | `HUB_PARENT_SESSION_ID` | 親のセッション ID（子が `[HUB/1]` 行を送る宛先） |
 | `HUB_STOP_GUARD` | `0` で Stop hook の確認を無効化 |
+| `HUB_AUTOSTART` | `1` で、ローカルのハブサーバーが動いていなければセッション開始時に起動（`HUB_URL` が 127.0.0.1 / localhost のときだけ） |
 | `HUB_OUTBOX` / `HUB_STATE_DIR` | outbox とローカル状態の置き場所（既定 `~/.cache/...`） |
 
 ## テスト

@@ -16,6 +16,7 @@ import sys
 from pathlib import Path
 
 from . import client, collections, core, local_state, schema, view
+from .deliver import deliver
 from .store import EventStore, current_session_id
 from .usage import usage_from_transcript
 
@@ -32,25 +33,19 @@ def _session(args) -> str:
 def _record(args, fields: dict, writer: str | None = None, session: str | None = None) -> dict | None:
     """push 先（HUB_URL）があればサーバーへ送り、なければローカルのストアに書く。"""
     sid = session or _session(args)
-    url = client.hub_url()
-    if url:
-        try:
-            res = client.push(url, {"session_id": sid, "writer": writer, "fields": fields},
-                              token=os.environ.get("HUB_TOKEN"))
-        except ValueError as e:
-            sys.exit(f"session-hub: {e}")
-        if res is None:
-            if writer is None:
-                local_state.note(sid, fields, None)
-            print("session-hub: ハブに届かないため outbox に保存しました（次回送信時に再送）", file=sys.stderr)
-            return None
-    else:
+    try:
+        res, mode = deliver(sid, fields, writer=writer, store_root=args.store)
+    except ValueError as e:
+        sys.exit(f"session-hub: {e}")
+    if mode == "outbox":
+        print("session-hub: ハブに届かないため outbox に保存しました（次回送信時に再送）", file=sys.stderr)
+        return None
+    if mode == "store" and client.hub_url() and not args.quiet:
+        print("session-hub: ハブサーバーに届かないため共有ストアに直接書きました（サーバー起動時に反映）", file=sys.stderr)
+    if mode == "store":
         store = EventStore(args.store)
-        res = core.record(store, sid, fields, writer=writer)
         if not args.no_sync and store.is_git() and not store.sync(f"hub: {sid} {res['event']['type']}"):
-            print("hub: 警告: git push に失敗しました（イベントはローカルに保存済み）", file=sys.stderr)
-    if writer is None:
-        local_state.note(sid, fields, res)
+            print("session-hub: 警告: git push に失敗しました（イベントはローカルに保存済み）", file=sys.stderr)
     # 親を起こすべき遷移なら、send_message でそのまま送れる 1 行が message に入っている
     if res["escalate"] or not args.quiet:
         print(res["message"])
@@ -214,6 +209,51 @@ def cmd_serve(a):
           watch_files=a.watch_files, pull_every=a.pull_every)
 
 
+def cmd_doctor(a):
+    """設定の確認。問題があれば終了コード 1。"""
+    import shutil
+    ok = True
+
+    def line(good, msg, hint=""):
+        nonlocal ok
+        ok = ok and good is not False
+        mark = {True: "OK  ", False: "NG  ", None: "--  "}[good]
+        print(mark + msg + (f"\n      → {hint}" if hint else ""))
+
+    sid = a.session or current_session_id()
+    line(bool(sid), f"セッション ID: {sid or '不明'}", "" if sid else "HUB_SESSION_ID を設定するか Claude Code 内で実行する")
+    url, store = client.hub_url(), a.store or os.environ.get("HUB_STORE")
+    if url:
+        line(client.is_loopback(url) or None, f"HUB_URL: {url}" + ("（ローカルのみ）" if client.is_loopback(url) else "（外部ホスト）"))
+        up = client.healthy(url)
+        hint = "session-hub serve を起動する（HUB_AUTOSTART=1 なら次のセッション開始時に自動起動）"
+        line(up or (None if store else False), "ハブサーバー: " + ("応答あり" if up else "応答なし"),
+             "" if up else hint + ("。それまでは共有ストアに直接書く" if store else ""))
+        if up:
+            try:
+                client.get_snapshot(url, os.environ.get("HUB_TOKEN"))
+                line(True, "認証: OK")
+            except client.PushError as e:
+                line(False, f"認証: {e}", "HUB_TOKEN をサーバーと揃える")
+    else:
+        line(None, "HUB_URL: 未設定（push せず共有ストアに直接書く。画面への反映は serve --watch-files が必要）")
+    if store:
+        p = Path(store).expanduser()
+        writable = os.access(p if p.exists() else p.parent, os.W_OK)
+        line(writable, f"HUB_STORE: {p}" + ("" if p.exists() else "（未作成。最初の書き込みで作られる）"),
+             "" if writable else "書き込めるディレクトリを指定する")
+    else:
+        line(bool(url) or False, "HUB_STORE: 未設定", "ローカル運用では全セッションで同じパスを設定する")
+    line(None if not os.environ.get("HUB_AUTOSTART") else True, f"HUB_AUTOSTART: {os.environ.get('HUB_AUTOSTART', '未設定')}")
+    path = shutil.which("session-hub")
+    line(bool(path) or None, f"session-hub コマンド: {path or 'PATH にない'}",
+         "" if path else "プラグインの SessionStart hook が ~/.local/bin に作る。PATH に ~/.local/bin を追加する")
+    outbox = Path(os.environ.get("HUB_OUTBOX", Path.home() / ".cache" / "hub" / "outbox.jsonl"))
+    n = sum(1 for _ in open(outbox, encoding="utf-8")) if outbox.exists() else 0
+    line(n == 0 or None, f"未送信の outbox: {n} 件", "" if n == 0 else "session-hub flush で再送する")
+    sys.exit(0 if ok else 1)
+
+
 def cmd_hook(a):
     from . import hooks
     hooks.run(a.name)
@@ -331,6 +371,8 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--pull-every", type=float, default=0,
                    help="（補助）Git ストアを N 秒ごとに pull する。0 で無効（既定）")
     s.set_defaults(func=cmd_serve)
+    s = sub.add_parser("doctor", help="設定（URL・ストア・サーバー・コマンド）を確認")
+    s.set_defaults(func=cmd_doctor)
     s = sub.add_parser("hook", help="Claude Code の hook から呼ぶ（stdin に hook の JSON）")
     s.add_argument("name", choices=("session-start", "stop", "todo"))
     s.set_defaults(func=cmd_hook)
