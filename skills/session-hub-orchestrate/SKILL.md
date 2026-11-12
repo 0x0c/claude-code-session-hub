@@ -22,7 +22,7 @@ the prompt. Do not pass long procedures; the child reads the session-hub-report 
 it.
 
 - Local: start the child as a separate Claude Code process, so that each child has its own session
-  ID. Run `claude -p "<task>" --append-system-prompt "<replaced body>"` in the background with Bash.
+  identifier (ID). Run `claude -p "<task>" --append-system-prompt "<replaced body>"` in the background with Bash.
   A subagent of the Agent tool shares the parent's session ID, so do not use one for a child you want
   counted separately.
 - Cloud: pass the body as `append_system_prompt` of `create_session`.
@@ -54,7 +54,7 @@ The output lists one line per session that needs attention.
 | Prefix | Meaning | Response |
 |---|---|---|
 | `NH` | Waiting for a human or parent decision | If you can decide, answer (below). If a human should decide, forward the question to the human |
-| `RR` | Ready for review (CI green, zero open threads, and self-checks done, all verified mechanically) | Move on to requesting a PR review |
+| `RR` | Ready for review (continuous integration (CI) green, zero open threads, and self-checks done, all verified mechanically) | Move on to requesting a pull request (PR) review |
 | `FL` | Failed | Read the one-line cause, then re-instruct, abort, or report to a human |
 | `ST` | Stalled (a working session with no report for 30 minutes or more) | Check its state with `get_session`. If it has stopped, send `cmd=report` |
 

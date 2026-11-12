@@ -59,12 +59,12 @@ Japanese.
 ## Typography
 
 - **Punctuation.** Use 「、」 and 「。」. Use full-width parentheses （ ） around Japanese text and
-  half-width ( ) inside code or around purely ASCII text.
+  half-width ( ) inside code or around purely American Standard Code for Information Interchange (ASCII) text.
 - **No space between Japanese and half-width alphanumerics** in running text:
   「HUB_URL を設定します」 is wrong; write 「HUB_URLを設定します」. Inline code keeps its backticks:
   「`HUB_URL`を設定します」.
 - **Numbers and units.** Use half-width digits: 「6秒」「3件」「127.0.0.1」.
-- **Quotes.** Use 「 」 for quoting words or UI labels; use 『 』 for a quote inside a quote.
+- **Quotes.** Use 「 」 for quoting words or user interface (UI) labels; use 『 』 for a quote inside a quote.
 
 ## The language switch
 

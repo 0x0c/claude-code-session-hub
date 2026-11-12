@@ -15,10 +15,10 @@ The parent reads a few lines from `session-hub attention` instead of reading tra
 
 | Path | What it holds |
 |---|---|
-| `session_hub/` | The Python package: schema, event store, hub server, CLI, hooks, collections |
+| `session_hub/` | The Python package: schema, event store, hub server, command-line interface (CLI), hooks, collections |
 | `session_hub/templates/dashboard.html` | The dashboard page (one self-contained file) |
 | `bin/session-hub` | The wrapper that finds the package however it was installed |
-| `skills/`, `hooks/`, `prompts/` | What we ship to users' sessions (Claude Code plugin and APM package) |
+| `skills/`, `hooks/`, `prompts/` | What we ship to users' sessions (Claude Code plugin and Agent Package Manager (APM) package) |
 | `.claude/skills/` | Skills for developing this repository; not shipped |
 | `proposals/` | Design proposals, one pair of files per change (`SH-NNNN-<slug>.md` and `.ja.md`) |
 | `docs/DESIGN.md` | The design rationale and the glossary |
@@ -46,6 +46,9 @@ origin of its content.
   `<name>.ja.md` next to it: `README`, `AGENTS`, `docs/*`, `proposals/README`, and every proposal.
   Update both files in the same change. `scripts/check_docs.py` and `scripts/proposals.py lint`
   check that every pair exists, links to each other on its first line, and keeps the same headings.
+- Spell out every acronym on its first use in each document: "Server-Sent Events (SSE)", and in
+  Japanese 「Server-Sent Events（SSE）」. `scripts/acronyms.py` checks it; add a new acronym to its
+  table when you introduce one.
 - Before writing or revising prose, load [`document-writing`](.claude/skills/document-writing/SKILL.md)
   and the layer for the language: [`english-document-writing`](.claude/skills/english-document-writing/SKILL.md)
   or [`japanese-document-writing`](.claude/skills/japanese-document-writing/SKILL.md). They shape the
@@ -73,8 +76,9 @@ Run the gate before you call a change done, and again before you push:
 scripts/check.sh
 ```
 
-The script runs the test suite, the proposal format check (`scripts/proposals.py lint`), and the
-bilingual-docs check (`scripts/check_docs.py`). All three must pass. For a dashboard change, also
+The script runs the test suite, the proposal format check (`scripts/proposals.py lint`), the
+bilingual-docs check (`scripts/check_docs.py`), and the acronym check (`scripts/acronyms.py`). All
+four must pass. For a dashboard change, also
 look at the page with demo data, as described under [Field notes](#check-the-dashboard-in-a-real-browser).
 
 ## Git
@@ -119,7 +123,7 @@ Each note states a fact we verified, why it matters, and what to do about it.
 ### Session identity
 
 - In a cloud session, `CLAUDE_CODE_REMOTE_SESSION_ID` holds `cse_<id>`; the session tools use
-  `session_<id>`, so we rewrite the prefix. Locally, `CLAUDE_CODE_SESSION_ID` holds a UUID, which is
+  `session_<id>`, so we rewrite the prefix. Locally, `CLAUDE_CODE_SESSION_ID` holds a universally unique identifier (UUID), which is
   also the id that `claude --resume` accepts.
 - Subagents started with the Agent tool share the parent's session id, so they do not appear as
   separate sub-sessions. A sub-session must be a separate Claude Code process.
@@ -150,13 +154,13 @@ We verified these facts with APM 0.35.1 by installing this repository into a scr
 - Events written in the same millisecond sorted out of order across writer files. The store now
   hands out strictly increasing timestamps under a store-wide lock (`.clock`).
 - A browser's `EventSource` cannot send an `Authorization` header. When a token is set, the page
-  accepts `?token=` once, sets an HttpOnly cookie, and redirects to drop the token from the URL.
+  accepts `?token=` once, sets an HttpOnly cookie, and redirects to drop the token from the Uniform Resource Locator (URL).
 - The server rebuilds the snapshot from the store on every message. That is fine for thousands of
   events; beyond that, switch to incremental updates.
 
 ### Dashboard
 
-- Every update re-renders the DOM, so a CSS animation restarts unless we preserve it. The glow on a
+- Every update re-renders the Document Object Model (DOM), so a Cascading Style Sheets (CSS) animation restarts unless we preserve it. The glow on a
   received message records its start time and sets a negative `animation-delay` on each re-render.
 - An element's `hidden` attribute loses to a CSS `display` rule; the stylesheet carries
   `[hidden] { display: none !important; }`.

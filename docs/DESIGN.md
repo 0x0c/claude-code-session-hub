@@ -18,7 +18,7 @@ child needs it.
 |---|---|
 | Save tokens | The parent never reads a child's transcript and never wakes up without need |
 | Know when a human must step in | Whether a child has stopped to wait for a human: a decision, a credential, a permission, or a clarification of the spec |
-| Know when a PR can go to review | Whether continuous integration (CI), the self-review, and every open item are settled, so the pull request (PR) can go to review |
+| Know when a pull request (PR) can go to review | Whether continuous integration (CI), the self-review, and every open item are settled, so the PR can go to review |
 | See activity | What each child is doing now, and whether it has stopped (the heartbeat) |
 | See remaining work | How many tasks remain, how large they are, and the next step |
 
@@ -35,7 +35,7 @@ We follow six principles:
 4. **Fixed schema, enumerated values, short text.** Free text is limited to a one-line summary and
    the text of a question, each with a character limit.
 5. **Progressive disclosure.** A reader moves from the list (one line per session) to the detail
-   (one JSON record) to the transcript (a link). The parent normally reads only the "needs action"
+   (one JavaScript Object Notation (JSON) record) to the transcript (a link). The parent normally reads only the "needs action"
    lines of the list.
 6. **Do not trust self-reports alone.** "Ready for review" requires both the child's own claim and
    a mechanical gate, such as green CI.
@@ -50,7 +50,7 @@ Each session has one status record, a JSON object. The field `v` holds the schem
 
 | Group | Field | Writer | Description |
 |---|---|---|---|
-| Identity | `v`, `session_id`, `parent_id`, `title`, `task_ref` | At launch (parent) | `task_ref` is an issue number or a task ID |
+| Identity | `v`, `session_id`, `parent_id`, `title`, `task_ref` | At launch (parent) | `task_ref` is an issue number or a task identifier (ID) |
 | Location | `repo`, `branch`, `base` | At launch / hook | |
 | State | `state` | Child (CLI) | One of the values listed in §1.2 |
 | | `phase` | Child | A narrow enumeration such as `plan` / `implement` / `test` / `fix` / `docs` / `self_review` |
@@ -139,9 +139,9 @@ A transport is the path a status update travels. We compared nine candidates.
 | D. `send_message` (child → parent) | Child → parent | **Every time** (a parent turn runs) | Highest | Low (conversation only) | Low | Reserve for escalation |
 | E. `send_message` (parent → child) | Parent → child | Child side only | Highest | Low | — | For answers and instructions (commands) |
 | F. GitHub labels / PR body / issue comments | Child → GitHub | 0 | Medium | High | High (on GitHub) | Labels such as `hub:needs-human` work with GitHub notifications. Unusable before a PR exists |
-| G. Polling the cloud session API (`status_bucket` from `get_session`, `list_events` filtered by `kinds`) | Parent fetches | Small to large | Medium | — | — | The ground truth, with no cooperation from the child. These are Model Context Protocol (MCP) tools, so the LLM must call them, and `list_events` is heavy. Limited to `get_session`, polling stays cheap |
+| G. Polling the cloud session application programming interface (API) (`status_bucket` from `get_session`, `list_events` filtered by `kinds`) | Parent fetches | Small to large | Medium | — | — | The ground truth, with no cooperation from the child. These are Model Context Protocol (MCP) tools, so the LLM must call them, and `list_events` is heavy. Limited to `get_session`, polling stays cheap |
 | H. Local transcripts (`~/.claude/projects/**/*.jsonl`) | A script reads them directly | 0 | High | High | — | Local parallel runs only. Yields facts such as usage and the last tool call |
-| **I. HTTP push to a hub server** (`POST /api/events`) | Child → server → browser | 0 | **Highest** (delivered on receipt) | High (the server appends to the store) | **High** | The child must be able to reach the server (§9) |
+| **I. Hypertext Transfer Protocol (HTTP) push to a hub server** (`POST /api/events`) | Child → server → browser | 0 | **Highest** (delivered on receipt) | High (the server appends to the store) | **High** | The child must be able to reach the server (§9) |
 
 ### Decision: push (I) is the main transport
 
@@ -152,7 +152,7 @@ immediately**.
   `session-hub` command (I). The server validates the event, appends it to the store, and delivers
   it at once over Server-Sent Events (SSE) to every connected browser. **Neither the server nor the
   browser polls.**
-- **When delivery fails**: the child keeps the unsent events in an outbox (a local JSONL file) and
+- **When delivery fails**: the child keeps the unsent events in an outbox (a local JSON Lines (JSONL) file) and
   resends them first on the next send.
 - **Durability**: the store is append-only JSONL. When needed, the store can also be shared and
   archived through Git, as in A (the auxiliary `--pull-every` option).
@@ -406,7 +406,7 @@ label, it gives the English label and the Japanese label in parentheses.
 | Format | Use |
 |---|---|
 | The dashboard of `session-hub serve` | For humans. Reflects each push as it arrives (SSE) |
-| `session-hub export --out dashboard.html` | A standalone HTML file with an embedded snapshot (for sharing and archiving; does not update) |
+| `session-hub export --out dashboard.html` | A standalone HyperText Markup Language (HTML) file with an embedded snapshot (for sharing and archiving; does not update) |
 | `GET /api/snapshot` | JSON for machines |
 | `session-hub attention` | For the parent LLM. Sessions that need action alone, one line each |
 | `session-hub log [<session_id>]` | Follow the timeline in a terminal |
@@ -624,7 +624,7 @@ claude-code-session-hub/
 | SSE (Server-Sent Events) | A mechanism by which a server keeps a connection open and sends a browser data as it comes. The dashboard uses SSE to update immediately |
 | snapshot / update | The data sent over SSE: the whole state right after connecting (snapshot), then the changes (update) |
 | outbox | A file on the child's side that holds events that did not reach the hub. The child resends them first on the next send |
-| `HUB_URL` / `HUB_TOKEN` | The hub's URL and authentication token, used by children and the parent |
+| `HUB_URL` / `HUB_TOKEN` | The hub's Uniform Resource Locator (URL) and authentication token, used by children and the parent |
 | `HUB_STORE` | The store directory. Without `HUB_URL`, a child also writes here directly |
 | `HUB_SESSION_ID` | The current session's ID. If unset, the tool derives it from Claude Code's environment variables |
 | Hook | A command Claude Code runs automatically at specific moments. This tool uses SessionStart, PostToolUse, and Stop |

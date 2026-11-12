@@ -24,7 +24,7 @@ Apply every lens that matches the diff.
 
 - **Correctness.** Find inputs or states that produce a wrong result, a crash, or lost data. Name
   the concrete scenario.
-- **Protocol and compatibility.** A change to an event field, a `[HUB/1]` line, an HTTP endpoint,
+- **Protocol and compatibility.** A change to an event field, a `[HUB/1]` line, a Hypertext Transfer Protocol (HTTP) endpoint,
   or a stored file must stay readable by the previous version, or the proposal must say why it
   breaks compatibility.
 - **Sessions are not interrupted.** A hook must never fail a Claude Code session: it exits 0 on
@@ -33,7 +33,7 @@ Apply every lens that matches the diff.
 - **Token cost.** Anything that adds text to a model's context on every turn, or wakes a parent
   session, must justify the cost.
 - **Security.** Untrusted input (a pushed message, a file under the store, a collection
-  definition) must not reach a shell, a path outside the store, or the page as HTML.
+  definition) must not reach a shell, a path outside the store, or the page as HyperText Markup Language (HTML).
 - **Tests.** New behavior has a test that fails without the change. The suite still passes.
 - **Proposal fidelity.** For an implementation, the code does what the proposal's Detailed design
   says, and a deliberate deviation updates the proposal in the same change.

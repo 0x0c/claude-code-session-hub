@@ -9,7 +9,7 @@ Source: https://nakamura001.hatenablog.com/entry/2026/10/09/Codexの作成する
 These rules govern the layout of a whole document and the writing of a procedure, in both
 languages. They matter most in a document a reader works through while acting or learning: a how-to,
 a setup guide, or an explanation of a feature. A proposal, whose prose argues a case, still
-follows the rules on titles and openings and on how terms relate. Its H2 headings are fixed in set
+follows the rules on titles and openings and on how terms relate. Its second-level headings (H2s) are fixed in set
 and order by [`proposals/README.md`](../../../../proposals/README.md) and checked by
 `python3 scripts/proposals.py lint`, so the heading-order rules below do not reach them.
 

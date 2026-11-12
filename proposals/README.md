@@ -18,7 +18,7 @@ the current one.
 | Proposed | The author wrote the proposal and asks for review. | The author, on creation |
 | Approved | The maintainer accepted the design; anyone may build it. | The maintainer, on review |
 | In progress | Someone is building it on a branch. | The implementer, when work starts |
-| Implemented | The change has landed; the `Implementing PR` row links it. | The implementer, in the implementing PR |
+| Implemented | The change has landed; the `Implementing PR` row links it. | The implementer, in the implementing pull request (PR) |
 | Deferred | The design is sound, but we chose not to build it now. | The maintainer |
 | Rejected | We decided against the change; the proposal stays as a record. | The maintainer |
 
@@ -70,7 +70,7 @@ the rules below on both files.
     Distribution, or Developer workflow.
   - `Implementing PR` is `—` until a pull request implements the proposal, then a link to it.
   - `Related` is `—` or links to other proposals.
-- **Sections.** Six H2 sections appear exactly in this order:
+- **Sections.** Six sections, each under a second-level heading (H2), appear exactly in this order:
   1. *Introduction* states the change and its contribution in one or two paragraphs.
   2. *Motivation* states the problem, why it matters, and one observable difference the change
      will make, so a later reader can check whether the change worked.
@@ -95,7 +95,7 @@ python3 scripts/proposals.py list --grep dashboard
 
 Add an unformed idea here as one bullet. Promote it to a numbered proposal once its scope is clear.
 
-- **English CLI and hook strings.** The dashboard is localized into English and Japanese, but the
+- **English command-line interface (CLI) and hook strings.** The dashboard is localized into English and Japanese, but the
   CLI messages and the text that the hooks inject are still Japanese. Switching them to English, or
   making them selectable, changes what every user and agent sees and needs its own proposal.
 - **A prose linter for documentation.** The writing skills are a review-time norm today. A

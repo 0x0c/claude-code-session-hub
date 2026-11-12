@@ -10,10 +10,10 @@ Session Hubは、親のClaude Codeセッションが多数のサブセッショ�
 
 | パス | 中身 |
 |---|---|
-| `session_hub/` | Pythonパッケージ。スキーマ、イベントストア、ハブサーバー、CLI、hook、コレクション |
+| `session_hub/` | Pythonパッケージ。スキーマ、イベントストア、ハブサーバー、コマンドラインインターフェース（CLI）、hook、コレクション |
 | `session_hub/templates/dashboard.html` | ダッシュボードのページ（単体で完結する1ファイル） |
 | `bin/session-hub` | インストール方法を問わずパッケージを見つけて実行するラッパー |
-| `skills/`、`hooks/`、`prompts/` | 利用者のセッションへ配布するもの（Claude CodeプラグインとAPMパッケージ） |
+| `skills/`、`hooks/`、`prompts/` | 利用者のセッションへ配布するもの（Claude CodeプラグインとAgent Package Manager（APM）パッケージ） |
 | `.claude/skills/` | このリポジトリを開発するためのスキル。配布しません |
 | `proposals/` | 設計のプロポーザル。変更ごとに1組のファイル（`SH-NNNN-<slug>.md`と`.ja.md`） |
 | `docs/DESIGN.md` | 設計の根拠と用語集 |
@@ -33,6 +33,7 @@ Session Hubは、親のClaude Codeセッションが多数のサブセッショ�
 
 - コードのコメント、docstring、スキル、プロンプト、コミットメッセージ、プルリクエストの文章は**英語**で書きます。
 - 利用者が読む文書は**日英の2言語**で用意します。英語の原文`<name>.md`の隣に日本語版`<name>.ja.md`を置きます。対象は`README`、`AGENTS`、`docs/*`、`proposals/README`、各プロポーザルです。両方を同じ変更で更新してください。`scripts/check_docs.py`と`scripts/proposals.py lint`が、対になるファイルがそろっていること、1行目で互いにリンクしていること、見出しの構成が同じであることを確認します。
+- 略語は、各文書で最初に使うときに正式な名称のあとへ括弧書きで添えます。英語では「Server-Sent Events (SSE)」、日本語では「Server-Sent Events（SSE）」のように書きます。`scripts/acronyms.py`がこれを確認します。新しい略語を使い始めるときは、その表に略語と正式な名称を追加してください。
 - 文章を書く前や直す前に、[`document-writing`](.claude/skills/document-writing/SKILL.md)と、言語ごとの[`english-document-writing`](.claude/skills/english-document-writing/SKILL.md)または[`japanese-document-writing`](.claude/skills/japanese-document-writing/SKILL.md)を読み込んでください。これらは下書きの形を決めるもので、書き終えてからの校正用ではありません。
 - ダッシュボードは多言語化しています。表示する文言はすべて`session_hub/templates/dashboard.html`の`MESSAGES`表に英語と日本語で入っており、文言を変えるときは両方を更新します。サーバーが送る表示用の文字列（コレクションの名前やグループ名）は、`{"en": ..., "ja": ...}`の形でも書けます。CLIのメッセージとhookがモデルに渡す文は、現在も日本語の製品文言です。プロポーザルで変更を決めるまでは、そのままにしてください。
 
@@ -41,7 +42,7 @@ Session Hubは、親のClaude Codeセッションが多数のサブセッショ�
 1. **トークンを安く保つ。** 親はサブセッションの状況を数行から知り、トランスクリプトは読みません。親を起こす処理や、毎ターンのコンテキストに文を足す処理には理由が必要です。
 2. **セッションを止めない。** hookはどんなエラーでも終了コード0で終わり、ターンの終了を止めるのは多くても1回です。
 3. **イベントストアだけを正とする。** 画面の表示、コレクション、書き出したファイルは、追記専用のイベントから作る投影です。
-4. **ローカルにとどめる。** ハブはループバックインターフェースでだけ待ち受けます。利用者のPCを外部に公開しません。
+4. **ローカルにとどめる。** ハブはループバックインターフェースでだけ待ち受けます。利用者のパーソナルコンピューター（PC）を外部に公開しません。
 
 ## 作業の確認
 
@@ -51,7 +52,7 @@ Session Hubは、親のClaude Codeセッションが多数のサブセッショ�
 scripts/check.sh
 ```
 
-このスクリプトは、テスト、プロポーザルの形式チェック（`scripts/proposals.py lint`）、2言語の文書のチェック（`scripts/check_docs.py`）を実行します。3つとも成功する必要があります。ダッシュボードを変更したときは、[開発メモ](#実際のブラウザーでダッシュボードを確認する)のとおり、デモデータで画面も確認してください。
+このスクリプトは、テスト、プロポーザルの形式チェック（`scripts/proposals.py lint`）、2言語の文書のチェック（`scripts/check_docs.py`）、略語のチェック（`scripts/acronyms.py`）を実行します。4つとも成功する必要があります。ダッシュボードを変更したときは、[開発メモ](#実際のブラウザーでダッシュボードを確認する)のとおり、デモデータで画面も確認してください。
 
 ## Git
 
@@ -73,13 +74,13 @@ scripts/check.sh
 
 - **SessionStart** hookの標準出力は、モデルのコンテキストに入ります。1〜2行にとどめ、ハブが設定されていないときは何も出力しないでください。
 - **Stop** hookは、`{"decision": "block", "reason": "..."}`を出力するとターンの終了を止めます。次の呼び出しでは`stop_hook_active: true`が渡されるので、そのときは何も返さないでください。返すとセッションが同じ処理を繰り返します。
-- matcherを`TodoWrite|TaskCreate|TaskUpdate`にした**PostToolUse** hookは、`tool_input`からタスク一覧を読めます。そのため、モデルのトークンを使わずに進捗を送れます。`TaskUpdate`にはタスクIDしかないので、`TaskCreate`の時点でIDと名前の対応を記録しています。
+- matcherを`TodoWrite|TaskCreate|TaskUpdate`にした**PostToolUse** hookは、`tool_input`からタスク一覧を読めます。そのため、モデルのトークンを使わずに進捗を送れます。`TaskUpdate`にはタスク識別子（ID）しかないので、`TaskCreate`の時点でIDと名前の対応を記録しています。
 - hookに渡される情報には`transcript_path`が含まれます。トークン使用量は、アシスタントの各エントリの`message.usage`を`message.id`で重複を除いて合計して求めます。1つの応答が複数行にまたがることがあるためです。
 - hookは`HUB_URL`も`HUB_STORE`も設定されていなければ何もしません。そのため、プラグインを常に有効にしても安全です。
 
 ### セッションのID
 
-- クラウドのセッションでは、`CLAUDE_CODE_REMOTE_SESSION_ID`に`cse_<id>`が入っています。セッション関連のツールは`session_<id>`を使うので、接頭辞を書き換えています。ローカルでは`CLAUDE_CODE_SESSION_ID`にUUIDが入っており、これは`claude --resume`が受け付けるIDと同じです。
+- クラウドのセッションでは、`CLAUDE_CODE_REMOTE_SESSION_ID`に`cse_<id>`が入っています。セッション関連のツールは`session_<id>`を使うので、接頭辞を書き換えています。ローカルでは`CLAUDE_CODE_SESSION_ID`に汎用一意識別子（UUID）が入っており、これは`claude --resume`が受け付けるIDと同じです。
 - Agentツールで起動したサブエージェントは親と同じセッションIDを使うので、別のサブセッションとしては表示されません。サブセッションは別のClaude Codeプロセスとして動かす必要があります。
 
 ### APM（Agent Package Manager）での配布
@@ -96,12 +97,12 @@ scripts/check.sh
 
 - ストアの各ファイルの書き手は1人だけです（サブセッションは`<id>.jsonl`、親は`<id>@parent.jsonl`）。そのため、ストアをGitで共有してもマージで衝突しません。
 - 同じミリ秒に書かれたイベントが、書き手のファイルをまたいで誤った順に並ぶ問題がありました。現在のストアは、ストア全体のロック（`.clock`）の下で、必ず増えていく時刻を払い出します。
-- ブラウザーの`EventSource`は`Authorization`ヘッダーを送れません。トークンを設定している場合、ページは`?token=`を一度だけ受け取ってHttpOnlyのcookieに置き換え、リダイレクトでURLからトークンを消します。
+- ブラウザーの`EventSource`は`Authorization`ヘッダーを送れません。トークンを設定している場合、ページは`?token=`を一度だけ受け取ってHttpOnlyのcookieに置き換え、リダイレクトでUniform Resource Locator（URL）からトークンを消します。
 - サーバーはメッセージを受け取るたびに、ストアからスナップショットを作り直しています。数千イベントまでは問題ありませんが、それを超えるなら差分で更新する方式に変えてください。
 
 ### ダッシュボード
 
-- 更新のたびにDOMを作り直すので、何もしないとCSSのアニメーションが最初からやり直しになります。メッセージ受信時のグローは開始時刻を記録しておき、作り直すたびに負の`animation-delay`を設定して途中から続けています。
+- 更新のたびにDocument Object Model（DOM）を作り直すので、何もしないとCascading Style Sheets（CSS）のアニメーションが最初からやり直しになります。メッセージ受信時のグローは開始時刻を記録しておき、作り直すたびに負の`animation-delay`を設定して途中から続けています。
 - 要素の`hidden`属性は、CSSの`display`の指定に負けます。スタイルシートに`[hidden] { display: none !important; }`を入れています。
 - `Object.assign`で`element.style`にカスタムプロパティを設定しても反映されません。`style.setProperty("--name", value)`を使ってください。
 - 表示していないタブには古いDOMが残ります。タブを切り替えるときに中身を消さないと、期限切れのグローのような古い状態が残ります。

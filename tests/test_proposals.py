@@ -20,6 +20,7 @@ def load(name):
 
 proposals = load("proposals")
 check_docs = load("check_docs")
+acronyms = load("acronyms")
 
 
 def fill(path: Path, **replace: str) -> None:
@@ -140,6 +141,33 @@ class CheckDocsTest(unittest.TestCase):
         self.assertIn("broken relative link: nope.md", errors)
         self.assertIn("ORPHAN.ja.md: Japanese mirror without an English original", errors)
         self.assertIn("ALONE.md: missing Japanese mirror", errors)
+
+
+class AcronymsTest(unittest.TestCase):
+    def check(self, name, text):
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / name
+            path.write_text(text)
+            acronyms.ROOT = Path(d)
+            try:
+                return acronyms.check_file(path)
+            finally:
+                acronyms.ROOT = ROOT
+
+    def test_first_use_must_be_expanded(self):
+        self.assertEqual(self.check("a.md", "The hub streams Server-Sent Events (SSE). SSE is cheap.\n"), [])
+        errors = self.check("b.md", "The hub streams SSE to the browser.\n")
+        self.assertEqual(len(errors), 1)
+        self.assertIn("Server-Sent Events (SSE)", errors[0])
+
+    def test_japanese_parentheses_and_plurals(self):
+        self.assertEqual(self.check("a.ja.md", "プルリクエスト（PR）を開きます。次のPRも同じです。\n"), [])
+        self.assertEqual(self.check("b.md", "Open two pull requests (PRs). Each PR runs CI.\n")[0].split(": ", 1)[1],
+                         "spell out CI on first use: continuous integration (CI)")
+
+    def test_code_links_and_headings_do_not_count(self):
+        text = "# The SSE stream\n\nRun `SSE` and see [the docs](https://e.x/SSE).\n\n```\nSSE\n```\n"
+        self.assertEqual(self.check("a.md", text), [])
 
 
 class RepositoryTest(unittest.TestCase):

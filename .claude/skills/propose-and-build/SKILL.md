@@ -20,7 +20,7 @@ One pull request fuses the design review with the code review: merging it accept
 the implementation in a single act. That trade is honest only when the design is settled, because
 reworking code against a proposal that review reshapes wastes the work.
 
-- **Good fit:** a contained change the author already holds fully formed — a new CLI subcommand, a
+- **Good fit:** a contained change the author already holds fully formed — a new command-line interface (CLI) subcommand, a
   small dashboard affordance, a new collection view, a documentation restructure with a little code.
 - **Use the two-step path instead** (`ideation`, then `implement-proposal`) when the design is
   uncertain, touches the protocol or the store format, or is likely to change in review.

@@ -26,7 +26,7 @@ secrets.
 | You need a decision from a human or the parent | `session-hub ask --kind decision --q "<question>" --opt A --opt B --default A` |
 | You can proceed on the default while waiting (and revert later) | Add `--non-blocking` to the above and keep working with the default |
 | An answer arrives (`[HUB/1] cmd=answer q=<n> v=<value>`) | `session-hub report --state working --summary "<proceeding with value>"` |
-| You opened a PR and wait for CI | `session-hub pr --number <n> --ci pending --state waiting_ci` |
+| You opened a pull request (PR) and wait for continuous integration (CI) | `session-hub pr --number <n> --ci pending --state waiting_ci` |
 | CI results or the review-thread count are known | `session-hub pr --ci pass --mergeable true --threads 0` |
 | The work is ready for review | `session-hub ready --self-review --tests --description` (pass only the flags you actually completed) |
 | Other work or an external factor blocks you | `session-hub report --state blocked --summary "<what you are waiting for>"` |
@@ -80,7 +80,7 @@ the table above. (If you try to end without sending, the Stop hook prompts you o
 ## Notifying the parent
 
 Only when a command prints a line starting with `[HUB/1] ...`, send that line **verbatim** to the
-parent session. The recipient is the parent's session ID, found in `HUB_PARENT_SESSION_ID` or in
+parent session. The recipient is the parent's session identifier (ID), found in `HUB_PARENT_SESSION_ID` or in
 your first instructions. Send it with the inter-session messaging tool (`send_message` in the cloud,
 `SendMessage` or similar locally). **If no such tool exists, skip sending**; a human notices through
 the dashboard notification. Send the parent no other messages. The parent and the human watch the

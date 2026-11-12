@@ -115,7 +115,7 @@ Sub-session C ─┘                 │
 
 ### 1. Install the skills and hooks
 
-**With APM (Agent Package Manager)**, per project:
+**With Agent Package Manager (APM)**, per project:
 
 ```bash
 apm install 0x0c/claude-code-session-hub --target claude
@@ -172,13 +172,13 @@ project.
 session-hub doctor
 ```
 
-`session-hub doctor` checks the URL, whether the server responds, whether the store is writable,
+`session-hub doctor` checks the Uniform Resource Locator (URL), whether the server responds, whether the store is writable,
 where the command lives, and whether unsent events remain. Open http://127.0.0.1:8765/ in a browser
 to see the dashboard.
 
 ### 4. Run sub-sessions
 
-Locally, each sub-session must be a separate Claude Code session with its own session ID.
+Locally, each sub-session must be a separate Claude Code session with its own session identifier (ID).
 
 - **A human starts them in parallel.** Start `claude` in another terminal, in a worktree, or as a
   parallel session in the desktop app. Begin the instructions with the contents of
@@ -243,7 +243,7 @@ session-hub collection knowledge [--format json]
 
 `--kind` takes caveat, issue, decision, howto, or insight. Findings with the same title merge into
 one entry, and `--obsolete` retires a finding. `collection` prints a whole collection as Markdown
-(the default) or JSON.
+(the default) or JavaScript Object Notation (JSON).
 
 ### Add a collection
 
@@ -271,9 +271,9 @@ session-hub command <session_id> --cmd pause
 session-hub export --out dashboard.html
 ```
 
-`attention` prints one line per session that needs attention, for the parent LLM. `answer` and
+`attention` prints one line per session that needs attention, for the parent large language model (LLM). `answer` and
 `command` record the action, then print the `[HUB/1]` line to send to the child. `export` writes a
-static HTML file with a snapshot embedded.
+static HyperText Markup Language (HTML) file with a snapshot embedded.
 
 When an event moves a session into a state that should wake the parent (waiting for a human, ready
 for review, failed, or done), the command prints one `[HUB/1] ...` line. The child sends that line
@@ -297,6 +297,37 @@ alone to the parent with `send_message`.
 ```bash
 python3 -m unittest discover -s tests -v
 ```
+
+## Limitations
+
+Session Hub makes a few deliberate trade-offs, and a few gaps remain. Know them before you rely on
+the dashboard.
+
+- **One machine.** The supported setup runs every sub-session on the same computer as the hub,
+  which listens on `127.0.0.1`. Sub-sessions in the cloud cannot reach a hub on your computer, and
+  Session Hub does not expose your computer to the network to make that possible.
+- **Separate processes only.** Each sub-session must be its own Claude Code process. Subagents that
+  the Agent tool starts share their parent's session identifier, so the dashboard does not show
+  them as separate sessions.
+- **Reports depend on the agent.** The hooks send heartbeats, token usage, and task progress on
+  their own, but questions, phases, pull requests, and completion appear only when the agent runs
+  `session-hub`. The Stop hook asks for a missing report once per turn; it cannot force one.
+- **No instructions from the hub.** The hub never wakes or steers a sub-session. A person or the
+  parent session delivers each answer, either as a message between sessions or by resuming a
+  `claude -p` session.
+- **Pull request and continuous integration (CI) state are not fetched.** The review-ready check
+  uses the pull request and CI status that someone records with `session-hub pr`; nothing reads them
+  from GitHub.
+- **Token counts, not prices.** The hooks sum token usage from the session transcript. A dollar
+  cost appears only when someone records it with `--cost`.
+- **Stalls are inferred.** A working session counts as stalled after 30 minutes without a message.
+  Confirm a stall before you act on it, because a long build can stay silent that long.
+- **Open to local processes by default.** Without `HUB_TOKEN`, any process on the machine can read
+  the dashboard and push messages. Set a token if other users share the machine.
+- **Built for thousands of events.** The hub rebuilds its snapshot from the whole store on every
+  message. A store that grows far beyond that needs incremental updates first.
+- **Japanese command-line interface (CLI) and hook text.** The dashboard is in English and
+  Japanese, but the CLI messages and the text that the hooks add to a session are Japanese only.
 
 ## Contributing
 

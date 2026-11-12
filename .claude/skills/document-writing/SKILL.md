@@ -33,9 +33,9 @@ subset and still believe it followed the norm.
   `proposals/SH-0001-<slug>.ja.md`). Write the mirror under
   [`japanese-document-writing`](../japanese-document-writing/SKILL.md), and update both files in the
   same change. Where a language layer overlaps these principles, its specific wording governs.
-  The dashboard's labels live in its `MESSAGES` table in both languages. The CLI messages and the
+  The dashboard's labels live in its `MESSAGES` table in both languages. The command-line interface (CLI) messages and the
   hook texts are Japanese product strings; changing their language needs its own proposal.
-- **Enforcement is a review-time norm, not a CI gate.** Judging clarity, emphasis, and argument order
+- **Enforcement is a review-time norm, not a continuous integration (CI) gate.** Judging clarity, emphasis, and argument order
   needs semantic judgment, so people (and the self-review pass in the proposal skills) check it.
 
 ## Language-agnostic principles
@@ -112,7 +112,10 @@ to follow it start to finish.
   needs in place.
 - **Spell out an abbreviation or acronym on first use.** Write the full term, with the acronym in
   parentheses right after — "Server-Sent Events (SSE)" — then the acronym alone for the rest of the
-  piece. Re-expand the acronym if a long document's later section could plausibly be read on its own.
+  piece. A Japanese document writes the term followed by full-width parentheses:
+  「Server-Sent Events（SSE）」「プルリクエスト（PR）」. Re-expand the acronym if a long document's later
+  section could plausibly be read on its own. `scripts/acronyms.py` checks the first use of every
+  acronym it knows; add a new acronym and its expansions to its table when you introduce one.
 - **Define a term where you introduce it, and let a cross-reference only send the reader further.**
   A link is a supplement for a reader who wants depth — for elaboration, the canonical wording of a
   cross-cutting rule, or the record — never a substitute for the context this document needs at
