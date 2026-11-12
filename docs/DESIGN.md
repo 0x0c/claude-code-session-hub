@@ -305,6 +305,7 @@ push 型では、子が報告しない限りダッシュボードは古いまま
 | メッセージの配送 | 1. サーバーへ push（即時反映） 2. 届かなければ共有ストアへ直接書く 3. ストアも未設定なら outbox |
 | 停止中のメッセージ | ストアに残るので失われない。サーバー起動時、次の push、または 30 秒ごとの再判定で画面に出る |
 | 親への通知 | ローカルのセッション間メッセージ（使える場合）で `[HUB/1]` 行を送る。使えない場合はダッシュボードのブラウザ通知とタブのタイトル（要対応数）で人間が気づく |
+| 導入 | `apm install 0x0c/claude-code-session-hub --target claude`（プロジェクト単位。スキルは `.claude/skills/`、hook は `.claude/settings.json`、本体は `apm_modules/`）または Claude Code プラグイン |
 | 確認 | `session-hub doctor` |
 | 注意 | Agent ツールのサブエージェントは親と同じセッション ID になるため、別セッションとしては表示されない（必要なら `--session` で固有 ID を渡す） |
 
@@ -419,6 +420,7 @@ claude-code-session-hub/
     templates/dashboard.html
   bin/session-hub         インストール不要のラッパー
   .claude-plugin/         Claude Code プラグイン定義（plugin.json, marketplace.json）
+  apm.yml                 APM 用のメタデータのみ（プラグイン構成のまま APM でも配布するため .apm/ や依存は置かない）
   hooks/hooks.json        プラグインの hook 設定
   skills/session-hub-report/       子セッション用スキル（いつ・何を報告するか）
   skills/session-hub-orchestrate/  親セッション用スキル（起動・応答・確認）

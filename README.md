@@ -42,12 +42,29 @@ python3 scripts/demo.py --push http://127.0.0.1:8765
         └ サーバー停止中は共有ストアへ直接書く ─► ~/.session-hub/events/*.jsonl ◄─ 起動時に読み込み
 ```
 
-### 1. プラグインを入れる
+### 1. スキルと hook を入れる
+
+**APM（Agent Package Manager）で入れる場合**（プロジェクト単位）:
+
+```bash
+apm install 0x0c/claude-code-session-hub --target claude
+```
+
+- `.claude/skills/session-hub-report/` と `.claude/skills/session-hub-orchestrate/` にスキルが、`.claude/settings.json` に hook が入ります。
+  本体は `apm_modules/0x0c/claude-code-session-hub/` に置かれ、hook は自動でそこを見つけます。
+- 依存は `apm.yml` に記録されるので、他の人は `apm install` だけで同じ状態にできます（`apm_modules/` は git 管理外）。
+- スキルを 1 つだけ入れるなら `--skill session-hub-report`（子セッション用）または `--skill session-hub-orchestrate`（親用）を付けます。
+- `session-hub` コマンドは、最初のセッション開始時に hook が `~/.local/bin/session-hub` を作ります。どこからでも使いたい場合は
+  `pip install git+https://github.com/0x0c/claude-code-session-hub` でも入れられます。
+
+**Claude Code プラグインとして入れる場合**（全プロジェクト共通）:
 
 ```text
 /plugin marketplace add 0x0c/claude-code-session-hub
 /plugin install session-hub@session-hub
 ```
+
+プラグインとして入れた場合、スキル名には `session-hub:` が前に付きます（例 `session-hub:session-hub-report`）。
 
 ### 2. 全セッション共通の設定を書く
 
@@ -88,7 +105,7 @@ claude -p "<作業内容>" --append-system-prompt "$(sed -e 's/{{PARENT_SESSION_
 
 Agent ツールのサブエージェントは親と同じセッション ID になるため、別のサブセッションとしては表示されません（区別したい場合はサブエージェントの指示で `session-hub --session <固有のID> ...` を使わせます）。
 
-### プラグインで入るもの
+### 入るもの（APM・プラグイン共通）
 
 `HUB_URL` も `HUB_STORE` もないセッションでは、hook は何もしません。
 
