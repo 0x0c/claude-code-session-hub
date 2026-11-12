@@ -18,6 +18,7 @@ Endpoints:
     GET  /api/snapshot  all data (JSON)
     GET  /api/stream    SSE: a snapshot first, then updates
     POST /api/events    receive an event {"session_id", "writer"?, "fields": {...}}
+    DELETE /api/sessions/<session_id>   physically delete every message of one session (SH-0001)
 """
 
 from __future__ import annotations
@@ -89,6 +90,14 @@ class Hub:
             res = core.record(self.store, sid, fields, writer=writer)  # The server assigns seq and the timestamp
             self.publish()
         return res
+
+    def delete_session(self, session_id: str) -> int:
+        """Delete a session from the store and push the removal to every client."""
+        with self.write_lock:
+            deleted = self.store.delete_session(session_id)
+            if deleted:
+                self.publish()
+        return deleted
 
     # ---- Client management ----
     def subscribe(self) -> tuple[queue.Queue, dict]:
@@ -252,6 +261,22 @@ def make_handler(hub: Hub, token: str | None):
             except schema.SchemaError as e:
                 return self._send(400, _dumps({"error": str(e)}))
             self._send(201, _dumps(res))
+
+        def do_DELETE(self):
+            path = urllib.parse.unquote(self.path.split("?", 1)[0])
+            prefix = "/api/sessions/"
+            if not path.startswith(prefix):
+                return self._send(404, _dumps({"error": "not found"}))
+            if not self._authorized():
+                return self._send(401, _dumps({"error": "unauthorized"}))
+            sid = path[len(prefix):]
+            try:
+                deleted = hub.delete_session(sid)
+            except schema.SchemaError as e:
+                return self._send(400, _dumps({"error": str(e)}))
+            if not deleted:
+                return self._send(404, _dumps({"error": "no such session"}))
+            self._send(200, _dumps({"session_id": sid, "deleted": deleted}))
 
         def _stream(self):
             q, snap = hub.subscribe()
