@@ -91,8 +91,9 @@ look at the page with demo data, as described under [Field notes](#check-the-das
   blocks a merge. After you push fixes, ask for another pass by commenting `@claude review` on the
   pull request; a push alone does not start one. Only a comment from an owner, member, or
   collaborator of the repository starts a pass. Anyone else's request completes green with the
-  `claude review` job skipped, so check that the job ran. A pull request that a bot opens, such as a
-  Renovate update, gets no automatic review; comment `@claude review` to ask for one.
+  `claude review` job skipped, so check that the job ran. When a bot opens or reopens a pull
+  request, such as a Renovate update, the automatic review is skipped, because the action refuses a
+  bot as the triggering actor; comment `@claude review` to ask for one.
 
 ## Field notes
 

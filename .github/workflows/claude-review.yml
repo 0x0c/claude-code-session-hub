@@ -5,10 +5,10 @@
 # norms) and posts inline, line-level comments alone. It posts no top-level summary, because a fresh
 # summary from each of a pull request's runs would leave stale, contradictory overviews on it.
 #
-# WHEN IT RUNS: automatically when a person opens or reopens a pull request, and after that only
-# when a trusted person (OWNER, MEMBER, or COLLABORATOR) writes `@claude review` on it. It does not
-# re-review every push (`synchronize` is not a trigger): a per-push review can post a finding on the
-# fix for its own previous finding, so the fix-push-review cycle need never converge.
+# WHEN IT RUNS: automatically when a person (not a bot) opens or reopens a pull request, and after
+# that only when a trusted person (OWNER, MEMBER, or COLLABORATOR) writes `@claude review` on it. It
+# does not re-review every push (`synchronize` is not a trigger): a per-push review can post a
+# finding on the fix for its own previous finding, so the fix-push-review cycle need never converge.
 #
 # Every run reads the full diff, so no changed line goes unreviewed, and also receives every finding
 # already posted on the pull request, with an instruction never to re-post one. The review dedupes by
@@ -17,9 +17,10 @@
 # skipped. A requester confirms that the job actually started rather than reading silence as a clean
 # review.
 #
-# A pull request that a bot opens (such as a Renovate dependency update) gets no automatic review:
-# claude-code-action refuses a run started by a non-human actor and fails the job. A maintainer who
-# wants one comments `@claude review`, which starts the run as a person.
+# When a bot opens or reopens a pull request (such as a Renovate dependency update), the automatic
+# review is skipped: claude-code-action refuses a run whose actor (the event's sender, not the pull
+# request's author) is a bot, and would fail the job. A maintainer who wants a review comments
+# `@claude review`, or reopens the pull request, so that a person starts the run.
 #
 # ADVISORY ONLY: do not add this job to `main`'s required status checks. A review that found issues
 # is a successful review; the job fails only on an infrastructure error, never on a finding.
@@ -71,9 +72,10 @@ jobs:
     # from a trusted person. `issue_comment` runs with the repository's secrets even on a fork's pull
     # request, so the association check is what stops an untrusted commenter from starting a
     # credentialed run.
-    # A `pull_request` run needs a human author: claude-code-action fails a run whose actor is a bot.
+    # A `pull_request` run needs a human actor: claude-code-action checks `github.actor`, which is the
+    # sender of the open or reopen event, not the pull request's author.
     if: >-
-      (github.event_name == 'pull_request' && github.event.pull_request.user.type != 'Bot') ||
+      (github.event_name == 'pull_request' && github.event.sender.type != 'Bot') ||
       (
         (
           (github.event_name == 'issue_comment' && github.event.issue.pull_request) ||
