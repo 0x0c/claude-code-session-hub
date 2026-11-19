@@ -58,6 +58,7 @@ scripts/check.sh
 
 - 作業はブランチで行い、`main`では作業しません（利用者からマージを頼まれた場合を除きます）。コミットメッセージには`feat(dashboard): …`、`fix(hooks): …`、`docs(proposal): …`のように範囲を付けます。
 - プルリクエストは、利用者に頼まれたときだけ作ります。
+- プルリクエストを開くと、Claude Codeがレビューします（`.github/workflows/claude-review.yml`。基準は`.github/claude-review-prompt.md`）。レビューは行ごとのコメントを付けるだけで、マージを止めません。修正をプッシュした後にもう一度レビューしてほしいときは、プルリクエストに`@claude review`とコメントします。プッシュしただけではレビューは始まりません。
 
 ## 開発メモ
 
