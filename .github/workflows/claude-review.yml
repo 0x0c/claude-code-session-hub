@@ -5,8 +5,8 @@
 # norms) and posts inline, line-level comments alone. It posts no top-level summary, because a fresh
 # summary from each of a pull request's runs would leave stale, contradictory overviews on it.
 #
-# WHEN IT RUNS: automatically when a pull request opens or reopens, and after that only when a trusted
-# person (OWNER, MEMBER, or COLLABORATOR) writes `@claude review` on the pull request. It does not
+# WHEN IT RUNS: automatically when a person opens or reopens a pull request, and after that only
+# when a trusted person (OWNER, MEMBER, or COLLABORATOR) writes `@claude review` on it. It does not
 # re-review every push (`synchronize` is not a trigger): a per-push review can post a finding on the
 # fix for its own previous finding, so the fix-push-review cycle need never converge.
 #
@@ -16,6 +16,10 @@
 # the gate is a job-level `if:`, so the run still completes green with the `claude review` job
 # skipped. A requester confirms that the job actually started rather than reading silence as a clean
 # review.
+#
+# A pull request that a bot opens (such as a Renovate dependency update) gets no automatic review:
+# claude-code-action refuses a run started by a non-human actor and fails the job. A maintainer who
+# wants one comments `@claude review`, which starts the run as a person.
 #
 # ADVISORY ONLY: do not add this job to `main`'s required status checks. A review that found issues
 # is a successful review; the job fails only on an infrastructure error, never on a finding.
@@ -67,8 +71,9 @@ jobs:
     # from a trusted person. `issue_comment` runs with the repository's secrets even on a fork's pull
     # request, so the association check is what stops an untrusted commenter from starting a
     # credentialed run.
+    # A `pull_request` run needs a human author: claude-code-action fails a run whose actor is a bot.
     if: >-
-      github.event_name == 'pull_request' ||
+      (github.event_name == 'pull_request' && github.event.pull_request.user.type != 'Bot') ||
       (
         (
           (github.event_name == 'issue_comment' && github.event.issue.pull_request) ||
