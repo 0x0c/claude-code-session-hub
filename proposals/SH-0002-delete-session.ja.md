@@ -1,13 +1,13 @@
-[English](SH-0001-delete-session.md) · **日本語**
+[English](SH-0002-delete-session.md) · **日本語**
 
-# SH-0001 — セッションのメッセージの削除
+# SH-0002 — セッションのメッセージの削除
 
 <!-- SH-METADATA -->
 | 項目 | 値 |
 |---|---|
-| 提案 | SH-0001 |
+| 提案 | SH-0002 |
 | 作者 | [@0x0c](https://github.com/0x0c) |
-| 状態 | **In progress** |
+| 状態 | **Implemented** |
 | トピック | Hub server |
 | 実装PR | [#3](https://github.com/0x0c/claude-code-session-hub/pull/3) |
 | 関連 | — |

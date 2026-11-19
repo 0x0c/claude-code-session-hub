@@ -7,7 +7,7 @@
 |---|---|
 | Proposal | SH-0001 |
 | Author | [@0x0c](https://github.com/0x0c) |
-| Status | **In progress** |
+| Status | **Implemented** |
 | Topic | Developer workflow |
 | Implementing PR | [#4](https://github.com/0x0c/claude-code-session-hub/pull/4) |
 | Related | — |

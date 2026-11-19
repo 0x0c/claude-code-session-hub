@@ -7,7 +7,7 @@
 |---|---|
 | 提案 | SH-0001 |
 | 作者 | [@0x0c](https://github.com/0x0c) |
-| 状態 | **In progress** |
+| 状態 | **Implemented** |
 | トピック | Developer workflow |
 | 実装PR | [#4](https://github.com/0x0c/claude-code-session-hub/pull/4) |
 | 関連 | — |
