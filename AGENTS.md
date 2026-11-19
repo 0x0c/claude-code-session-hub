@@ -86,6 +86,12 @@ look at the page with demo data, as described under [Field notes](#check-the-das
 - Work on a branch, never on `main`, unless the user asks you to merge. Commit with a scoped message
   such as `feat(dashboard): …`, `fix(hooks): …`, or `docs(proposal): …`.
 - Open a pull request only when the user asks for one.
+- Claude Code reviews a pull request when it opens (`.github/workflows/claude-review.yml`, against
+  the contract in `.github/claude-review-prompt.md`). The review posts inline comments and never
+  blocks a merge. After you push fixes, ask for another pass by commenting `@claude review` on the
+  pull request; a push alone does not start one. Only a comment from an owner, member, or
+  collaborator of the repository starts a pass. Anyone else's request completes green with the
+  `claude review` job skipped, so check that the job ran.
 
 ## Field notes
 
