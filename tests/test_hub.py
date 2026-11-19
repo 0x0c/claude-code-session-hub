@@ -176,6 +176,37 @@ class StoreTest(TmpMixin, unittest.TestCase):
         self.assertEqual(len(self.store.read("s1")), 1)
 
 
+    def test_delete_session_removes_every_writer_file(self):
+        self.store.append("s1", {"type": "report", "summary": "1"})
+        self.store.append("s1", {"type": "command", "actor": "parent", "note": "x"}, writer="parent")
+        self.store.append("s10", {"type": "report", "summary": "other"})
+        self.assertEqual(self.store.delete_session("s1"), 2)
+        self.assertEqual(self.store.session_ids(), ["s10"])  # A session that shares the prefix stays
+        self.assertEqual(self.store.read("s1"), [])
+        self.assertEqual(self.store.delete_session("s1"), 0)
+        with self.assertRaises(schema.SchemaError):
+            self.store.delete_session("../evil")
+
+    def test_append_after_delete_reopens_the_file(self):
+        # A writer that opened the file before the deletion must not lose its event
+        self.store.append("s1", {"type": "report", "summary": "old"})
+        path = self.store.root / "events" / "s1.jsonl"
+        real_open = open
+        opened = []
+
+        def racing_open(file, *args, **kwargs):
+            f = real_open(file, *args, **kwargs)
+            if Path(file) == path and not opened:
+                opened.append(True)
+                self.store.delete_session("s1")  # Deleted between open() and the lock
+            return f
+
+        with mock.patch("builtins.open", racing_open):
+            ev = self.store.append("s1", {"type": "report", "summary": "new"})
+        self.assertEqual(ev["seq"], 1)
+        self.assertEqual([e["summary"] for e in self.store.read("s1")], ["new"])
+
+
 class ServerTest(TmpMixin, unittest.TestCase):
     def setUp(self):
         super().setUp()
@@ -212,6 +243,58 @@ class ServerTest(TmpMixin, unittest.TestCase):
         self.assertEqual([e["id"] for e in data["events"]], ["c1#1"])
         self.assertEqual(data["sessions"][0]["title"], "子")
         stream.close()
+
+    def test_delete_session_is_broadcast_to_stream(self):
+        client.post(self.url, {"session_id": "c1", "fields": {"type": "start", "title": "a"}}, token="tok")
+        client.post(self.url, {"session_id": "c1", "writer": "parent",
+                               "fields": {"type": "command", "actor": "parent", "note": "go"}}, token="tok")
+        client.post(self.url, {"session_id": "c2", "fields": {"type": "start", "title": "b"}}, token="tok")
+        req = urllib.request.Request(self.url + "/api/stream", headers={"Authorization": "Bearer tok"})
+        stream = urllib.request.urlopen(req, timeout=5)
+
+        def read_event():
+            name = None
+            while True:
+                line = stream.readline().decode().rstrip("\n")
+                if line.startswith("event: "):
+                    name = line[7:]
+                elif line.startswith("data: "):
+                    data = json.loads(line[6:])
+                elif line == "" and name:
+                    return name, data
+
+        self.assertEqual(read_event()[0], "snapshot")
+        with self.assertRaises(ValueError):
+            client.delete_session(self.url, "c1", token="wrong")
+        self.assertEqual(client.delete_session(self.url, "c1", token="tok"), {"session_id": "c1", "deleted": 2})
+        name, data = read_event()
+        self.assertEqual(name, "update")
+        self.assertEqual(sorted(data["removed"]), ["c1#1", "c1@parent#1"])
+        self.assertEqual([x["session_id"] for x in data["sessions"]], ["c2"])
+        stream.close()
+        self.assertEqual(self.store.session_ids(), ["c2"])
+        self.assertIsNone(client.delete_session(self.url, "c1", token="tok"))  # 404
+        with self.assertRaises(ValueError):
+            client.delete_session(self.url, "bad@id", token="tok")  # 400
+
+    def test_cli_delete_routes(self):
+        from session_hub import cli
+        client.post(self.url, {"session_id": "c1", "fields": {"type": "start"}}, token="tok")
+        self.store.append("c2", {"type": "start"})
+        env = {"HUB_URL": self.url, "HUB_TOKEN": "tok", "HUB_STORE": str(self.store.root)}
+        with mock.patch.dict(os.environ, env):
+            out = io.StringIO()
+            with redirect_stdout(out):
+                cli.main(["delete", "c1"])  # Through the hub
+            self.assertEqual(out.getvalue().strip(), "deleted c1 (1 events)")
+            with redirect_stdout(io.StringIO()), self.assertRaises(SystemExit):
+                cli.main(["delete", "c1"])
+        with mock.patch.dict(os.environ, {**env, "HUB_URL": "http://127.0.0.1:9"}):
+            out = io.StringIO()
+            with redirect_stdout(out), mock.patch("sys.stderr", io.StringIO()):
+                cli.main(["delete", "c2"])  # The hub is down: delete from the shared store
+            self.assertEqual(out.getvalue().strip(), "deleted c2 (1 events)")
+        self.assertEqual(self.store.session_ids(), [])
 
     def test_auth_and_validation(self):
         with self.assertRaises(ValueError):  # A 4xx raises ValueError (no retry)

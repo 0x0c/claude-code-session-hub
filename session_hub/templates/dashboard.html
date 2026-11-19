@@ -44,6 +44,8 @@ header h1 { font-size: 16px; margin: 0; }
 .kpis b { color: var(--ink); font-variant-numeric: tabular-nums; }
 .iconbtn { background: none; border: 1px solid var(--line); border-radius: 6px; padding: 3px 8px; cursor: pointer; font-size: 12px; }
 .iconbtn[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.iconbtn.danger { color: var(--s-fail); border-color: var(--s-fail); margin-left: auto; font-weight: 400; }
+.iconbtn.danger:disabled { opacity: .5; cursor: progress; }
 main { display: grid; grid-template-columns: minmax(300px, 380px) 1fr; gap: 16px; padding: 16px; max-width: 1500px; margin: 0 auto; }
 @media (max-width: 860px) { main { grid-template-columns: 1fr; padding: 12px 16px; } }
 section.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; min-width: 0; }
@@ -169,7 +171,8 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
   </section>
 
   <section class="panel" aria-labelledby="tlTitle">
-    <h2 id="tlTitle"><span id="tlName"></span> <span class="chip" id="tlScope"></span></h2>
+    <h2 id="tlTitle"><span id="tlName"></span> <span class="chip" id="tlScope"></span>
+      <button class="iconbtn danger" id="deleteSession" hidden data-i18n="sessions.delete" data-i18n-title="sessions.deleteTitle"></button></h2>
     <div class="toolbar">
       <div class="tabs" role="tablist">
         <button role="tab" aria-selected="true" data-view="feed" data-i18n="tab.feed"></button>
@@ -213,6 +216,10 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
       "btn.theme": "Theme", "btn.themeTitle": "Switch between light and dark",
       "btn.lang": "日本語", "btn.langTitle": "表示を日本語に切り替える",
       "sessions.title": "Sessions", "sessions.clear": "Clear selection",
+      "sessions.delete": "Delete session", "sessions.deleteTitle": "Delete every stored message of this session",
+      "sessions.deleteConfirm": "Delete all {n} messages of \"{name}\"? This cannot be undone.",
+      "sessions.deleteConfirm_one": "Delete the 1 message of \"{name}\"? This cannot be undone.",
+      "sessions.deleteFailed": "Could not delete the session: {error}",
       "tl.title": "Timeline", "tl.all": "All", "tab.feed": "Feed", "tab.lanes": "Swimlanes",
       "filter.sessionAria": "Filter by session", "filter.allSessions": "All sessions",
       "filter.searchAria": "Search", "filter.textFeed": "Search summaries, questions, and answers",
@@ -260,6 +267,9 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
       "btn.theme": "テーマ", "btn.themeTitle": "テーマ切替",
       "btn.lang": "English", "btn.langTitle": "Switch the display to English",
       "sessions.title": "セッション", "sessions.clear": "選択解除",
+      "sessions.delete": "セッションを削除", "sessions.deleteTitle": "このセッションの保存済みメッセージをすべて削除",
+      "sessions.deleteConfirm": "「{name}」のメッセージ {n} 件をすべて削除しますか？この操作は取り消せません。",
+      "sessions.deleteFailed": "セッションを削除できませんでした: {error}",
       "tl.title": "タイムライン", "tl.all": "すべて", "tab.feed": "フィード", "tab.lanes": "スイムレーン",
       "filter.sessionAria": "セッションで絞り込み", "filter.allSessions": "すべてのセッション",
       "filter.searchAria": "検索", "filter.textFeed": "要約・質問・回答を検索",
@@ -686,6 +696,8 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     sel.value = cur;
     $("tlScope").textContent = ui.session ? sessionName(ui.session) : t("tl.all");
     $("clearSel").hidden = !ui.session;
+    // Deleting needs the live hub, so a static export never shows the button
+    $("deleteSession").hidden = !ui.session || !!EMBEDDED;
   }
 
   function render() {
@@ -867,6 +879,10 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
 
   function applySessions(snap, initial) {
     db.sessions = snap.sessions;
+    const live = new Set(db.sessions.map((s) => s.session_id));
+    for (const sid of [...prevStates.keys()]) if (!live.has(sid)) prevStates.delete(sid);
+    // Another viewer may delete the selected session; fall back to showing every session
+    if (ui.session && !live.has(ui.session)) { ui.session = ""; $("fSession").value = ""; }
     db.total = snap.total || {};
     if (snap.collections) db.collections = snap.collections;
     db.generated_at = snap.generated_at;
@@ -913,7 +929,11 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
         const snap = await r.json();
         const known = new Set(db.events.keys());
         if (!db.generated_at) loadSnapshot(snap);
-        else applyUpdate({ ...snap, events: snap.events.filter((e) => !known.has(e.id) || JSON.stringify(db.events.get(e.id)) !== JSON.stringify(e)) });
+        else {
+          const ids = new Set(snap.events.map((e) => e.id));
+          applyUpdate({ ...snap, removed: [...known].filter((id) => !ids.has(id)),
+                        events: snap.events.filter((e) => !known.has(e.id) || JSON.stringify(db.events.get(e.id)) !== JSON.stringify(e)) });
+        }
       } catch (_) { setConn("", "conn.down"); }
       pollTimer = setTimeout(tick, 5000);
     };
@@ -924,6 +944,29 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
   document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("click", () => setView(b.dataset.view)));
   $("fSession").addEventListener("change", (e) => selectSession(e.target.value));
   $("clearSel").addEventListener("click", () => selectSession(""));
+  $("deleteSession").addEventListener("click", async (ev) => {
+    const sid = ui.session;
+    if (!sid) return;
+    let n = 0;
+    for (const e of db.events.values()) if (e.session_id === sid) n++;
+    if (!confirm(t("sessions.deleteConfirm", { n, name: sessionName(sid) }))) return;
+    const btn = ev.currentTarget;
+    btn.disabled = true;
+    try {
+      const r = await fetch("api/sessions/" + encodeURIComponent(sid), { method: "DELETE", cache: "no-store" });
+      if (!r.ok) {
+        let msg = r.status + " " + r.statusText;
+        try { msg = (await r.json()).error || msg; } catch (_) {}
+        throw new Error(msg);
+      }
+      // The update message that follows removes the session's events, card, and collection entries
+      selectSession("");
+    } catch (err) {
+      alert(t("sessions.deleteFailed", { error: err.message }));
+    } finally {
+      btn.disabled = false;
+    }
+  });
   let textTimer;
   $("fText").addEventListener("input", (e) => { clearTimeout(textTimer); textTimer = setTimeout(() => { ui.text = e.target.value; render(); }, 150); });
   $("fHeartbeat").addEventListener("change", (e) => { ui.heartbeat = e.target.checked; render(); });

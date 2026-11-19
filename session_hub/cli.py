@@ -3,7 +3,8 @@
 Child session:   session-hub start / report / ask / ready / pr / done / fail / learn
                  Pushes to the hub server when HUB_URL is set; otherwise writes to the local store.
 Parent session:  session-hub attention / log / status / answer / command / knowledge / collection
-Human:           session-hub serve (real-time dashboard) / session-hub export (static HTML)
+Human:           session-hub serve (real-time dashboard) / session-hub export (static HTML) /
+                 session-hub delete (remove a session's messages)
 Hook:            session-hub hook session-start|stop|todo (hook JSON on stdin)
 """
 
@@ -254,6 +255,30 @@ def cmd_doctor(a):
     sys.exit(0 if ok else 1)
 
 
+def cmd_delete(a):
+    """Physically delete every message of one session, through the hub when it runs (SH-0001)."""
+    url = None if a.store else client.hub_url()
+    deleted, via_store = None, True
+    if url:
+        try:
+            res = client.delete_session(url, a.target, os.environ.get("HUB_TOKEN"))
+            deleted, via_store = (res or {}).get("deleted", 0), False
+        except ValueError as e:
+            sys.exit(f"session-hub: {e}")
+        except client.PushError as e:
+            if not (a.store or os.environ.get("HUB_STORE")):
+                sys.exit(f"session-hub: {e}")
+            print("session-hub: the hub server is unreachable; deleting from the shared store", file=sys.stderr)
+    if via_store:
+        store = EventStore(a.store)
+        deleted = store.delete_session(a.target)
+        if deleted and not a.no_sync and store.is_git() and not store.sync(f"hub: delete {a.target}"):
+            print("session-hub: warning: git push failed (the files are deleted locally)", file=sys.stderr)
+    if not deleted:
+        sys.exit(f"session-hub: no such session: {a.target}")
+    print(f"deleted {a.target} ({deleted} events)")
+
+
 def cmd_hook(a):
     from . import hooks
     hooks.run(a.name)
@@ -365,6 +390,9 @@ def build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser("export", help="write a static HTML snapshot")
     s.add_argument("--out", default="dashboard.html"); s.add_argument("--pull", action="store_true")
     s.set_defaults(func=cmd_export)
+    s = sub.add_parser("delete", help="delete every stored message of one session (cannot be undone)")
+    s.add_argument("target", help="session ID to delete")
+    s.set_defaults(func=cmd_delete)
     s = sub.add_parser("serve", help="start the real-time dashboard")
     s.add_argument("--host", default="127.0.0.1"); s.add_argument("--port", type=int, default=8765)
     s.add_argument("--watch-files", action="store_true",

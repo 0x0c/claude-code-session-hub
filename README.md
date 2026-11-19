@@ -233,6 +233,16 @@ session-hub doctor
 `flush` resends events that could not be delivered and wait in the outbox. `doctor` checks the
 configuration.
 
+To remove a finished session and every stored message of it, from the hub and the store alike:
+
+```bash
+session-hub delete <session_id>
+```
+
+The deletion cannot be undone. The dashboard offers the same operation as **Delete session** in the
+timeline header once you select a session. A session that reports again after the deletion
+reappears with its new messages alone.
+
 To record and look up findings and caveats:
 
 ```bash
