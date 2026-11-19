@@ -1,11 +1,11 @@
-[English](SH-XXXX-merge-time-numbering.md) · **日本語**
+[English](SH-0001-merge-time-numbering.md) · **日本語**
 
-# SH-XXXX — マージ時のプロポーザル採番
+# SH-0001 — マージ時のプロポーザル採番
 
 <!-- SH-METADATA -->
 | 項目 | 値 |
 |---|---|
-| 提案 | SH-XXXX |
+| 提案 | SH-0001 |
 | 作者 | [@0x0c](https://github.com/0x0c) |
 | 状態 | **In progress** |
 | トピック | Developer workflow |

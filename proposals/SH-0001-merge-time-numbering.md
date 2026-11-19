@@ -1,11 +1,11 @@
-**English** · [日本語](SH-XXXX-merge-time-numbering.ja.md)
+**English** · [日本語](SH-0001-merge-time-numbering.ja.md)
 
-# SH-XXXX — Number proposals at merge time
+# SH-0001 — Number proposals at merge time
 
 <!-- SH-METADATA -->
 | Field | Value |
 |---|---|
-| Proposal | SH-XXXX |
+| Proposal | SH-0001 |
 | Author | [@0x0c](https://github.com/0x0c) |
 | Status | **In progress** |
 | Topic | Developer workflow |
