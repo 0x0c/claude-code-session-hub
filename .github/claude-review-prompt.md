@@ -42,13 +42,17 @@ Missing a real problem is the failure to avoid; repeating a posted finding is th
 ## Read the existing discussion first
 
 You are not the only reviewer: people and your own earlier runs leave comments too. Before writing
-anything, read the conversation with `gh pr view <number> --comments`.
+anything, read the conversation with `gh pr view <number> --comments`. That command returns
+top-level comments alone, so a person may have settled a point in an inline thread you cannot see.
+On a line whose change looks deliberate and explained, prefer silence to a restated concern.
 
 - Never restate a point that someone already raised.
 - Treat a thread that settled a concern (out of scope, a deliberate trade-off, a deferred follow-up)
   as settled.
-- Read the pull request description and the proposal under `proposals/` that the change implements. A
-  choice the author already explained there is not a finding.
+- Read the pull request description and the proposal under `proposals/` that the change implements.
+  The checkout is the trusted default branch, so a proposal that the pull request adds or edits exists
+  there in its pre-merge state alone; read its current version from the diff. A choice the author
+  already explained there is not a finding.
 
 ## What the local gate already checks
 

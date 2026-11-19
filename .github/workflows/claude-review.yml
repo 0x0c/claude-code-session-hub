@@ -49,7 +49,8 @@ permissions:
 # One group per pull request and event type. A reopen cancels a still-running review from the open,
 # while comment-triggered runs stay independent: a comment posted mid-review (even `@claude review`
 # itself) would otherwise cancel a pass someone asked for. Two quick requests therefore run side by
-# side; each reads the prior findings, so the overlap costs Actions minutes, not duplicate comments.
+# side, and each reads the prior findings before the other posts its own, so an overlap can post
+# duplicate comments: ask for one pass at a time.
 concurrency:
   group: claude-review-${{ github.event.pull_request.number || github.event.issue.number || github.ref }}-${{ github.event_name }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -131,12 +132,18 @@ jobs:
         run: |
           set -euo pipefail
           echo "pr=$PR" >> "$GITHUB_OUTPUT"
-          # Each finding already posted inline, compacted to `path:line — first body line`, capped so
-          # a long pull request's history still fits. `printf -v` builds the multi-line value without a
-          # heredoc, whose column-0 body would end this YAML block scalar.
+          # Each finding already posted inline, compacted to `path:line — first body line`.
+          # - Match the author as well as the prefix: anyone who can comment could write the prefix,
+          #   and this list reaches the prompt as trusted text. The action posts with GITHUB_TOKEN, so
+          #   the reviewer's own comments come from github-actions[bot].
+          # - Cap by lines, never by bytes, so a cut cannot split a multi-byte character. Each line
+          #   is capped at 300 characters, and `tail` keeps the newest 200 findings (the API returns
+          #   the oldest first), which are the ones a new run is most likely to repeat.
+          # `printf -v` builds the multi-line value without a heredoc, whose column-0 body would end
+          # this YAML block scalar.
           PRIOR=$(gh api --paginate "repos/$REPO/pulls/$PR/comments" \
-            --jq '.[] | select(.body | startswith("🤖 **Claude Code**")) | "- " + .path + ":" + ((.line // .original_line // 0)|tostring) + " — " + (.body|split("\n")[0])' \
-            | head -c 32000 || true)
+            --jq '.[] | select(.user.login == "github-actions[bot]") | select(.body | startswith("🤖 **Claude Code**")) | "- " + .path + ":" + ((.line // .original_line // 0)|tostring) + " — " + (.body|split("\n")[0]|.[0:300])' \
+            | tail -n 200 || true)
           if [ -n "$PRIOR" ]; then
             printf -v PRIOR_SECTION '%s\n%s' \
               'The following findings are ALREADY posted as inline comments on this pull request. Do NOT repeat, restate, or re-post any of them: match by file, line, and substance, and treat them as settled. You must still raise every OTHER real issue you find anywhere in the diff, even on code an earlier pass overlooked.' \

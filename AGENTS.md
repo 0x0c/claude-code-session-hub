@@ -89,7 +89,9 @@ look at the page with demo data, as described under [Field notes](#check-the-das
 - Claude Code reviews a pull request when it opens (`.github/workflows/claude-review.yml`, against
   the contract in `.github/claude-review-prompt.md`). The review posts inline comments and never
   blocks a merge. After you push fixes, ask for another pass by commenting `@claude review` on the
-  pull request; a push alone does not start one.
+  pull request; a push alone does not start one. Only a comment from an owner, member, or
+  collaborator of the repository starts a pass. Anyone else's request completes green with the
+  `claude review` job skipped, so check that the job ran.
 
 ## Field notes
 
