@@ -167,7 +167,7 @@ jobs:
 
       - name: Run the advisory Claude review
         if: steps.gate.outputs.provider != 'none'
-        uses: anthropics/claude-code-action@be7b93b1907a4abad570368f3c74b6fe3807510b  # v1.0.183
+        uses: anthropics/claude-code-action@f431adaf77e0fecf918431e75a2b5b45b85af002  # v1.0.283
         env:
           # Bedrock needs an explicit model id (an inference-profile id, ideally an Opus profile) from
           # the `BEDROCK_MODEL_ID` variable. Empty on the subscription path, where claude_args pins
