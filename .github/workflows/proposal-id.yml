@@ -1,0 +1,136 @@
+# Allocate permanent proposal numbers on `main`, after a merge (proposal: merge-time numbering).
+#
+# A proposal keeps the `SH-XXXX` placeholder id through authoring, review, and the merge itself: the
+# branch merges as-is. The merge is a push to `main`, which triggers this workflow. The workflow runs
+# `scripts/proposals.py allocate` against `main`'s tree, renames each placeholder pair to the next
+# free `SH-NNNN`, and commits the result directly to `main`. Numbers therefore follow merge order on
+# `main`: the sequence has no gaps, and a rejected proposal never burns a number.
+#
+# Landing a commit on a protected `main` needs an identity that may bypass the branch protection: a
+# dedicated GitHub App on the bypass list of `main`'s ruleset. Its id and private key live in the
+# `AUTOMATION_BOT_APP_ID` and `AUTOMATION_BOT_PRIVATE_KEY` secrets. Until both secrets exist, the
+# job is a green no-op (the gate step below), so `main` never turns red while the App is set up.
+name: "Proposals: allocate SH numbers"
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'proposals/**'
+
+permissions:
+  contents: write       # commit the renumber to main
+  pull-requests: write  # comment the allocated number on the merged PR
+
+concurrency:
+  group: proposal-id-main
+  cancel-in-progress: false   # serialize; never drop a queued allocation
+
+jobs:
+  allocate:
+    name: allocate SH numbers
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Gate on the bypass App being configured
+        id: gate
+        env:
+          APP_ID: ${{ secrets.AUTOMATION_BOT_APP_ID }}
+          APP_KEY: ${{ secrets.AUTOMATION_BOT_PRIVATE_KEY }}
+        run: |
+          # Minting the App token needs both values, so a half-configured App stays dormant rather
+          # than running and failing; main stays green while the App is being provisioned.
+          if [ -n "$APP_ID" ] && [ -n "$APP_KEY" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::AUTOMATION_BOT_APP_ID / AUTOMATION_BOT_PRIVATE_KEY are not both set; merge-time SH number allocation is dormant. No-op."
+          fi
+
+      - name: Mint a short-lived installation token for the bypass App
+        if: steps.gate.outputs.enabled == 'true'
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1  # v3.2.0
+        with:
+          app-id: ${{ secrets.AUTOMATION_BOT_APP_ID }}
+          private-key: ${{ secrets.AUTOMATION_BOT_PRIVATE_KEY }}
+
+      - name: Check out main with the App token
+        if: steps.gate.outputs.enabled == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
+
+      - name: Allocate placeholder numbers on main, guard the diff, and push
+        if: steps.gate.outputs.enabled == 'true'
+        id: allocate
+        env:
+          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
+        run: |
+          git config user.name "${APP_SLUG}[bot]"
+          git config user.email "${APP_SLUG}[bot]@users.noreply.github.com"
+
+          # The allocator finds every SH-XXXX pair, gives each the next number above every number
+          # in use (on main and in the working tree), git-mv's both files, and rewrites the id in them.
+          out="$(python3 scripts/proposals.py allocate)"
+          echo "$out"
+          ids="$(printf '%s\n' "$out" \
+            | sed -n 's/^Allocated \(SH-[0-9]\{4\}\) for .*/\1/p' | paste -sd' ' -)"
+          if [ -z "$ids" ]; then
+            # The renumber commit re-triggers this workflow (a push with an App token fires
+            # events), but it carries no placeholder, so that run is a no-op.
+            echo "No SH-XXXX placeholders on main; nothing to allocate."
+            exit 0
+          fi
+
+          git add -A
+          git commit -m "docs(proposal): allocate SH numbers for merged placeholder proposals"
+          # Gate the commit before it lands on main: it must touch proposals/ alone, and the
+          # renumbered proposals must pass lint. The guard reads the commit, not the index, so it
+          # checks exactly what gets pushed; a failure aborts before `git push`.
+          python3 scripts/proposals.py guard
+
+          # main may have moved between checkout and push; rebase onto it and retry a few times,
+          # logging which step failed so a stuck conflict is not misreported as push contention.
+          for attempt in 1 2 3 4 5; do
+            if git push origin HEAD:main; then
+              break
+            fi
+            if [ "$attempt" -eq 5 ]; then
+              echo "::error::Could not push the renumber to main after several attempts."
+              exit 1
+            fi
+            echo "::warning::push to main rejected (attempt ${attempt}); fetching and rebasing onto origin/main."
+            if ! git fetch origin main; then
+              echo "::warning::git fetch failed (attempt ${attempt}); retrying."
+              continue
+            fi
+            if ! git rebase origin/main; then
+              echo "::warning::rebase onto origin/main conflicted (attempt ${attempt}); aborting and retrying."
+              git rebase --abort
+            fi
+          done
+          echo "ids=$ids" >> "$GITHUB_OUTPUT"
+
+      - name: Comment the allocated number on the merged PR (best effort)
+        if: steps.gate.outputs.enabled == 'true' && steps.allocate.outputs.ids != ''
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          MERGE_SHA: ${{ github.sha }}
+          IDS: ${{ steps.allocate.outputs.ids }}
+        run: |
+          # A push event carries no PR number, so resolve it from the merge commit. A miss is
+          # harmless: the allocation has already landed on main, and the comment is informational.
+          # The comment is approximate: when two proposal PRs merge close together, the first run
+          # allocates both (it checks out main, not the merge commit, so it never allocates a
+          # placeholder twice) and names both numbers on the first PR alone.
+          pr="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${MERGE_SHA}/pulls" -q '.[0].number' 2>/dev/null || true)"
+          if [ -z "$pr" ] || [ "$pr" = "null" ]; then
+            echo "No PR maps to ${MERGE_SHA}; skipping the announcement comment."
+            exit 0
+          fi
+          gh pr comment "$pr" \
+            --body "Allocated **${IDS}** on \`main\` (merge-time SH number allocation)." \
+            || echo "::warning::Could not comment on PR #$pr (non-fatal)."

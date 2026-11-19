@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create, list, and lint Session Hub proposals.
+"""Create, list, lint, and number Session Hub proposals.
 
 A proposal is a design document that we write and review before we build a change. Each proposal
 is a pair of files: the English original ``proposals/SH-NNNN-<slug>.md`` and its Japanese mirror
@@ -10,10 +10,12 @@ focus on the argument:
         --title-ja "プッシュの再試行" --topic Protocol --author <github-handle>
     python3 scripts/proposals.py list [--status Approved] [--grep retry]
     python3 scripts/proposals.py lint
+    python3 scripts/proposals.py allocate   # run by the proposal-id workflow on main
+    python3 scripts/proposals.py guard      # run by the same workflow before it pushes
 
-``new`` allocates the next free number at creation time. Two branches can allocate the same number
-in parallel; ``lint`` reports the duplicate, and the branch that merges second renumbers its
-proposal.
+``new`` writes the placeholder id ``SH-XXXX`` rather than a number, so parallel branches never pick
+the same number. After a merge to ``main``, the ``proposal-id`` workflow runs ``allocate``, which
+gives each placeholder the next free number in merge order.
 """
 
 from __future__ import annotations
@@ -61,12 +63,14 @@ JA = Language(
 )
 LANGUAGES = (EN, JA)
 
-FILE_RE = re.compile(r"^SH-(\d{4})-([a-z0-9]+(?:-[a-z0-9]+)*)(\.ja)?\.md$")
-TITLE_RE = re.compile(r"^# SH-(\d{4}) — (.+)$")
+FILE_RE = re.compile(r"^SH-(\d{4}|XXXX)-([a-z0-9]+(?:-[a-z0-9]+)*)(\.ja)?\.md$")
+TITLE_RE = re.compile(r"^# (SH-(?:\d{4}|XXXX)) — (.+)$")
+NUMBER_RE = re.compile(r"^SH-(\d{4})-")
 HANDLE_RE = re.compile(r"^\[@([A-Za-z0-9-]+)\]\(https://github\.com/([A-Za-z0-9-]+)\)$")
 PR_RE = re.compile(r"^\[#(\d+)\]\(https://github\.com/[^)]+/pull/(\d+)\)$")
 LINK_RE = re.compile(r"\[[^\]]*\]\(([^)\s]+)\)")
 PLACEHOLDER_HANDLE = "handle"
+PLACEHOLDER = "SH-XXXX"  # the id of a proposal that has not merged to main yet
 NONE = "—"
 
 
@@ -80,10 +84,11 @@ def strip_code(text: str) -> str:
 class Proposal:
     path: Path
     lang: Language = EN
-    number: int | None = None
+    ident: str | None = None   # "SH-0001", or PLACEHOLDER before allocation
+    number: int | None = None  # None for a placeholder
     slug: str | None = None
     title: str | None = None
-    title_number: int | None = None
+    title_ident: str | None = None
     first_line: str = ""
     rows: dict[str, str] = field(default_factory=dict)
     sections: list[str] = field(default_factory=list)
@@ -108,7 +113,8 @@ def parse(path: Path) -> Proposal:
     lang = JA if (m and m.group(3)) or path.name.endswith(".ja.md") else EN
     p = Proposal(path=path, lang=lang, text=text)
     if m:
-        p.number, p.slug = int(m.group(1)), m.group(2)
+        p.ident, p.slug = f"SH-{m.group(1)}", m.group(2)
+        p.number = int(m.group(1)) if m.group(1).isdigit() else None
     lines = text.splitlines()
     p.first_line = lines[0] if lines else ""
     in_meta = False
@@ -116,7 +122,7 @@ def parse(path: Path) -> Proposal:
         if p.title is None and line.startswith("# "):
             t = TITLE_RE.match(line)
             p.title = t.group(2) if t else ""
-            p.title_number = int(t.group(1)) if t else None
+            p.title_ident = t.group(1) if t else None
         if line.strip() == "<!-- SH-METADATA -->":
             in_meta = True
             continue
@@ -143,24 +149,24 @@ def mirror_path(original: Path) -> Path:
 
 # ---- lint -----------------------------------------------------------------
 
-def _lint_file(p: Proposal, number: int, err) -> None:
+def _lint_file(p: Proposal, ident: str, err) -> None:
     """Check the rules that hold for a single file in either language."""
     lang = p.lang
-    en_name = f"SH-{number:04d}-{p.slug}.md"
+    en_name = f"{ident}-{p.slug}.md"
     expected_switch = lang.switch.format(en=en_name, ja=mirror_path(Path(en_name)).name)
     if p.first_line != expected_switch:
         err(f"first line must be the language switch: {expected_switch}")
-    if p.title_number is None:
+    if p.title_ident is None:
         err("the first heading must be '# SH-NNNN — <Title>' (with an em dash)")
-    elif p.title_number != number:
-        err(f"title number SH-{p.title_number:04d} does not match the file name")
+    elif p.title_ident != ident:
+        err(f"title id {p.title_ident} does not match the file name")
 
     missing = [f for f in lang.fields if f not in p.rows]
     if missing:
         err(f"metadata table is missing: {', '.join(missing)}")
         return
-    if p.value(0) != f"SH-{number:04d}":
-        err(f"'{lang.fields[0]}' must be SH-{number:04d}")
+    if p.value(0) != ident:
+        err(f"'{lang.fields[0]}' must be {ident}")
     a = HANDLE_RE.match(p.value(1))
     if not a or a.group(1) != a.group(2):
         err(f"'{lang.fields[1]}' must be [@handle](https://github.com/handle)")
@@ -209,23 +215,24 @@ def lint(directory: Path = PROPOSALS_DIR) -> list[str]:
             errors.append(f"{path.name}: file name must match SH-NNNN-<lowercase-slug>.md (or .ja.md)")
 
     for p in load_all(directory):
-        if p.number is None:
+        if p.ident is None:
             continue
 
         def err(msg: str, name: str = p.path.name) -> None:
             errors.append(f"{name}: {msg}")
 
-        if p.number in seen:
-            err(f"duplicate number SH-{p.number:04d} (also {seen[p.number].name}); renumber one of them")
-        seen.setdefault(p.number, p.path)
-        _lint_file(p, p.number, err)
+        if p.number is not None:
+            if p.number in seen:
+                err(f"duplicate number {p.ident} (also {seen[p.number].name}); renumber one of them")
+            seen.setdefault(p.number, p.path)
+        _lint_file(p, p.ident, err)
 
         ja_path = mirror_path(p.path)
         if not ja_path.exists():
             err(f"missing Japanese mirror {ja_path.name}")
             continue
         ja = parse(ja_path)
-        _lint_file(ja, p.number, lambda msg: err(msg, ja_path.name))
+        _lint_file(ja, p.ident, lambda msg: err(msg, ja_path.name))
         # The mirror must agree with the original on every metadata value.
         for i in range(len(EN.fields)):
             if p.value(i) is not None and ja.value(i) is not None and p.value(i) != ja.value(i):
@@ -253,11 +260,6 @@ def resolve_author(explicit: str | None) -> str | None:
         return None
 
 
-def next_number(directory: Path = PROPOSALS_DIR) -> int:
-    numbers = [p.number for p in load_all(directory) if p.number is not None]
-    return max(numbers, default=0) + 1
-
-
 def create(slug: str, title: str, topic: str, author: str, status: str = "Proposed",
            title_ja: str | None = None, directory: Path = PROPOSALS_DIR,
            template_dir: Path = PROPOSALS_DIR) -> tuple[Path, Path]:
@@ -268,7 +270,9 @@ def create(slug: str, title: str, topic: str, author: str, status: str = "Propos
         raise ValueError(f"topic must be one of: {', '.join(TOPICS)}")
     if status not in STATUSES:
         raise ValueError(f"status must be one of: {', '.join(STATUSES)}")
-    ident = f"SH-{next_number(directory):04d}"
+    ident = PLACEHOLDER  # allocate() numbers the pair after it merges to main
+    if (directory / f"{ident}-{slug}.md").exists():
+        raise ValueError(f"{ident}-{slug}.md already exists; pick another slug")
     paths = []
     for lang, heading in ((EN, title), (JA, title_ja or title)):
         template = template_dir / f"TEMPLATE{lang.suffix}.md"
@@ -281,13 +285,118 @@ def create(slug: str, title: str, topic: str, author: str, status: str = "Propos
     return paths[0], paths[1]
 
 
+# ---- allocate and guard (the proposal-id workflow) --------------------------
+
+def _git(*args: str, cwd: Path) -> str:
+    return subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True, text=True).stdout
+
+
+def numbers_on_ref(directory: Path, ref: str) -> set[int]:
+    """Return the proposal numbers on a Git ref; an empty set when the ref or Git is unavailable.
+
+    Folding in ``origin/main`` keeps a checkout that lags behind ``main`` from handing out a number
+    that ``main`` already uses.
+    """
+    try:
+        out = _git("ls-tree", "-r", "--name-only", "--full-name", ref, "--", ".", cwd=directory)
+    except (subprocess.CalledProcessError, OSError):
+        return set()
+    names = (Path(line).name for line in out.splitlines())
+    return {int(m.group(1)) for name in names if (m := NUMBER_RE.match(name))}
+
+
+def _rename_links(text: str, slug: str, ident: str) -> str:
+    """Rewrite the file name ``SH-XXXX-<slug>.md`` (or ``.ja.md``) to its number, and no other slug.
+
+    The lookahead keeps slug ``beta`` from matching inside ``SH-XXXX-beta-two.md``.
+    """
+    return re.sub(rf"{PLACEHOLDER}-{re.escape(slug)}(?=(?:\.ja)?\.md\b)", f"{ident}-{slug}", text)
+
+
+def _renumber_text(text: str, slug: str, ident: str) -> str:
+    """Replace the placeholder where it names this proposal, and nowhere else.
+
+    The prose of a proposal may discuss the placeholder itself, so a blanket
+    replacement would corrupt it. The id appears in three structural places: file names (the
+    language-switch line and links), the title, and the metadata row.
+    """
+    text = _rename_links(text, slug, ident)
+    text = re.sub(rf"^# {PLACEHOLDER} — ", f"# {ident} — ", text, count=1, flags=re.MULTILINE)
+    for label in (EN.fields[0], JA.fields[0]):
+        text = text.replace(f"| {label} | {PLACEHOLDER} |", f"| {label} | {ident} |")
+    return text
+
+
+def allocate(directory: Path = PROPOSALS_DIR, ref: str = "origin/main") -> list[tuple[str, str]]:
+    """Number every placeholder proposal, in slug order, and return the (slug, id) allocations.
+
+    The pair is renamed with ``git mv``. Every proposal file that links the placeholder file name
+    (another new proposal, say) is rewritten to the new name too.
+    """
+    used = {p.number for p in load_all(directory) if p.number is not None} | numbers_on_ref(directory, ref)
+    pending = sorted((p for p in load_all(directory) if p.ident == PLACEHOLDER), key=lambda p: p.slug)
+    allocations = []
+    n = max(used, default=0) + 1
+    for p in pending:
+        while n in used:
+            n += 1
+        ident = f"SH-{n:04d}"
+        for src in (p.path, mirror_path(p.path)):
+            if not src.exists():
+                continue
+            dst = src.with_name(src.name.replace(PLACEHOLDER, ident, 1))
+            if dst.exists():
+                raise SystemExit(f"refusing to assign {ident}: {dst.name} already exists")
+            _git("mv", src.name, dst.name, cwd=directory)
+            dst.write_text(_renumber_text(dst.read_text(encoding="utf-8"), p.slug, ident), encoding="utf-8")
+        for other in sorted(directory.glob("SH-*.md")):
+            text = other.read_text(encoding="utf-8")
+            new_text = _rename_links(text, p.slug, ident)
+            if new_text != text:
+                other.write_text(new_text, encoding="utf-8")
+        used.add(n)
+        allocations.append((p.slug, ident))
+        print(f"Allocated {ident} for {p.slug}")
+    return allocations
+
+
+def guard_problems(paths: list[str], directory: Path = PROPOSALS_DIR) -> list[str]:
+    """Check a numbering commit before the workflow pushes it to main.
+
+    That commit lands with a token that may bypass branch protection and with no pull request in
+    its way. The commit must touch ``proposals/`` alone, and the renumbered proposals must pass lint.
+    """
+    problems = [f"outside proposals/: {path}" for path in paths if not path.startswith("proposals/")]
+    return problems + lint(directory)
+
+
+def placeholder_links(root: Path = ROOT) -> list[str]:
+    """Report Markdown files, other than proposals, that link a placeholder proposal by file name.
+
+    ``allocate`` rewrites links inside proposal files alone, so such a link would break at merge.
+    A mention in code (`proposals/SH-XXXX-<slug>.md`) is not a link and is not reported.
+    """
+    try:
+        files = _git("ls-files", "*.md", cwd=root).splitlines()
+    except (subprocess.CalledProcessError, OSError):
+        return []
+    def links_placeholder(path: Path) -> bool:
+        text = strip_code(path.read_text(encoding="utf-8"))
+        return any(f"{PLACEHOLDER}-" in target for target in LINK_RE.findall(text))
+
+    return [f"{name}: links a placeholder proposal ({PLACEHOLDER}-…); link it once it has a number"
+            for name in files
+            if not name.startswith("proposals/SH-") and (root / name).exists()
+            and links_placeholder(root / name)]
+
+
 # ---- CLI ------------------------------------------------------------------
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="proposals", description=__doc__.split("\n\n")[0])
     sub = parser.add_subparsers(dest="cmd", required=True)
 
-    n = sub.add_parser("new", help="scaffold a proposal pair with the next free number")
+    n = sub.add_parser("new", help="scaffold a proposal pair with the SH-XXXX placeholder id")
     n.add_argument("--slug", required=True)
     n.add_argument("--title", required=True, help="the English title")
     n.add_argument("--title-ja", help="the Japanese title (defaults to the English title)")
@@ -300,7 +409,25 @@ def main(argv: list[str] | None = None) -> int:
     ls.add_argument("--grep", help="case-insensitive match on the full text of either language")
 
     sub.add_parser("lint", help="check every proposal pair's format")
+    sub.add_parser("allocate", help="number every SH-XXXX placeholder (run on main after a merge)")
+    sub.add_parser("guard", help="check the numbering commit at HEAD before it is pushed to main")
     args = parser.parse_args(argv)
+
+    if args.cmd == "allocate":
+        if not allocate():
+            print(f"No {PLACEHOLDER} placeholder proposals; nothing to allocate.")
+        return 0
+
+    if args.cmd == "guard":
+        paths = _git("diff", "--name-only", "HEAD~1", "HEAD", cwd=ROOT).splitlines()
+        problems = guard_problems(paths)
+        for problem in problems:
+            print(f"guard: {problem}", file=sys.stderr)
+        if problems:
+            print("guard: refusing to push the numbering commit to main", file=sys.stderr)
+            return 1
+        print("guard: the numbering commit touches proposals/ alone and passes lint")
+        return 0
 
     if args.cmd == "new":
         author = resolve_author(args.author)
@@ -327,11 +454,11 @@ def main(argv: list[str] | None = None) -> int:
             haystack = p.text + (ja.read_text(encoding="utf-8") if ja.exists() else "")
             if args.grep and args.grep.lower() not in haystack.lower():
                 continue
-            rows.append(f"SH-{p.number:04d}  {p.status:<12} {p.topic:<18} {p.title}")
+            rows.append(f"{p.ident}  {p.status:<12} {p.topic:<18} {p.title}")
         print("\n".join(rows) if rows else "(no proposals)")
         return 0
 
-    errors = lint()
+    errors = lint() + placeholder_links()
     for e in errors:
         print(e, file=sys.stderr)
     print(f"proposals: {len(load_all())} checked, {len(errors)} problem(s)")

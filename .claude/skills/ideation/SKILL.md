@@ -67,7 +67,9 @@ Tell the user which landing you choose and why.
 
 ### 4. Draft the proposal
 
-Scaffold the file with the script; never number a proposal by hand.
+Scaffold the file with the script; never number a proposal by hand. The script names the pair with
+the placeholder id `SH-XXXX`, and the `proposal-id` workflow gives it a number after it merges to
+`main`. Until then, link the proposal from other proposals alone, by its placeholder file name.
 
 ```bash
 python3 scripts/proposals.py new --slug <slug> --title "<Title>" --title-ja "<日本語のタイトル>" \

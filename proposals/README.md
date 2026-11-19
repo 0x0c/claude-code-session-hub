@@ -33,24 +33,45 @@ Three skills under [`.claude/skills/`](../.claude/skills/) drive this lifecycle:
 
 ## Add a proposal
 
-Scaffold the pair with the script rather than by hand. The script allocates the next free number
-and fills the metadata tables from [`TEMPLATE.md`](TEMPLATE.md) and
-[`TEMPLATE.ja.md`](TEMPLATE.ja.md).
+Scaffold the pair with the script rather than by hand. The script fills the metadata tables from
+[`TEMPLATE.md`](TEMPLATE.md) and [`TEMPLATE.ja.md`](TEMPLATE.ja.md) and gives the pair the
+placeholder id `SH-XXXX` instead of a number.
 
 ```bash
 python3 scripts/proposals.py new --slug push-retry --title "Retry pushes with backoff" \
   --title-ja "プッシュの再試行" --topic Protocol --author <github-handle>
 ```
 
-The command prints the paths of the two new files, for example `proposals/SH-0002-push-retry.md`
-and `proposals/SH-0002-push-retry.ja.md`. Fill every `TBD` section of the English file under the
+The command prints the paths of the two new files, for example `proposals/SH-XXXX-push-retry.md`
+and `proposals/SH-XXXX-push-retry.ja.md`. Fill every `TBD` section of the English file under the
 [`document-writing`](../.claude/skills/document-writing/SKILL.md) and
 [`english-document-writing`](../.claude/skills/english-document-writing/SKILL.md) skills, then
 write the Japanese mirror under
 [`japanese-document-writing`](../.claude/skills/japanese-document-writing/SKILL.md).
 
-Two branches can allocate the same number in parallel. The format check reports the duplicate, and
-the branch that merges second renumbers its proposal.
+### How a proposal gets its number
+
+A proposal keeps the placeholder `SH-XXXX` through review and the merge itself. Picking numbers on
+branches would race: two branches open at the same time would take the same number. Instead, the
+`proposal-id` workflow (`.github/workflows/proposal-id.yml`) numbers proposals on `main`:
+
+1. A pull request that adds `SH-XXXX-<slug>.md` merges to `main` unchanged.
+2. The workflow runs `python3 scripts/proposals.py allocate`. The command gives each placeholder pair
+   the next number above every number in use, in slug order, and renames both files with `git mv`.
+   It rewrites the id where the id names the proposal: the file names, the title, and the metadata
+   row. Prose that mentions the placeholder `SH-XXXX` stays as written.
+3. `python3 scripts/proposals.py guard` checks the commit: the commit touches `proposals/` alone,
+   and every proposal passes the format check. The workflow then pushes the commit to `main` and
+   comments the number on the merged pull request.
+
+Numbers therefore follow merge order, and a rejected proposal never uses one up. Two rules follow:
+
+- Link a new proposal from another proposal by its placeholder file name; `allocate` rewrites those
+  links. Do not link it from any other document, this README included, until it has a number. The
+  format check reports such a link.
+- The workflow commits to `main` as a GitHub App that may bypass the branch protection. Store its id
+  and private key in the `AUTOMATION_BOT_APP_ID` and `AUTOMATION_BOT_PRIVATE_KEY` secrets. Until both
+  exist, the workflow does nothing and proposals keep their placeholder.
 
 ## The format of a proposal
 
@@ -62,6 +83,8 @@ the rules below on both files.
   `**English** · [日本語](SH-NNNN-<slug>.ja.md)` in the English file and
   `[English](SH-NNNN-<slug>.md) · **日本語**` in the Japanese file.
 - **Title.** The first heading is `# SH-NNNN — <Title>`, with an em dash.
+- **Placeholder id.** Before the merge, `SH-XXXX` stands in for `SH-NNNN` in the file names, the
+  title, and the `Proposal` row.
 - **Metadata table.** The table between `<!-- SH-METADATA -->` and `<!-- /SH-METADATA -->` holds
   six rows in this order: `Proposal`, `Author`, `Status`, `Topic`, `Implementing PR`, and `Related`.
   - `Author` is the author's GitHub handle as a link. Never guess a handle; ask the author.
