@@ -518,7 +518,7 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
         badge(stateKey(s))),
       el("div", { class: "meta" }, meta),
       s.summary ? el("div", { class: "summary" }, s.summary) : null,
-      p.total ? el("div", { class: "progress", "aria-hidden": "true" }, el("i", { style: { width: pct + "%" } })) : null,
+      p.total && s.state !== "done" ? el("div", { class: "progress", "aria-hidden": "true" }, el("i", { style: { width: pct + "%" } })) : null,
     );
     const a = s.attention;
     if (a) {
