@@ -204,6 +204,7 @@
       ["Event type filter", () => pbClone("#fTypes")],
       ["Header", () => pbClone("header")],
       ["Chips", () => el("div", { class: "pb-row" }, el("span", { class: "chip" }, "implement"), el("span", { class: "chip" }, "#redis"))],
+      ["Help icons", () => el("div", { class: "pb-row" }, badge("working"), help("state.working"), statusLabel("action", t("group.action")), help("group.action"))],
       ["Tooltip", () => el("div", { class: "tip", style: { position: "static", display: "inline-block" } }, t("state.working"))],
     ]],
     ["Glow", [
@@ -227,7 +228,7 @@
   function pbClone(selector) {
     const copy = pbPage.querySelector(selector).cloneNode(true);
     for (const n of [copy, ...copy.querySelectorAll("[id]")]) n.removeAttribute("id");
-    if (selector === "header") { copy.style.position = "static"; copy.querySelector("a.iconbtn").hidden = false; }
+    if (selector === "header") { copy.style.position = "static"; copy.querySelectorAll("a.iconbtn").forEach((n) => { n.hidden = false; }); }
     return copy;
   }
 
