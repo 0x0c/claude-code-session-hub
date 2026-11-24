@@ -109,7 +109,8 @@ The gate runs the tests, the proposal format check, the documentation checks, an
 ### 7. Commit, push, and open a pull request only when asked
 
 Commit on the session's branch with a scoped message such as `docs(proposal): add SH-0007 push
-retry`, and push. Open a pull request only when the user asks for one; its title and body are in
+retry`, and push. Open a pull request only when the user asks for one, following the draft flow in the Git
+section of [`AGENTS.md`](../../../AGENTS.md); its title and body are in
 English.
 
 ## References
