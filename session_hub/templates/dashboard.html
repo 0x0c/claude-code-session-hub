@@ -438,8 +438,10 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     const groups = [[t("group.action"), (s) => s.needs_action],
                     [t("group.active"), (s) => !s.needs_action && !["done", "abandoned"].includes(s.state)],
                     [t("group.done"), (s) => ["done", "abandoned"].includes(s.state)]];
+    // Most recently updated first, by the same timestamp that the card shows
+    const byRecent = (a, b) => (a.heartbeat > b.heartbeat ? -1 : a.heartbeat < b.heartbeat ? 1 : 0);
     for (const [title, pred] of groups) {
-      const list = db.sessions.filter(pred);
+      const list = db.sessions.filter(pred).sort(byRecent);
       if (!list.length) continue;
       box.append(el("div", { class: "group-title" }, `${title} (${list.length})`));
       for (const s of list) box.append(sessionCard(s));
