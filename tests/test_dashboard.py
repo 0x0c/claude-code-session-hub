@@ -58,7 +58,7 @@ class DesignTokenTest(unittest.TestCase):
     def test_rules_take_their_values_from_tokens(self):
         for prop, value in SIZED.findall(self.rules):
             # A calc() may add layout sizes, such as a column width, to the tokens
-            value = re.sub(r"calc\((?=[^;}]*var\(--space-)(?:[^()]|\([^()]*\))*\)", "", value)
+            value = re.sub(r"calc\((?=[^;}]*var\(--(?:space|radius)-)(?:[^()]|\([^()]*\))*\)", "", value)
             with self.subTest(prop=prop, value=value):
                 self.assertNotRegex(value, r"\d(?:px|rem|em|pt)\b")
                 if prop == "font-size":
