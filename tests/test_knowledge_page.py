@@ -101,6 +101,9 @@ class KnowledgePageTest(unittest.TestCase):
         for key in ("btn.knowledge", "btn.knowledgeTitle", "kn.title", "kn.sec.shared", "kn.sharedLead"):
             self.assertEqual(len(re.findall(rf'"{re.escape(key)}":', page)), 2, key)  # English and Japanese
 
+    def test_guide_page_shows_the_link(self):
+        self.assertIn('$("knowledgeLink").hidden', template("guide.js"))
+
     def test_exported_file_hides_the_link(self):
         self.assertIn('$("knowledgeLink").hidden', dashboard_html())
 
