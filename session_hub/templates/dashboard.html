@@ -47,7 +47,27 @@ header h1 { font-size: 16px; margin: 0; }
 .iconbtn.danger { color: var(--s-fail); border-color: var(--s-fail); margin-left: auto; font-weight: 400; }
 .iconbtn.danger:disabled { opacity: .5; cursor: progress; }
 main { display: grid; grid-template-columns: minmax(300px, 380px) 1fr; gap: 16px; padding: 16px; max-width: 1500px; margin: 0 auto; }
+main { position: relative; }
 @media (max-width: 860px) { main { grid-template-columns: 1fr; padding: 12px 16px; } }
+/* Split layout: the page fills the window and each panel scrolls on its own. Keep the query in sync with SPLIT in the JS */
+@media screen and (min-width: 860.02px) and (min-height: 480px) {
+  body { height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
+  header { flex: none; }
+  main { flex: 1; min-height: 0; width: 100%; grid-template-rows: minmax(0, 1fr); column-gap: 28px; }
+  main > section.panel { display: flex; flex-direction: column; min-height: 0; }
+  main > section.panel > * { flex: none; }
+  main > section.panel > .scroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+    border-radius: 0 0 9px 9px; }
+  #detail { scrollbar-gutter: stable; }
+  #detail .newbar { top: 8px; }
+}
+.scroll:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+/* The connector from the selected card to the detail panel */
+.linked { border-color: var(--accent) !important; }
+#link { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 4; pointer-events: none; overflow: visible; }
+#link path { fill: none; stroke: var(--accent); stroke-width: 2; }
+#link circle { fill: var(--accent); stroke: var(--panel); stroke-width: 1.5; }
+#link.off path { stroke-dasharray: 4 4; }
 section.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; min-width: 0; }
 .panel > h2 { font-size: 13px; margin: 0; padding: 10px 14px; border-bottom: 1px solid var(--line);
   display: flex; align-items: center; gap: 8px; }
@@ -167,10 +187,10 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
 <main>
   <section class="panel" aria-labelledby="sessionsTitle">
     <h2 id="sessionsTitle"><span data-i18n="sessions.title"></span> <span class="chip" id="clearSel" hidden style="cursor:pointer" data-i18n="sessions.clear"></span></h2>
-    <div id="sessions"></div>
+    <div id="sessions" class="scroll" tabindex="0" role="region" aria-labelledby="sessionsTitle"></div>
   </section>
 
-  <section class="panel" aria-labelledby="tlTitle">
+  <section class="panel" id="detailPanel" aria-labelledby="tlTitle">
     <h2 id="tlTitle"><span id="tlName"></span> <span class="chip" id="tlScope"></span>
       <button class="iconbtn danger" id="deleteSession" hidden data-i18n="sessions.delete" data-i18n-title="sessions.deleteTitle"></button></h2>
     <div class="toolbar">
@@ -185,6 +205,7 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
       <label><input type="checkbox" id="fOrder"> <span data-i18n="filter.oldest"></span></label>
     </div>
     <div class="types" id="fTypes"></div>
+    <div id="detail" class="scroll" tabindex="0" role="region" aria-labelledby="tlTitle">
     <button class="newbar" id="newbar"><span id="newbarText"></span> ↑</button>
     <div id="feedView" class="feed" aria-live="polite"></div>
     <div id="colView" hidden></div>
@@ -192,7 +213,9 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
       <div class="lanes" id="lanes"></div>
       <div class="legend" id="legend"></div>
     </div>
+    </div>
   </section>
+  <svg id="link" aria-hidden="true" hidden><path/><circle class="from" r="4"/><circle class="to" r="4"/></svg>
 </main>
 <div class="tip" id="tip"></div>
 
@@ -461,6 +484,7 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
       el("span", { "data-ago": s.heartbeat }, ago(s.heartbeat)),
     ];
     const card = el("div", glowProps([glowKey.session(s.session_id)], {
+      "aria-pressed": String(ui.session === s.session_id),
       class: "card" + (ui.session === s.session_id ? " selected" : ""), tabindex: "0", role: "button",
       "aria-label": t("card.showTimeline", { name: s.title || s.session_id }),
       onclick: () => selectSession(ui.session === s.session_id ? "" : s.session_id),
@@ -700,7 +724,64 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     $("deleteSession").hidden = !ui.session || !!EMBEDDED;
   }
 
+  // ---- Scrolling and the connector line ----
+  // In the split layout each panel scrolls on its own; otherwise the whole page scrolls.
+  const SPLIT = matchMedia("screen and (min-width: 860.02px) and (min-height: 480px)");
+  const detailTop = () => (SPLIT.matches ? $("detail").scrollTop : window.scrollY);
+  function scrollDetailToTop(behavior) {
+    if (SPLIT.matches) $("detail").scrollTo({ top: 0, behavior });
+    else window.scrollTo({ top: 0, behavior });
+  }
+
+  // Draw a line from the selected card to the detail panel's title. When the card is scrolled out of
+  // the list, the line starts at the nearest edge of the list and turns dashed.
+  function drawLink() {
+    const svg = $("link");
+    const card = SPLIT.matches && ui.session ? $("sessions").querySelector(".card.selected") : null;
+    svg.toggleAttribute("hidden", !card);
+    $("detailPanel").classList.toggle("linked", !!card);
+    if (!card) return;
+    const base = document.querySelector("main").getBoundingClientRect();
+    const list = $("sessions").getBoundingClientRect();
+    const c = card.getBoundingClientRect();
+    const h = $("tlTitle").getBoundingClientRect();
+    const mid = c.top + c.height / 2;
+    // Keep the start on the visible part of the card, or on the list's edge when none is visible
+    const top = Math.max(c.top, list.top), bottom = Math.min(c.bottom, list.bottom);
+    const off = bottom - top < 8;
+    const y = off ? (mid < list.top + list.height / 2 ? list.top + 6 : list.bottom - 6) : Math.min(Math.max(mid, top + 4), bottom - 4);
+    const x0 = c.right - base.left, y0 = y - base.top;
+    const x1 = h.left - base.left, y1 = h.top + h.height / 2 - base.top;
+    const xm = (list.right - base.left + x1) / 2;
+    const dy = y1 - y0, dir = Math.sign(dy), rad = Math.min(8, Math.abs(dy) / 2);
+    svg.classList.toggle("off", off);
+    svg.querySelector("path").setAttribute("d", `M${x0} ${y0}H${xm - rad}Q${xm} ${y0} ${xm} ${y0 + dir * rad}`
+      + `V${y1 - dir * rad}Q${xm} ${y1} ${xm + rad} ${y1}H${x1}`);
+    for (const [cls, x, cy] of [["from", x0, y0], ["to", x1, y1]]) {
+      const dot = svg.querySelector("." + cls);
+      dot.setAttribute("cx", x); dot.setAttribute("cy", cy);
+    }
+  }
+
+  // Scroll the list, and only the list, until the selected card is visible
+  function revealSelectedCard() {
+    const box = $("sessions"), card = box.querySelector(".card.selected");
+    if (!SPLIT.matches || !card) return;
+    const b = box.getBoundingClientRect(), c = card.getBoundingClientRect();
+    if (c.top < b.top || c.height > b.height) box.scrollTop -= b.top - c.top;
+    else if (c.bottom > b.bottom) box.scrollTop += c.bottom - b.bottom;
+    drawLink();
+  }
+
+  // Rebuilding the DOM can clamp a panel's scroll position, so put both positions back afterwards.
   function render() {
+    const panes = [$("sessions"), $("detail")].map((n) => [n, n.scrollTop]);
+    renderContent();
+    for (const [n, top] of panes) n.scrollTop = top;
+    drawLink();
+  }
+
+  function renderContent() {
     renderHeader();
     renderSessions();
     renderColTabs();
@@ -710,13 +791,19 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
   }
 
   function selectSession(sid) {
+    const changed = ui.session !== sid;
     ui.session = sid;
     $("fSession").value = sid;
     render();
+    if (changed) {
+      if (SPLIT.matches) scrollDetailToTop();
+      revealSelectedCard();
+    }
   }
 
   function setView(v) {
     if (v.startsWith("col:") && !db.collections[v.slice(4)]) v = "feed";
+    const changed = ui.view !== v;
     ui.view = v;
     const isCol = v.startsWith("col:");
     $("feedView").hidden = v !== "feed";
@@ -729,6 +816,7 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     $("fOrder").parentElement.hidden = isCol;
     updateViewText();
     render();
+    if (changed && SPLIT.matches) scrollDetailToTop();
   }
 
   // ---- Collections (knowledge and other stores of accumulated updates) ----
@@ -869,7 +957,7 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     applySessions(u, false);
     // While the reader is scrolled down, announce new items in the new-items bar instead of moving the view
     const visible = fresh.filter((e) => e.type !== "heartbeat" || ui.heartbeat);
-    if (visible.length && window.scrollY > 200 && !ui.asc) {
+    if (visible.length && detailTop() > 200 && !ui.asc) {
       ui.unseen += visible.length;
       $("newbarText").textContent = t("newbar", { n: ui.unseen });
       $("newbar").classList.add("show");
@@ -1012,9 +1100,17 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
   applyStaticText();
   renderTypeFilters();
   $("newbar").addEventListener("click", () => {
-    ui.unseen = 0; $("newbar").classList.remove("show"); window.scrollTo({ top: 0, behavior: "smooth" });
+    ui.unseen = 0; $("newbar").classList.remove("show"); scrollDetailToTop("smooth");
   });
-  window.addEventListener("scroll", () => { if (window.scrollY < 100 && ui.unseen) { ui.unseen = 0; $("newbar").classList.remove("show"); } });
+  function clearUnseenAtTop() { if (detailTop() < 100 && ui.unseen) { ui.unseen = 0; $("newbar").classList.remove("show"); } }
+  window.addEventListener("scroll", clearUnseenAtTop);
+  $("detail").addEventListener("scroll", clearUnseenAtTop);
+  $("sessions").addEventListener("scroll", drawLink);
+  SPLIT.addEventListener("change", () => { drawLink(); clearUnseenAtTop(); });
+  if ("ResizeObserver" in window) {
+    const ro = new ResizeObserver(drawLink);
+    for (const n of [$("sessions"), $("detailPanel"), $("tlTitle")]) ro.observe(n);
+  }
   $("notifyBtn").setAttribute("aria-pressed", String(ui.notify));
   $("notifyBtn").addEventListener("click", async () => {
     if (!ui.notify && "Notification" in window && Notification.permission !== "granted") {
@@ -1029,13 +1125,14 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     const dark = root.dataset.theme ? root.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
     root.dataset.theme = dark ? "light" : "dark";
     try { localStorage.setItem("hub.theme", root.dataset.theme); } catch (_) {}
-    if (ui.view === "lanes") renderLanes();
+    if (ui.view === "lanes") render();
   });
   try { const theme = localStorage.getItem("hub.theme"); if (theme) document.documentElement.dataset.theme = theme; } catch (_) {}
-  window.addEventListener("resize", () => { if (ui.view === "lanes") renderLanes(); });
+  window.addEventListener("resize", () => { if (ui.view === "lanes") render(); else drawLink(); });
   // Refresh the "N minutes ago" labels periodically
   setInterval(() => {
     document.querySelectorAll("[data-ago]").forEach((n) => { n.textContent = ago(n.dataset.ago); });
+    drawLink(); // A longer label can wrap and move the selected card
   }, 15000);
 
   if (EMBEDDED) { setConn("", "conn.static", { ts: new Date(EMBEDDED.generated_at).toLocaleString(LOCALE) }); loadSnapshot(EMBEDDED); }
