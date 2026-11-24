@@ -38,4 +38,4 @@ jobs:
           python-version: ${{ matrix.python }}
 
       - name: Run the gate
-        run: scripts/check.sh
+        run: make check  # sets up gitleaks first

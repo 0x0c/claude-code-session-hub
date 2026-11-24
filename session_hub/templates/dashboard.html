@@ -147,7 +147,7 @@ main.grid .action-section .card:not(.selected):not(:hover) { background: var(--p
 .group-badge { padding: var(--space-1) var(--space-8); border-radius: var(--radius-sm); color: var(--on-fill); background: var(--group-color); }
 .project .chev { color: var(--muted); transition: transform .15s; }
 .project[aria-expanded="true"] .chev { transform: rotate(90deg); }
-/* The status groups inside a project */
+/* The groups inside a section: status groups in a project, project groups in Archived */
 main .project.sub { margin: 0; padding: var(--space-6) var(--space-14) var(--space-6) var(--space-24); border-width: 1px 0 0; border-radius: 0; background: none; }
 main .project.sub:hover { background: var(--hover); }
 main.grid .project.sub { border: 0; border-radius: var(--radius-lg); }
@@ -314,6 +314,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
   </div>
   <a class="iconbtn" id="guideLink" href="guide" data-i18n="btn.guide" data-i18n-title="btn.guideTitle"></a>
   <a class="iconbtn" id="playbookLink" href="playbook" data-i18n="btn.playbook" data-i18n-title="btn.playbookTitle"></a>
+  <a class="iconbtn" id="designSystemLink" target="_blank" rel="noopener noreferrer" hidden data-i18n="btn.designSystem" data-i18n-title="btn.designSystemTitle"></a>
   <button class="iconbtn" id="notifyBtn" aria-pressed="false" data-i18n="btn.notify" data-i18n-title="btn.notifyTitle"></button>
   <button class="iconbtn" id="langBtn" data-i18n="btn.lang" data-i18n-title="btn.langTitle"></button>
   <button class="iconbtn" id="themeBtn" data-i18n="btn.theme" data-i18n-title="btn.themeTitle"></button>
@@ -383,6 +384,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
   "use strict";
   // `hub export` embeds the snapshot here (static mode)
   const EMBEDDED = /*__HUB_SNAPSHOT__*/null;
+  const DESIGN_SYSTEM_URL = /*__HUB_DESIGN_SYSTEM_URL__*/null;
 
   // ---- Localization ----
   // Every string the page shows comes from MESSAGES. The language is chosen from ?lang=, then the
@@ -396,6 +398,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       "kpi.tokens": "Tokens in", "kpi.out": "out", "kpi.updated": "Updated",
       "btn.notify": "Notify", "btn.notifyTitle": "Notify me when a session needs action",
       "btn.playbook": "Playbook", "btn.playbookTitle": "See every component of this dashboard in every state",
+      "btn.designSystem": "Design system", "btn.designSystemTitle": "Open the design system page in a new tab",
       "btn.guide": "Status guide", "btn.guideTitle": "Read what each status and state means",
       "btn.theme": "Theme", "btn.themeTitle": "Switch between light and dark",
       "btn.lang": "日本語", "btn.langTitle": "表示を日本語に切り替える",
@@ -490,6 +493,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       "kpi.tokens": "トークン 入力", "kpi.out": "出力", "kpi.updated": "更新",
       "btn.notify": "通知", "btn.notifyTitle": "要対応になったら通知",
       "btn.playbook": "Playbook", "btn.playbookTitle": "ダッシュボードの部品をすべての状態で一覧する",
+      "btn.designSystem": "デザインシステム", "btn.designSystemTitle": "デザインシステムのページを新しいタブで開く",
       "btn.guide": "ステータスの説明", "btn.guideTitle": "各ステータスと状態の意味を一覧する",
       "btn.theme": "テーマ", "btn.themeTitle": "テーマ切替",
       "btn.lang": "English", "btn.langTitle": "Switch the display to English",
@@ -746,10 +750,14 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
   const foldMark = (key) => (key === ARCHIVED_KEY ? "open:" + key : key);
   const isCollapsed = (key) => ui.collapsed.has(foldMark(key)) !== (key === ARCHIVED_KEY);
   const inProject = (s) => ui.byProject && !s.needs_action && !s.archived;
-  // The status groups inside a project; the array form keeps a key apart from every project name
+  // A status inside a project, or a project inside Archived (the status "archived"); the array form
+  // keeps a key apart from every project name
   const subKey = (project, id) => JSON.stringify([project, id]);
   // Keys of the headings above a session's card, outermost first
-  const groupKeys = (s) => (inProject(s) ? [s.repo || "", subKey(s.repo || "", statusOf(s))] : ["status:" + statusOf(s)]);
+  const groupKeys = (s) => {
+    if (!ui.byProject || (s.needs_action && !s.archived)) return ["status:" + statusOf(s)];
+    return [s.archived ? ARCHIVED_KEY : s.repo || "", subKey(s.repo || "", statusOf(s))];
+  };
 
   // [key, label, sessions] of each non-empty group, in display order
   function sessionGroups(sessions) {
@@ -760,19 +768,26 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     return [status("action"), ...rest, status("archived")].filter(([, , list]) => list.length);
   }
 
-  // [key, label, sessions] of each non-empty status group inside a project, in display order
-  function projectStatusGroups(project, sessions) {
+  // [key, label, sessions] of each non-empty group inside a section, in display order: projects in
+  // Archived, statuses in a project. Null when the section lists its sessions directly.
+  function subGroups(section, sessions) {
+    if (section === ARCHIVED_KEY && ui.byProject) {
+      return projectGroups(sessions).map(([project, list]) => [subKey(project, "archived"), project || t("project.none"), list]);
+    }
+    if (section.startsWith("status:")) return null;
+    const project = section;
     return ["active", "done"]
       .map((id) => [subKey(project, id), t("group." + id), sessions.filter((s) => statusOf(s) === id)])
       .filter(([, , list]) => list.length);
   }
 
-  // parent is the key of the enclosing project, for a status group inside one
+  // parent is the key of the enclosing section, for a group inside one
   function groupHeader(key, label, list, parent = null) {
     const open = !isCollapsed(key);
     // A collapsed group hides its cards, so the header carries their glow and the selection mark
     const hidden = open ? [] : list;
-    const status = parent !== null ? JSON.parse(key)[1] : key.startsWith("status:") ? key.slice(7) : null;
+    // The status that the heading names: none for a project, inside Archived or not
+    const status = parent === ARCHIVED_KEY ? null : parent !== null ? JSON.parse(key)[1] : key.startsWith("status:") ? key.slice(7) : null;
     return el("button", glowProps(hidden.map((s) => glowKey.session(s.session_id)), {
       class: "project" + (parent === null ? "" : " sub") + (hidden.some((s) => s.session_id === ui.session) ? " selected" : ""),
       type: "button", "aria-expanded": String(open), title: label, "data-group": key, "data-parent": parent,
@@ -803,7 +818,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       if (head) head.focus({ preventScroll: true });
       return !!head;
     };
-    // A status group that emptied has no heading: focus the heading of its project
+    // A group that emptied has no heading: focus the heading of its section
     if (old && old.classList.contains("project")) {
       if (!focusGroup(old.dataset.group) && old.dataset.parent !== undefined) focusGroup(old.dataset.parent);
       return;
@@ -826,10 +841,13 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     }
     const sorted = [...db.sessions].sort(byRecent);
     const cards = (list, named) => el("div", { class: "cards" }, list.map((s) => sessionCard(s, named)));
-    const subgroups = (project, list) => projectStatusGroups(project, list).flatMap(([key, label, part]) =>
-      [groupHeader(key, label, part, project), isCollapsed(key) ? null : el("div", { class: "subcards" }, cards(part, true))]);
+    const nested = (section, groups) => groups.flatMap(([key, label, part]) =>
+      [groupHeader(key, label, part, section), isCollapsed(key) ? null : el("div", { class: "subcards" }, cards(part, true))]);
     for (const [key, label, list] of sessionGroups(sorted)) {
-      const body = () => (key.startsWith("status:") ? [cards(list, false)] : subgroups(key, list));
+      const body = () => {
+        const groups = subGroups(key, list);
+        return groups ? nested(key, groups) : [cards(list, false)];
+      };
       const parts = [groupHeader(key, label, list), ...(isCollapsed(key) ? [] : body())].filter(Boolean);
       box.append(...(key === ACTION_KEY ? [el("section", { class: "action-section", "aria-label": label }, parts)] : parts));
     }
@@ -2146,6 +2164,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
   }, 15000);
 
   $("guideLink").hidden = $("playbookLink").hidden = !!EMBEDDED; // an exported file has no hub to serve these pages
+  if (DESIGN_SYSTEM_URL) { $("designSystemLink").href = DESIGN_SYSTEM_URL; $("designSystemLink").hidden = false; }
   if (EMBEDDED) { setConn("", "conn.static", { ts: new Date(EMBEDDED.generated_at).toLocaleString(LOCALE) }); loadSnapshot(EMBEDDED); }
   else connect();
 })();

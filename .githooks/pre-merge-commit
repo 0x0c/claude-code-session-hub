@@ -1,0 +1,4 @@
+#!/bin/sh
+# Git skips pre-commit for a merge without conflicts and runs this hook instead.
+set -eu
+exec "$(dirname "$0")/pre-commit"

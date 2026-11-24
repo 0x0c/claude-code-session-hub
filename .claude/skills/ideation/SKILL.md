@@ -104,7 +104,7 @@ review comes back empty, at most three rounds. Bring every escalation to the use
 scripts/check.sh
 ```
 
-The gate runs the tests, the proposal format check, and the bilingual-docs check; all must pass.
+The gate runs the tests, the proposal format check, the documentation checks, and the secret scan; all must pass.
 
 ### 7. Commit, push, and open a pull request only when asked
 
