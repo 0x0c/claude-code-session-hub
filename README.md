@@ -162,8 +162,10 @@ project.
   `~/.session-hub/.server.log`). To run the server yourself, remove the variable and run
   `session-hub serve`.
 - On macOS, you can also double-click `Session Hub.command` at the repository root in Finder. It
-  starts the server on `~/.session-hub` in a Terminal window and opens the dashboard; if a hub is
-  already running, it only opens the dashboard. Close the window to stop the server.
+  starts the server in a Terminal window and opens the dashboard; if a hub is already running, it
+  only opens the dashboard. Close the window to stop the server. A double-click does not see the
+  `env` block above, so the launcher reads `HUB_STORE`, `HUB_URL`, and `HUB_TOKEN` from
+  `~/.claude/settings.json` when the shell does not set them.
 - While the server is down, messages go straight to the shared store and appear on the dashboard once
   the server starts. No message is lost.
 - To enable Session Hub for one project, put the settings in that project's

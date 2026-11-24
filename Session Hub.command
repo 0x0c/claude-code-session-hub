@@ -4,13 +4,33 @@
 # - If a hub already answers on the port, it only opens the dashboard and exits.
 # - Otherwise it runs the server in this Terminal window. Close the window (or press Ctrl-C) to stop it.
 #
-# Settings come from the environment, with the same defaults the README recommends:
+# A Finder double-click does not see the "env" block of ~/.claude/settings.json, which reaches
+# Claude Code sessions only. So each setting below comes from the shell environment first, then from
+# that "env" block, so the server uses the same store and port as the sessions, then from the default:
 #   HUB_STORE  store directory (default: ~/.session-hub)
 #   HUB_URL    the hub's URL; only its port is used here (default: http://127.0.0.1:8765)
 #   HUB_TOKEN  when set, the dashboard opens with ?token= once, and the page switches to a cookie
 
 cd "$(dirname "$0")" || exit 1
 
+# Print the value of one key in the "env" block of ~/.claude/settings.json, or nothing.
+setting() {
+  python3 - "$1" <<'PY' 2>/dev/null
+import json, os, sys
+try:
+    with open(os.path.expanduser("~/.claude/settings.json")) as f:
+        value = json.load(f).get("env", {}).get(sys.argv[1])
+except (OSError, ValueError, AttributeError):
+    value = None
+if isinstance(value, str) and value:
+    print(os.path.expanduser(value) if sys.argv[1] == "HUB_STORE" else value)
+PY
+}
+
+[ -n "$HUB_STORE" ] || HUB_STORE="$(setting HUB_STORE)"
+[ -n "$HUB_URL" ] || HUB_URL="$(setting HUB_URL)"
+[ -n "$HUB_TOKEN" ] || HUB_TOKEN="$(setting HUB_TOKEN)"
+[ -n "$HUB_TOKEN" ] && export HUB_TOKEN
 HUB_STORE="${HUB_STORE:-$HOME/.session-hub}"
 export HUB_STORE
 PORT="$(printf '%s' "${HUB_URL:-http://127.0.0.1:8765}" | sed -nE 's#^[a-z]+://[^/:]+:([0-9]+).*#\1#p')"
