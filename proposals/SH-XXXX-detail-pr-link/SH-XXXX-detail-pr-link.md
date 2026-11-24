@@ -57,7 +57,7 @@ The change adds no text to any model's context.
 
 - [x] Design approved
 - [x] Implementation with tests
-- [x] Documentation updated (README.md, docs/DESIGN.md, skills)
+- [x] Documentation updated (README.md, docs/DESIGN.md)
 
 ## References
 

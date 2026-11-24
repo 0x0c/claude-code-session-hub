@@ -42,7 +42,7 @@
 
 - [x] 設計の承認
 - [x] テストを含む実装
-- [x] ドキュメントの更新（README、docs/DESIGN.md、スキル）
+- [x] ドキュメントの更新（README、docs/DESIGN.md）
 
 ## 参考資料
 
