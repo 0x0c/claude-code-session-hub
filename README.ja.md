@@ -122,6 +122,7 @@ apm install 0x0c/claude-code-session-hub --target claude
 ```
 
 - `HUB_AUTOSTART=1`にすると、最初に始まったセッションがハブサーバーをバックグラウンドで起動します（ログは`~/.session-hub/.server.log`）。サーバーを自分で起動する場合は、この変数を外して`session-hub serve`を実行します。
+- macOSでは、リポジトリ直下の`Session Hub.command`をFinderでダブルクリックしても起動できます。Terminalのウィンドウで`~/.session-hub`をストアとしてサーバーを起動し、ダッシュボードを開きます。ハブがすでに動いていれば、ダッシュボードを開くだけです。ウィンドウを閉じるとサーバーが止まります。
 - サーバーが止まっている間、メッセージは共有ストアに直接書かれ、サーバーが起動するとダッシュボードに表示されます。メッセージが失われることはありません。
 - 特定のプロジェクトだけでSession Hubを使うには、そのプロジェクトの`.claude/settings.local.json`に設定を書きます。
 
