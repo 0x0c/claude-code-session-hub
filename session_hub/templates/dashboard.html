@@ -12,7 +12,7 @@
   --s-wait: #6741d9; --s-block: #862e9c; --s-done: #868e96; --s-queue: #adb5bd;
   --flash: #fff3bf;
   /* Group headings: the same in both themes, dark enough for white text */
-  --g-action: #c2410c; --g-active: #1864ab; --g-done: #5c636e; --g-archived: #6b7280;
+  --g-action: #c2410c; --g-active: #1864ab; --g-done: #5c636e;
   --on-fill: #ffffff; --shade: rgb(0 0 0 / .18);
   /* Type: five sizes, two weights */
   --font-sans: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
@@ -162,6 +162,7 @@ a.pr { color: var(--accent); }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 3s; } }
 .badge { font-size: var(--fs-label); font-weight: var(--fw-strong); padding: var(--space-1) var(--space-8); border-radius: var(--radius-pill); color: var(--on-fill); white-space: nowrap; }
+.badge.plain { padding-inline: 0; font-weight: var(--fw-normal); color: var(--muted); }
 .chip { font-size: var(--fs-label); padding: 0 var(--space-6); border-radius: var(--radius-sm); border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
 .progress { height: 5px; background: var(--line); border-radius: var(--radius-xs); overflow: hidden; margin-top: var(--space-6); }
 .progress > i { display: block; height: 100%; background: var(--s-work); }
@@ -575,6 +576,8 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
   const stateKey = (s) => (s.archived ? "archived" : s.stale ? "stale" : s.state === "review_ready" && s.gate && s.gate.length ? "review_pending" : s.state);
   const badge = (key) => {
     const [label, color] = STATE[key] || [key, "--s-queue"];
+    // Archived is a quiet state: plain text, without a fill
+    if (key === "archived") return el("span", { class: "badge plain" }, label);
     return el("span", { class: "badge", style: { background: `var(${color})` } }, label);
   };
   const fmtNum = (n) => (n || 0) >= 1e6 ? (n / 1e6).toFixed(1) + "M" : (n || 0) >= 1e3 ? Math.round(n / 1e3) + "k" : String(n || 0);
@@ -659,7 +662,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       },
     }),
       el("span", { class: "chev", "aria-hidden": "true" }, "▸"),
-      el("span", { class: "pname" }, status
+      el("span", { class: "pname" }, status && status !== "archived"
         ? el("span", { class: "group-badge", style: { "--group-color": `var(--g-${status})` } }, label) : label),
       el("span", { class: "count" }, String(list.length)));
   }

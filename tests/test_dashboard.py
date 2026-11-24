@@ -101,10 +101,10 @@ class DesignTokenTest(unittest.TestCase):
         used = set(re.findall(r"var\(--([\w-]+)", self.rules))
         self.assertEqual(used - set(self.light) - SET_BY_SCRIPT, set())
 
-    def test_every_status_group_has_a_fill(self):
+    def test_every_status_group_but_archived_has_a_fill(self):
         groups = set(re.findall(r'\bstatus\("(\w+)"\)', PAGE))
         self.assertLessEqual({"action", "active", "done"}, groups)
-        self.assertEqual({f"g-{g}" for g in groups} - set(self.light), set())
+        self.assertEqual({f"g-{g}" for g in groups - {"archived"}} - set(self.light), set())
 
     def test_both_dark_blocks_agree(self):
         self.assertTrue(self.dark_auto)
