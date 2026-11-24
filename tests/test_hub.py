@@ -2,17 +2,21 @@ import io
 import json
 import os
 import shutil
+import signal
 import subprocess
+import sys
 import tempfile
 import threading
+import time
 import unittest
+import urllib.error
 import urllib.parse
 import urllib.request
 from contextlib import redirect_stdout
 from pathlib import Path
 from unittest import mock
 
-from session_hub import client, collections, core, hooks, local_state, project, schema, view
+from session_hub import cli, client, collections, core, hooks, local_state, project, schema, view
 from session_hub.server import make_server
 from session_hub.deliver import deliver
 from session_hub.store import EventStore
@@ -337,6 +341,64 @@ class ServerTest(TmpMixin, unittest.TestCase):
         self.assertEqual(data["sessions"][0]["title"], "子")
         stream.close()
 
+    def test_stop_requires_the_token(self):
+        with self.assertRaises(ValueError):
+            client.stop_server(self.url, "wrong")
+        self.assertTrue(client.healthy(self.url))
+
+    def test_stop_refuses_a_remote_client(self):
+        handler = self.httpd.RequestHandlerClass
+        with mock.patch.object(handler, "setup", autospec=True, side_effect=self._remote_setup(handler.setup)):
+            with self.assertRaisesRegex(ValueError, "403"):
+                client.stop_server(self.url, "tok")
+        self.assertTrue(client.healthy(self.url))
+
+    @staticmethod
+    def _remote_setup(real):
+        def setup(handler):
+            handler.client_address = ("192.0.2.1", 1)
+            real(handler)
+        return setup
+
+    def test_stop_reports_an_old_hub(self):
+        err = urllib.error.HTTPError(self.url, 404, "not found", {}, io.BytesIO(b"{}"))
+        with mock.patch("urllib.request.urlopen", side_effect=err):
+            self.assertFalse(client.stop_server(self.url, "tok"))
+        with mock.patch.object(client, "stop_server", return_value=False), \
+                mock.patch.dict(os.environ, {"HUB_URL": self.url}), \
+                self.assertRaisesRegex(SystemExit, "older version"):
+            cli.main(["stop"])
+
+    def test_stop_refuses_a_remote_hub(self):
+        with mock.patch.dict(os.environ, {"HUB_URL": "https://hub.example"}), \
+                self.assertRaisesRegex(SystemExit, "not on this machine"):
+            cli.main(["stop"])
+
+    def test_stop_command_ends_the_server_process(self):
+        env = {k: v for k, v in os.environ.items() if not k.startswith("HUB_")}
+        env.update(HUB_STORE=str(self.dir / "other"), HUB_TOKEN="tok")
+        proc = subprocess.Popen([sys.executable, "-m", "session_hub", "serve", "--port", "0"], env=env,
+                                cwd=Path(__file__).resolve().parent.parent, stdout=subprocess.PIPE, text=True)
+        try:
+            url = proc.stdout.readline().split()[2].rstrip("/")
+            # An open dashboard must not keep the process alive
+            req = urllib.request.Request(url + "/api/stream", headers={"Authorization": "Bearer tok"})
+            with urllib.request.urlopen(req, timeout=5) as stream, \
+                    mock.patch.dict(os.environ, {"HUB_URL": url, "HUB_TOKEN": "tok"}):
+                stream.readline()
+                out = io.StringIO()
+                with redirect_stdout(out):
+                    cli.main(["stop"])
+                    self.assertEqual(proc.wait(timeout=10), 0)
+                    cli.main(["stop"])  # Stopping a stopped hub is not an error
+            self.assertIn("stopped the hub", out.getvalue())
+            self.assertIn("no hub is running", out.getvalue())
+        finally:
+            if proc.poll() is None:
+                proc.kill()
+            proc.wait()
+            proc.stdout.close()
+
     def test_delete_session_is_broadcast_to_stream(self):
         client.post(self.url, {"session_id": "c1", "fields": {"type": "start", "title": "a"}}, token="tok")
         client.post(self.url, {"session_id": "c1", "writer": "parent",
@@ -532,9 +594,23 @@ class LauncherTest(TmpMixin, unittest.TestCase):
         (self.home / ".claude" / "settings.json").write_text(json.dumps({"env": settings_env}))
         clean = {k: v for k, v in os.environ.items() if not k.startswith("HUB_")}
         clean.update(HOME=str(self.home), PATH=f"{self.dir / 'bin'}:{os.environ['PATH']}", **env)
-        res = subprocess.run(["sh", str(self.LAUNCHER)], env=clean, cwd=self.dir,
-                             capture_output=True, text=True, timeout=30)
-        self.assertEqual(res.returncode, 0, res.stderr)
+        proc = subprocess.Popen(["sh", str(self.LAUNCHER)], env=clean, cwd=self.dir, start_new_session=True,
+                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        try:
+            deadline = time.monotonic() + 15
+            while not self.opened.exists() and proc.poll() is None and time.monotonic() < deadline:
+                time.sleep(0.05)
+            time.sleep(1.5)  # Past the first health check of the waiting loop
+            self.assertIsNone(proc.poll(), "the launcher must stay until Ctrl-C")
+            os.killpg(proc.pid, signal.SIGINT)  # As Ctrl-C does: the whole foreground group
+            out, _ = proc.communicate(timeout=20)
+        finally:
+            if proc.poll() is None:
+                os.killpg(proc.pid, signal.SIGKILL)
+                proc.communicate()
+        self.assertEqual(proc.returncode, 0, out)
+        self.assertIn("stopped the hub", out)
+        self.assertFalse(client.healthy(f"http://127.0.0.1:{self.port}"))
         return self.opened.read_text().strip()
 
     def test_reads_settings_json_and_opens_the_running_hub(self):

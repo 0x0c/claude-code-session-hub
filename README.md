@@ -173,10 +173,13 @@ project.
 - On macOS, you can also double-click `Session Hub.command` in Finder. It sits at the root of a
   clone of this repository and, after an APM install, in `apm_modules/0x0c/claude-code-session-hub/`
   (a plugin install keeps it in Claude Code's plugin cache, so clone the repository to get it). It
-  starts the server in a Terminal window and opens the dashboard; if a hub is already running, it
-  only opens the dashboard. Close the window to stop the server. A double-click does not see the
+  opens the dashboard and stays in a Terminal window until you press Ctrl-C, which stops the hub. When
+  no hub is running, the launcher runs the server in that window, so closing the window also stops
+  it. When a hub was already running, closing the window leaves that hub running. A double-click does not see the
   `env` block above, so the launcher reads `HUB_STORE`, `HUB_URL`, and `HUB_TOKEN` from
   `~/.claude/settings.json` when the shell does not set them.
+- To stop the hub however it was started, run `session-hub stop`. With `HUB_AUTOSTART=1`, the next
+  session start launches the hub again.
 - While the server is down, messages go straight to the shared store and appear on the dashboard once
   the server starts. No message is lost.
 - To enable Session Hub for one project, put the settings in that project's
@@ -297,6 +300,7 @@ session-hub log [<session_id>] [--heartbeat] [--tail N]
 session-hub answer <session_id> --qid 4 --value 120
 session-hub command <session_id> --cmd pause
 session-hub export --out dashboard.html
+session-hub stop [--port N]
 ```
 
 `attention` prints one line per session that needs attention, for the parent large language model (LLM). `answer` and

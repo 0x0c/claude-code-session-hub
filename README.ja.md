@@ -127,7 +127,8 @@ apm install 0x0c/claude-code-session-hub --target claude
 ```
 
 - `HUB_AUTOSTART=1`にすると、最初に始まったセッションがハブサーバーをバックグラウンドで起動します（ログは`~/.session-hub/.server.log`）。サーバーを自分で起動する場合は、この変数を外して`session-hub serve`を実行します。
-- macOSでは、`Session Hub.command`をFinderでダブルクリックしても起動できます。このファイルは、このリポジトリをクローンした場合はその直下に、APMでインストールした場合は`apm_modules/0x0c/claude-code-session-hub/`にあります（プラグインとしてインストールした場合はClaude Codeのプラグインキャッシュの中にあるため、リポジトリをクローンして使います）。Terminalのウィンドウでサーバーを起動し、ダッシュボードを開きます。ハブがすでに動いていれば、ダッシュボードを開くだけです。ウィンドウを閉じるとサーバーが止まります。ダブルクリックで起動したプロセスには上の`env`ブロックが渡らないため、シェルに設定がなければ`~/.claude/settings.json`から`HUB_STORE`・`HUB_URL`・`HUB_TOKEN`を読み込みます。
+- macOSでは、`Session Hub.command`をFinderでダブルクリックしても起動できます。このファイルは、このリポジトリをクローンした場合はその直下に、APMでインストールした場合は`apm_modules/0x0c/claude-code-session-hub/`にあります（プラグインとしてインストールした場合はClaude Codeのプラグインキャッシュの中にあるため、リポジトリをクローンして使います）。ダッシュボードを開き、TerminalのウィンドウでCtrl-Cを押すまで動き続けます。Ctrl-Cを押すとハブが止まります。ハブが動いていなければ、そのウィンドウでサーバーを動かすため、ウィンドウを閉じてもサーバーが止まります。ハブがすでに動いていた場合は、ウィンドウを閉じてもハブは動き続けます。ダブルクリックで起動したプロセスには上の`env`ブロックが渡らないため、シェルに設定がなければ`~/.claude/settings.json`から`HUB_STORE`・`HUB_URL`・`HUB_TOKEN`を読み込みます。
+- 起動方法を問わずハブを止めるには、`session-hub stop`を実行します。`HUB_AUTOSTART=1`では、次のセッション開始時にハブが再び起動します。
 - サーバーが止まっている間、メッセージは共有ストアに直接書かれ、サーバーが起動するとダッシュボードに表示されます。メッセージが失われることはありません。
 - 特定のプロジェクトだけでSession Hubを使うには、そのプロジェクトの`.claude/settings.local.json`に設定を書きます。
 
@@ -225,6 +226,7 @@ session-hub log [<session_id>] [--heartbeat] [--tail N]
 session-hub answer <session_id> --qid 4 --value 120
 session-hub command <session_id> --cmd pause
 session-hub export --out dashboard.html
+session-hub stop [--port N]
 ```
 
 `attention`は、対応が必要なセッションを1行ずつ出力します（親の大規模言語モデル（LLM）向け）。`answer`と`command`は操作を記録してから、子へ送る`[HUB/1]`行を出力します。`export`は、スナップショットを埋め込んだ静的なHyperText Markup Language（HTML）ファイルを書き出します。

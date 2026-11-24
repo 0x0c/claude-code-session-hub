@@ -3,7 +3,7 @@
 Child session:   session-hub start / report / ask / ready / pr / done / fail / learn
                  Pushes to the hub server when HUB_URL is set; otherwise writes to the local store.
 Parent session:  session-hub attention / log / status / answer / command / knowledge / collection
-Human:           session-hub serve (real-time dashboard) / session-hub export (static HTML) /
+Human:           session-hub serve (real-time dashboard) / session-hub stop / session-hub export (static HTML) /
                  session-hub delete (remove a session's messages)
 Hook:            session-hub hook session-start|stop|todo (hook JSON on stdin)
 """
@@ -14,6 +14,8 @@ import argparse
 import json
 import os
 import sys
+import time
+import urllib.parse
 from pathlib import Path
 
 from . import client, collections, core, local_state, project, schema, view
@@ -214,6 +216,30 @@ def cmd_serve(a):
           watch_files=a.watch_files, pull_every=a.pull_every)
 
 
+def cmd_stop(a):
+    """Stop the local hub server, however it was started."""
+    url = f"http://127.0.0.1:{a.port}" if a.port else client.hub_url() or "http://127.0.0.1:8765"
+    if not client.is_loopback(url):
+        sys.exit(f"session-hub: {url} is not on this machine; stop it there")
+    if not client.healthy(url):
+        print(f"session-hub: no hub is running at {url}")
+        return
+    try:
+        stopping = client.stop_server(url, os.environ.get("HUB_TOKEN"))
+    except (ValueError, client.PushError) as e:
+        sys.exit(f"session-hub: {e}")
+    if not stopping:
+        port = urllib.parse.urlsplit(url).port or 80
+        sys.exit("session-hub: the running hub is an older version without a stop request; stop its process:\n"
+                 f"  kill $(lsof -ti tcp:{port} -sTCP:LISTEN)")
+    deadline = time.monotonic() + 5
+    while client.healthy(url):
+        if time.monotonic() > deadline:
+            sys.exit(f"session-hub: the hub at {url} has not stopped after 5 seconds")
+        time.sleep(0.1)
+    print(f"stopped the hub at {url}")
+
+
 def cmd_doctor(a):
     """Check the configuration; exit with status 1 on any problem."""
     import shutil
@@ -405,6 +431,9 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--pull-every", type=float, default=0,
                    help="(fallback) pull a Git store every N seconds; 0 disables it (default)")
     s.set_defaults(func=cmd_serve)
+    s = sub.add_parser("stop", help="stop the local hub server")
+    s.add_argument("--port", type=int, help="port on 127.0.0.1 (default: $HUB_URL, or 8765)")
+    s.set_defaults(func=cmd_stop)
     s = sub.add_parser("doctor", help="check the setup (URL, store, server, and command)")
     s.set_defaults(func=cmd_doctor)
     s = sub.add_parser("hook", help="called by Claude Code hooks (the hook JSON on stdin)")
