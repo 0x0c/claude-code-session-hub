@@ -186,6 +186,12 @@
     ["Panel", [
       ["Heading with a scope and a button", () => el("section", { class: "panel" }, el("h2", {}, t("tl.title"), " ",
         el("span", { class: "chip" }, t("tl.all")), el("button", { class: "iconbtn danger" }, t("sessions.delete"))))],
+      ["Fullscreen button, off and on", () => el("div", { class: "pb-row" }, ["false", "true"].map((on) => {
+        const copy = pbPage.querySelector("#fullscreenPanel").cloneNode(true);
+        copy.hidden = false;
+        copy.setAttribute("aria-pressed", on);
+        return copy;
+      }))],
     ]],
     ["Controls", [
       ["Buttons", () => el("div", { class: "pb-row" }, el("button", { class: "iconbtn" }, t("btn.theme")),
@@ -232,7 +238,7 @@
   document.body.prepend(pbPage, pbRoot);
 
   // Page layout, not components: the window-high split, its connector, and the grid's fixed detail panel
-  const PB_LAYOUT = new Set(["open", "slide", "gridlayout", "scroll", "linked", "off"]);
+  const PB_LAYOUT = new Set(["open", "slide", "gridlayout", "scroll", "linked", "off", "fullscreen"]);
   // The dashboard's classes that no story shows
   function pbMissing() {
     const own = [...document.styleSheets][0], names = new Set();

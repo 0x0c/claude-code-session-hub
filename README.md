@@ -75,7 +75,8 @@ dashboard shows one card that lists both reporters.
 ![The knowledge tab: findings grouped into caveats, open issues, decisions, how-tos, and insights](docs/images/knowledge-en.png)
 
 With many sessions, switch the session list to **Grid**. The cards fill the window, and a click on a
-card opens that session's timeline in a panel on the right. The browser remembers the choice.
+card opens that session's timeline in a panel on the right. The button beside the panel's close button expands the panel to the whole window,
+and Escape brings the previous width back. The browser remembers the choice of layout.
 
 ![The grid layout: session cards side by side, and the detail panel with the selected session's timeline](docs/images/grid-en.png)
 
