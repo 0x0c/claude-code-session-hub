@@ -72,7 +72,6 @@ run `make setup`; a change made through the shell meets the gate and the CI job 
 network access, the first setup fails and edits stay blocked.
 
 ### Rules
-### Rules
 
 `.gitleaks.toml` extends the built-in rules of gitleaks with two rules:
 
