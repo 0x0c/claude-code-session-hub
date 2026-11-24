@@ -73,7 +73,7 @@
 
 ## 参考資料
 
-- [`session_hub/hooks.py`](../session_hub/hooks.py) — SessionStartフックとStopフック。
-- [`session_hub/schema.py`](../session_hub/schema.py) — `repo`フィールド。
-- [`session_hub/templates/dashboard.html`](../session_hub/templates/dashboard.html) — セッション一覧。
-- [`docs/DESIGN.md`](../docs/DESIGN.ja.md) §1.1 — 状態のフィールド。
+- [`session_hub/hooks.py`](../../session_hub/hooks.py) — SessionStartフックとStopフック。
+- [`session_hub/schema.py`](../../session_hub/schema.py) — `repo`フィールド。
+- [`session_hub/templates/dashboard.html`](../../session_hub/templates/dashboard.html) — セッション一覧。
+- [`docs/DESIGN.md`](../../docs/DESIGN.ja.md) §1.1 — 状態のフィールド。

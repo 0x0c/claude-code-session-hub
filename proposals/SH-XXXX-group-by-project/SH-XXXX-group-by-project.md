@@ -97,7 +97,7 @@ Swimlanes, collections, and the command-line interface (CLI) output stay the sam
 
 ## References
 
-- [`session_hub/hooks.py`](../session_hub/hooks.py) — the SessionStart and Stop hooks.
-- [`session_hub/schema.py`](../session_hub/schema.py) — the `repo` field.
-- [`session_hub/templates/dashboard.html`](../session_hub/templates/dashboard.html) — the session list.
-- [`docs/DESIGN.md`](../docs/DESIGN.md) §1.1 — the status fields.
+- [`session_hub/hooks.py`](../../session_hub/hooks.py) — the SessionStart and Stop hooks.
+- [`session_hub/schema.py`](../../session_hub/schema.py) — the `repo` field.
+- [`session_hub/templates/dashboard.html`](../../session_hub/templates/dashboard.html) — the session list.
+- [`docs/DESIGN.md`](../../docs/DESIGN.md) §1.1 — the status fields.
