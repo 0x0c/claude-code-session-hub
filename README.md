@@ -255,9 +255,11 @@ To remove a finished session and every stored message of it, from the hub and th
 session-hub delete <session_id>
 ```
 
-The deletion cannot be undone. The dashboard offers the same operation as **Delete session** in the
-timeline header once you select a session. A session that reports again after the deletion
-reappears with its new messages alone.
+The deletion cannot be undone. The dashboard offers the same operation in two places: the **×** button
+on each session in the list, and **Delete session** in the timeline header once you select a session.
+Both ask for a confirmation. On a device with a pointer, the **×** button appears when you point at
+the session or focus it with the keyboard. A session that reports again after the deletion reappears
+with its new messages alone.
 
 To record and look up findings and caveats:
 
