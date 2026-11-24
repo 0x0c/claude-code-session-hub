@@ -6,7 +6,8 @@
 # summary from each of a pull request's runs would leave stale, contradictory overviews on it.
 #
 # WHEN IT RUNS: automatically when a person (not a bot) marks a draft pull request ready for review,
-# or opens or reopens one that is not a draft. A draft is skipped: its author is still working. A
+# or opens or reopens one that is not a draft. The check fails on a draft, because its author is still
+# working, so that a draft never carries a passing check. A
 # trusted person (OWNER, MEMBER, or COLLABORATOR) can also ask by writing `@claude review`, on a draft
 # too. A push does not start a review (`synchronize` is not a trigger): a per-push review can post a
 # finding on the fix for its own previous finding, so the fix-push-review cycle need never converge.
@@ -15,21 +16,20 @@
 # Every run reads the full diff, so no changed line goes unreviewed, and also receives every finding
 # already posted on the pull request, with an instruction never to re-post one. The review dedupes by
 # suppressing repeats, not by narrowing what it reads. A request from anyone else is dropped silently:
-# the gate is a job-level `if:`, so the run still completes green with the `claude review` job
-# skipped. A requester confirms that the job actually started rather than reading silence as a clean
+# the gate is a job-level `if:`, so the run still completes green with the job skipped. A requester confirms that the job actually started rather than reading silence as a clean
 # review.
 #
-# When a bot opens or reopens a pull request, or marks it ready (such as a Renovate dependency update), the automatic
-# review is skipped: claude-code-action refuses a run whose actor (the event's sender, not the pull
-# request's author) is a bot, and would fail the job. To review it, a person returns
+# When a bot opens or reopens a pull request, or marks it ready (such as a Renovate dependency update), the `claude review`
+# check fails without a review: claude-code-action refuses a run whose actor (the event's sender, not the pull
+# request's author) is a bot. To review it, a person returns
 # the pull request to draft and marks it ready again, or closes and reopens it, so that a person starts the run.
 #
 # REQUIRED TO RUN, ADVISORY IN CONTENT: `main`'s ruleset requires the `claude review` check. A review
-# that found issues is a successful review; the job fails only on an infrastructure error, never on a
-# finding. GitHub records the check on the pull request's head commit for a `pull_request` run, but on
-# the default branch for an `issue_comment` run, so a top-level `@claude review`
-# comment never satisfies the requirement.
-# GitHub counts a skipped job as passing.
+# that found issues is a successful review; the job fails on a draft, on
+# a bot's event, or on an infrastructure error, never on a finding. GitHub counts a skipped job as
+# passing, so a `pull_request` run never skips the job, and a comment-triggered run reports under
+# another name (`claude review (requested)`). A comment therefore neither satisfies nor overwrites the
+# required check.
 #
 # AUTH: the `claude-review` Environment holds the credential, picked at run time (the gate step):
 # - a Claude Code subscription, through the `CLAUDE_CODE_OAUTH_TOKEN` secret (from `claude
@@ -68,9 +68,10 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  # main's ruleset requires this job's name as a status check, so renaming the job blocks every merge.
+  # main's ruleset requires the check `claude review`, so renaming it blocks every merge. A comment run
+  # needs another name: its skipped job would otherwise pass as the required check.
   review:
-    name: claude review
+    name: ${{ github.event_name == 'pull_request' && 'claude review' || 'claude review (requested)' }}
     runs-on: ubuntu-latest
     # A review takes several minutes; a run far beyond this is a hang (a provider outage or a runaway
     # tool loop), so cap it instead of GitHub's 360-minute default.
@@ -80,9 +81,10 @@ jobs:
     # request, so the association check is what stops an untrusted commenter from starting a
     # credentialed run.
     # A `pull_request` run needs a human actor: claude-code-action checks `github.actor`, which is the
-    # sender of the event, not the pull request's author. A draft is not reviewed.
+    # sender of the event, not the pull request's author. The first step fails a draft or a bot's event;
+    # a condition here would skip the job, and GitHub counts a skipped job as passing.
     if: >-
-      (github.event_name == 'pull_request' && !github.event.pull_request.draft && github.event.sender.type != 'Bot') ||
+      github.event_name == 'pull_request' ||
       (
         (
           (github.event_name == 'issue_comment' && github.event.issue.pull_request) ||
@@ -94,6 +96,12 @@ jobs:
     # Scope the review credential to this Environment, so no other job can read it.
     environment: claude-review
     steps:
+      - name: Fail a draft or a bot's event
+        if: github.event_name == 'pull_request' && (github.event.pull_request.draft || github.event.sender.type == 'Bot')
+        run: |
+          echo "::error::Not reviewed: the pull request is a draft, or a bot started this run. A person marks the pull request ready for review to start one."
+          exit 1
+
       - name: Pick the AI provider (or no-op)
         id: gate
         env:

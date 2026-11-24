@@ -32,8 +32,12 @@ head commit, and the review covers the finished work.
 
 - **Trigger.** The workflow adds `ready_for_review` to `opened` and `reopened`. A push still starts
   no review.
-- **Drafts.** The job's condition skips a `pull_request` event on a draft. A person can still comment
-  `@claude review` on a draft to ask for an early pass.
+- **Drafts and bots.** GitHub counts a skipped job as passing. The job therefore runs on every
+  `pull_request` event that starts the workflow, and its first step fails on a draft or on a bot's
+  event. A person who marks the PR ready starts a run that replaces the failure.
+- **Comments.** A person can comment `@claude review`, on a draft too. A run that a comment starts
+  reports as `claude review (requested)`, even when it is skipped, so it neither satisfies nor
+  overwrites the required check.
 - **Sessions.** The Git section of `AGENTS.md` gives every session the same flow:
   1. Open the PR with `gh pr create --draft`, when the user asks for a PR.
   2. Push every commit to the draft, and pass `scripts/check.sh` on the final commit.
@@ -47,14 +51,13 @@ head commit, and the review covers the finished work.
   complete fix, repeats the self-review, and runs `gh pr ready` again. This cycle starts one review of the new head commit.
 - **Proposal skills.** `ideation`, `implement-proposal`, and `propose-and-build` point to the draft flow. A draft also gives
   a proposal its PR number before the review starts.
-- **Limits.** GitHub counts a skipped job as passing. The skipped check of a draft therefore stays green on
-  the head commit after `gh pr ready`, until the new review registers its check. A merge in that
-  window, such as an automatic merge, skips the review. We accept the window and merge by hand after
-  the review. A skipped run that a bot's PR or an ordinary review comment starts may
-  still satisfy the requirement, as it could before the change.
+- **Limits.** A PR from a fork receives no secrets, and an environment without a credential starts no
+  review. In both cases the check passes without one, as it did before the change.
 
 ## Alternatives considered
 
+- **Skip drafts and bots.** A skipped check passes, so a PR could merge before its review registers,
+  or without one when a bot marks it ready. A red check on a draft is the cost of closing both gaps.
 - **Review every push.** A `synchronize` trigger would keep the check on the head commit, but each
   intermediate push would spend tokens, and a review could comment on the fix for its own finding.
 - **Drop the required check.** A PR could then merge before its review ran.

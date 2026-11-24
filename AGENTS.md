@@ -124,12 +124,13 @@ look at the page with demo data, as described under [Field notes](#check-the-das
 - Claude Code reviews a pull request when it leaves draft, and when one that is not a draft opens or
   reopens (`.github/workflows/claude-review.yml`, against the contract in
   `.github/claude-review-prompt.md`). The review posts inline comments. `main` requires the review to
-  run, but a finding never fails it. A push alone does not start a review. A comment of
-  `@claude review` asks for one, on a draft too, but GitHub records the run of a top-level comment on `main`, so such a
-  comment does not satisfy the required check. Only a comment from an owner, member, or
+  run, but a finding never fails it. A push alone does not start a review. The required
+  check fails on a draft, so a draft shows a red `claude review` until it is ready. A comment of
+  `@claude review` asks for a review, on a draft too, but its run reports as
+  `claude review (requested)` and does not satisfy the required check. Only a comment from an owner, member, or
   collaborator of the repository starts a pass. Anyone else's request completes green with the
-  `claude review` job skipped, so check that the job ran. When a bot opens or reopens a pull
-  request or marks it ready, as Renovate does, the automatic review is skipped, because the action
+  job skipped, so check that the job ran. When a bot opens or reopens a pull
+  request or marks it ready, as Renovate does, the required check fails, because the action
   refuses a bot as the triggering actor. To review it and satisfy the required check, a person runs
   `gh pr ready --undo` and `gh pr ready` on it, or closes and reopens it.
 
