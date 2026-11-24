@@ -231,3 +231,22 @@ pyrightconfig.json
 .hub/
 # Exported dashboard at the repository root (anchored so it does not hide session_hub/templates/dashboard.html)
 /dashboard.html
+
+# The template ignores these directory names at any depth. Below the repository root they may hold
+# source, so re-include them there; at the root they stay ignored.
+!/*/**/build/
+!/*/**/cover/
+!/*/**/develop-eggs/
+!/*/**/dist/
+!/*/**/downloads/
+!/*/**/eggs/
+!/*/**/env/
+!/*/**/ENV/
+!/*/**/instance/
+!/*/**/lib/
+!/*/**/lib64/
+!/*/**/parts/
+!/*/**/sdist/
+!/*/**/target/
+!/*/**/var/
+!/*/**/wheels/
