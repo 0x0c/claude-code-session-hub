@@ -49,7 +49,7 @@
 | | `attention.question`, `attention.options[]`, `attention.default`, `attention.since` | 子 | 選択肢の提示を推奨します。回答が1語で済み、往復ごとのトークンが減ります |
 | | `attention.blocking` | 子 | `true`: 子は完全に止まっています。`false`: 子は既定値で作業を続けながら確認を待っています |
 | 阻害要因 | `blocked_on` | 子 | 別のセッションIDか外部要因（`session:xxx`, `ci`, `upstream`） |
-| PR | `pr.number`, `pr.url` | hook | |
+| PR | `pr.number`, `pr.url` | hook | トランスクリプトから読み取った、Claude Codeがセッションに結び付けた最後のPR（`pr_link`）、または`session-hub pr`で報告したPR。新しいほうを使い、別のPRに変わると古いPRの情報を消します。ダッシュボードは番号を`pr.url`へのリンクにします |
 | | `pr.ci` | スクリプト | `pending` / `pass` / `fail` / `none` |
 | | `pr.mergeable`, `pr.unresolved_threads`, `pr.review` | スクリプト | GitHubから取得 |
 | | `ready.self_review`, `ready.tests_added`, `ready.description` | 子 | 子が自己申告するチェックリスト |
@@ -427,6 +427,7 @@ claude-code-session-hub/
     local_state.py        子のローカル状態（最後に報告した状態、タスクIDの対応、トランスクリプトのパス）
     usage.py              トランスクリプトからのトークン集計
     session_name.py       トランスクリプトからのセッション名の読み取り
+    pr_link.py            トランスクリプトからのPRの読み取り
     cli.py                session-hubコマンド
     templates/dashboard.html
   bin/session-hub         インストール不要のラッパー
