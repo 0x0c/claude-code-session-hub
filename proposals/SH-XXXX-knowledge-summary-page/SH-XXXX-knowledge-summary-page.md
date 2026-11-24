@@ -7,9 +7,9 @@
 |---|---|
 | Proposal | SH-XXXX |
 | Author | [@0x0c](https://github.com/0x0c) |
-| Status | **In progress** |
+| Status | **Implemented** |
 | Topic | Dashboard |
-| Implementing PR | — |
+| Implementing PR | [#50](https://github.com/0x0c/claude-code-session-hub/pull/50) |
 | Related | — |
 <!-- /SH-METADATA -->
 
@@ -46,9 +46,9 @@ Once the change ships, one page shows the counts, the findings that several sess
 
 ## Progress
 
-- [ ] Design approved
-- [ ] Implementation with tests
-- [ ] Documentation updated (README.md, docs/DESIGN.md, skills)
+- [x] Design approved
+- [x] Implementation with tests
+- [x] Documentation updated (README.md, docs/DESIGN.md, skills)
 
 ## References
 
