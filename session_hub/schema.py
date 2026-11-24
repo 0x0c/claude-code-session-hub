@@ -158,7 +158,7 @@ def normalize_event(ev: dict) -> dict:
             raise SchemaError("tasks must be an array")
         tasks = []
         for t in ev["tasks"]:
-            if not isinstance(t, dict) or not t.get("t"):
+            if not isinstance(t, dict) or not clip(t.get("t"), "task"):  # The stored name must pass too
                 raise SchemaError("each task needs a name (t)")
             _check_enum(t.get("s", "todo"), TASK_STATES, "task.s")
             _check_enum(t.get("size", "M"), TASK_SIZES, "task.size")
@@ -181,7 +181,7 @@ def normalize_event(ev: dict) -> dict:
 
     fnd = ev.get("finding")
     if ev["type"] == "finding":
-        if not isinstance(fnd, dict) or not fnd.get("title"):
+        if not isinstance(fnd, dict) or not clip(fnd.get("title"), "title"):
             raise SchemaError("a finding event needs finding.title")
         _check_enum(fnd.get("kind", "insight"), FINDING_KINDS, "finding.kind")
         _check_enum(fnd.get("status", "active"), FINDING_STATUS, "finding.status")

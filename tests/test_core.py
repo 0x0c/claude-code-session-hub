@@ -49,7 +49,8 @@ class SchemaTest(unittest.TestCase):
                        {"type": "finding", "finding": {"title": "t", "tags": "x"}},
                        {"tasks": [{"t": "a", "s": "x"}]}, {"tasks": [{"t": "a", "size": "x"}]},
                        {"attention": {"kind": "x"}}, {"ts": "bad"}, {"ts": 1}, {"ts": "2026-01-01T00:00:00"},
-                       {"tasks": None}, {"tasks": "x"}, {"tasks": ["x"]}, {"tasks": [{}]}, {"tasks": [{"t": ""}]}):
+                       {"tasks": None}, {"tasks": "x"}, {"tasks": ["x"]}, {"tasks": [{}]}, {"tasks": [{"t": ""}]},
+                       {"tasks": [{"t": "   "}]}, {"type": "finding", "finding": {"title": "  "}}):
             with self.subTest(fields), self.assertRaises(schema.SchemaError):
                 self.event(**fields)
 
