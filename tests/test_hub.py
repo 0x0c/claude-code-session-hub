@@ -234,7 +234,9 @@ class ProjectTest(TmpMixin, unittest.TestCase):
         core.record(self.store, "s1", {"type": "start", "repo": "payments"})
         with mock.patch.object(project, "detect", return_value="acme/app"):
             hooks.stop({})
-        self.assertEqual(schema.fold(self.store.read("s1"))["repo"], "payments")
+        events = self.store.read("s1")
+        self.assertEqual(schema.fold(events)["repo"], "payments")
+        self.assertNotIn("repo", events[-1])  # An older hub would apply `repo` unconditionally
 
     def test_long_project_is_clipped(self):
         st = core.record(self.store, "s1", {"type": "start", "repo": "x" * 200})["status"]

@@ -130,9 +130,10 @@ def stop(payload: dict) -> str:
     if payload.get("transcript_path"):
         usage = usage_from_transcript(payload["transcript_path"])
     beat = {"type": "heartbeat", "actor": "hook", "usage": usage}
+    project.remember(sid)
     repo = project.for_session(sid)
     if repo:
-        beat["repo"] = repo
+        beat["repo_hint"] = repo  # Not `repo`: an older hub would let it replace an explicit project
     send(beat)
 
     if os.environ.get("HUB_STOP_GUARD", "1") == "0" or payload.get("stop_hook_active"):

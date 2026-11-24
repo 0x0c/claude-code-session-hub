@@ -45,17 +45,19 @@ has a two-second limit, and a failure falls through to the next rule.
 
 ### Reporting the project
 
-The name travels in the existing `repo` field, so the event format stays the same. The server clips
-`repo` to 120 characters.
+`session-hub start` sends the name in the existing `repo` field. A heartbeat sends it in a new,
+optional `repo_hint` field, which fills `repo` when the status has none. A hub from before this change
+ignores `repo_hint`, so it keeps an explicit project; it fills the gap once it restarts. The server
+clips both fields to 120 characters.
 
 - The SessionStart hook keeps the name in the session's local state and sends nothing.
 - `session-hub start` sends `--repo` when it is given, then the kept name, then a detected name. It
   detects nothing for another session's id (`--session`), because the caller's folder says nothing
   about that session.
-- The Stop hook adds `repo` to the heartbeat it already sends. A session that started before the
+- The Stop hook adds `repo_hint` to the heartbeat it already sends. A session that started before the
   upgrade therefore joins its project at the end of its next turn.
 
-A heartbeat fills `repo` when the status has none and never replaces a reported name. An explicit
+A heartbeat never replaces a reported name. An explicit
 `--repo` also replaces the kept name, so a later `start` without the option repeats the explicit
 choice. A `start` on a machine that did not keep the explicit choice sends the detected name, which
 replaces it. The change adds no text to any model's context.
