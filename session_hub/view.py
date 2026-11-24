@@ -8,7 +8,7 @@ from . import collections, schema
 
 STALE_MINUTES = 30
 
-# Sort order from DESIGN.md §4.3
+# Priority from DESIGN.md §4.3. The dashboard's session list sorts by last update instead.
 PRIORITY = {
     "needs_human:blocking": 0, "failed": 1, "review_ready": 2, "stale": 3,
     "needs_human": 4, "changes_requested": 5, "blocked": 6, "working": 7,

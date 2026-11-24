@@ -37,7 +37,7 @@ async function waitForHub(url) {
     try {
       await waitForHub(url);
       const ctx = await browser.newContext({ locale: lang === "ja" ? "ja-JP" : "en-US", colorScheme: "light",
-        viewport: { width: 1280, height: 960 }, deviceScaleFactor: 2 });
+        viewport: { width: 1280, height: 1040 }, deviceScaleFactor: 2 });
       const page = await ctx.newPage();
       page.on("pageerror", (e) => errors.push(`${lang}: ${e.message}`));
       await page.goto(`${url}/?lang=${lang}`);
