@@ -46,7 +46,7 @@ FINDING_STATUS = ("active", "obsolete")
 LIMITS = {
     "summary": 80, "next": 80, "note": 200, "question": 200, "last_error": 120,
     "title": 80, "session_name": 200, "task": 40, "option": 40, "value": 200,
-    "body": 600, "tag": 30, "scope": 120, "key": 80, "pr_url": 500,
+    "body": 600, "tag": 30, "scope": 120, "key": 80, "repo": 120, "repo_hint": 120, "pr_url": 500,
 }
 
 
@@ -134,7 +134,7 @@ def normalize_event(ev: dict) -> dict:
     if not isinstance(ev["seq"], int) or ev["seq"] < 1:
         raise SchemaError("seq must be an integer of 1 or more")
 
-    for key in ("summary", "next", "note", "last_error", "title", "session_name"):
+    for key in ("summary", "next", "note", "last_error", "title", "session_name", "repo", "repo_hint"):
         if key in ev:
             ev[key] = clip(ev[key], key)
 
@@ -213,6 +213,8 @@ def apply_event(status: dict, ev: dict) -> dict:
                 "summary", "next", "confidence", "last_error"):
         if ev.get(key) is not None:
             st[key] = ev[key]
+    if not st["repo"] and ev.get("repo_hint"):  # A detected project fills a gap alone
+        st["repo"] = ev["repo_hint"]
     if st["session_name"]:  # The name Claude Code shows wins over the reported title
         st["title"] = st["session_name"]
     if "tasks" in ev:

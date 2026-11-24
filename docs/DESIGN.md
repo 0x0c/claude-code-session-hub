@@ -52,7 +52,7 @@ Each session has one status record, a JSON object. The field `v` holds the schem
 |---|---|---|---|
 | Identity | `v`, `session_id`, `parent_id`, `title`, `task_ref` | At launch (parent) | `task_ref` is an issue number or a task identifier (ID) |
 | | `session_name` | Hook or command (automatic) | The session's name in Claude Code, read from the transcript. Clipped at 200 characters. When present, it replaces `title`, so the dashboard shows the name |
-| Location | `repo`, `branch`, `base` | At launch / hook | |
+| Location | `repo`, `branch`, `base` | At launch / hook | `repo` names the project: `--repo`, or the path of the Git remote, or the folder name |
 | State | `state` | Child (CLI) | One of the values listed in §1.2 |
 | | `phase` | Child | A narrow enumeration such as `plan` / `implement` / `test` / `fix` / `docs` / `self_review` |
 | | `summary` | Child | What the child is doing now. **≤ 80 characters** |
@@ -194,9 +194,10 @@ immediately**.
 - **Timestamp assignment**: the server assigns a millisecond timestamp that increases monotonically
   across the whole store. The arrival order and the display order therefore always agree.
 - **Deleting a session**: the one exception to append-only writing. `session-hub delete` and the
-  dashboard's **Delete session** button call `DELETE /api/sessions/<session_id>`, which unlinks every
-  file of that session under the files' write locks and pushes the removal to every browser. The
-  operation works on whole sessions alone, so the folded state of every other session stays intact
+  dashboard's delete buttons (in the session list and the timeline header) call
+  `DELETE /api/sessions/<session_id>`, which unlinks every file of that session under the files' write
+  locks and pushes the removal to every browser. The operation works on whole sessions alone, so the
+  folded state of every other session stays intact
   ([SH-0002](../proposals/SH-0002-delete-session/SH-0002-delete-session.md)).
 
 ### 3.2 Child → hub (`session-hub report` and related commands)
@@ -395,9 +396,12 @@ the first condition that failed.
 | `usage.cost_usd` exceeds the budget, or is too high for the progress | Efficiency is shown as `cost_usd / tasks.done` |
 | The remaining `tasks` do not shrink for a long time | Possibly looping or lost |
 
-### 4.3 Priority (the dashboard's sort order)
+### 4.3 Priority (the order of `session-hub attention`)
 
 `needs_human(blocking)` > `failed` > `review_ready` > `stale?` > `needs_human(non-blocking)` > `changes_requested` > `blocked` > `working` > `waiting_ci` > `done`
+
+The priority also decides which sessions count as "needs action", and it orders the swimlanes and
+the session filter. The dashboard's session list orders by last update instead (§5.2).
 
 ---
 
@@ -424,8 +428,13 @@ label, it gives the English label and the Japanese label in parentheses.
   - The tab title also shows the "needs action" count, as in `(3) Session Hub`.
   - Optional browser notifications announce transitions to waiting for a human, ready for review,
     failed, done, and stale.
-- **Session list** (left): split into "needs action" (要対応), "working or waiting"
-  (作業中・待機), and "done" (完了), each sorted by the priority in §4.3.
+- **Session list** (left): a framed "needs action" (要対応) section at the top when a session needs
+  action, then one collapsible section per project (`repo`) for the other sessions.
+  - Every section sorts by last update, the newest first. The last update is the time on the card,
+    and a heartbeat counts. The project with the newest update comes first, and sessions without a
+    project come last.
+  - The **By project** button switches the sessions below "needs action" to grouping by status:
+    "working or waiting" (作業中・待機) and "done" (完了).
   - Each card shows a state badge, a task progress bar (hidden in the `done` state), the remaining work, the PR and CI, the
     tokens and cost, the last update, and any unanswered question (with its options, its default,
     and the command to answer it).
@@ -434,6 +443,10 @@ label, it gives the English label and the Japanese label in parentheses.
     neither does a session suspected stale.
   - A "ready for review" claim that rests on the self-report alone, without passing the gate (§4.1),
     shows as "Not yet reviewable" (レビュー条件未達) together with the unmet reason.
+- **Independent scrolling**: in the list layout, in a window wider than 860px and at least 480px tall, the session list
+  and the detail panel on the right scroll separately. A smaller window scrolls as one page.
+- **Connector line**: in the same layout, a line joins the selected session's card to the detail
+  panel. The line turns dashed while the card is scrolled out of the list.
 - **Timeline** (right): traces the reports from children in time order, in two forms.
   - **Feed**: events grouped by date. Each row shows the time, the session, the type, the text, and
     what the event changed (state A→B, phase, task count, a resolved question).
@@ -628,7 +641,7 @@ claude-code-session-hub/
 | Review conditions not met | The child claimed "ready for review", but the gate did not pass. The dashboard shows the unmet reason |
 | Self-report / self-check | What a child declares with `session-hub ready`: the self-review, added tests, and the PR description are done |
 | Stale | A session that should be working but has not reported for a set time (default 30 minutes). It may have crashed |
-| Priority | The dashboard's sort order (§4.3). A human wait that blocks the child ranks highest |
+| Priority | The order of `session-hub attention` (§4.3). A human wait that blocks the child ranks highest |
 | Spinner | The rotating icon that marks a child as active (planning, working, or addressing changes) |
 | Feed | One form of the timeline: events listed in time order |
 | Swimlanes | One form of the timeline: one horizontal band per session, with state changes shown in color |

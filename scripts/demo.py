@@ -100,7 +100,7 @@ def seed(store: EventStore, lang: str = "ja") -> None:
         return [{"t": x[k], "s": s, "size": size} for k, s, size in spec]
 
     # A: asked a question and waits for a human
-    add(A, 170, type="start", title=x["a.title"], task_ref="#128", parent_id=P, branch="claude/rate-limit",
+    add(A, 170, type="start", repo="acme/web-api", title=x["a.title"], task_ref="#128", parent_id=P, branch="claude/rate-limit",
         state="planning", summary=x["a.s1"],
         tasks=tasks(("t.design", "doing", "S"), ("t.mw", "todo", "M"), ("t.tests", "todo", "M"), ("t.docs", "todo", "S")))
     add(A, 150, type="report", state="working", phase="implement", summary=x["a.s2"], next=x["a.next"],
@@ -110,7 +110,7 @@ def seed(store: EventStore, lang: str = "ja") -> None:
         "options": ["60", "120", "300"], "default": "120", "blocking": True})
 
     # B: review-ready (gate passed)
-    add(B, 160, type="start", title=x["b.title"], task_ref="#131", parent_id=P, state="working", phase="implement",
+    add(B, 160, type="start", repo="acme/web-api", title=x["b.title"], task_ref="#131", parent_id=P, state="working", phase="implement",
         summary=x["b.s1"], tasks=tasks(("t.logger", "doing", "M"), ("t.tests", "todo", "S")))
     add(B, 90, type="report", phase="test", summary=x["b.s2"],
         tasks=tasks(("t.logger", "done", "M"), ("t.tests", "doing", "S")))
@@ -121,7 +121,7 @@ def seed(store: EventStore, lang: str = "ja") -> None:
 
     # C: working
     plan = [("t.schema", "S"), ("t.batch", "L"), ("t.incr", "M"), ("t.api", "M"), ("t.tests", "M")]
-    add(C, 130, type="start", title=x["c.title"], task_ref="#140", parent_id=P, state="planning",
+    add(C, 130, type="start", repo="acme/search", title=x["c.title"], task_ref="#140", parent_id=P, state="planning",
         tasks=tasks(*[(k, "todo", s) for k, s in plan]))
     for i, (m, summ) in enumerate([(110, "c.s1"), (70, "c.s2"), (25, "c.s3")]):
         progress = [(k, "done" if j < i else "doing" if j == i else "todo", s) for j, (k, s) in enumerate(plan)]
@@ -129,11 +129,11 @@ def seed(store: EventStore, lang: str = "ja") -> None:
     add(C, 2, type="heartbeat", actor="hook", usage={"input": 410000, "output": 38000, "cost_usd": 3.1, "context_pct": 62})
 
     # D: failed
-    add(D, 100, type="start", title=x["d.title"], parent_id=P, state="working", summary=x["d.s1"])
+    add(D, 100, type="start", repo="acme/web-api", title=x["d.title"], parent_id=P, state="working", summary=x["d.s1"])
     add(D, 55, type="fail", last_error=x["d.err"])
 
     # E: stalled (stale heartbeat)
-    add(E, 140, type="start", title=x["e.title"], parent_id=P, state="working", summary=x["e.s1"],
+    add(E, 140, type="start", repo="image-tools", title=x["e.title"], parent_id=P, state="working", summary=x["e.s1"],
         tasks=tasks(("t.swap", "doing", "M"), ("t.tests", "todo", "M")))
     add(E, 47, type="report", summary=x["e.s2"])
 

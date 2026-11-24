@@ -10,9 +10,13 @@ them on a browser dashboard.
 
 - **Push, not polling.** Each sub-session runs the `session-hub` command whenever its state changes.
   The hub streams that update to the browser dashboard at once over Server-Sent Events (SSE).
-- **Attention first.** The dashboard lists the sessions that need attention at the top: waiting for a
-  human, failed, ready for review, or stalled. A spinner marks a session that is working. A
+- **Attention first.** The dashboard puts the sessions that need attention in a section of their own at the
+  top: waiting for a human, failed, ready for review, or stalled. A spinner marks a session that is working. A
   **timeline** (a feed or swimlanes) replays every report in order.
+- **Grouped by project.** The session list gathers the other sessions by repository or project, the most
+  recently updated first. The
+  name comes from the Git remote or the folder; `session-hub start --repo <name>` overrides it. The
+  **By project** button switches to grouping by status.
 - **A few lines for the parent.** The parent session reads no transcripts. It decides from the few
   lines that `session-hub attention` prints.
 - **One place for what sub-sessions learn.** A sub-session records findings, caveats, and decisions
@@ -253,9 +257,11 @@ To remove a finished session and every stored message of it, from the hub and th
 session-hub delete <session_id>
 ```
 
-The deletion cannot be undone. The dashboard offers the same operation as **Delete session** in the
-timeline header once you select a session. A session that reports again after the deletion
-reappears with its new messages alone.
+The deletion cannot be undone. The dashboard offers the same operation in two places: the **×** button
+on each session in the list, and **Delete session** in the timeline header once you select a session.
+Both ask for a confirmation. On a device with a pointer, the **×** button appears when you point at
+the session or focus it with the keyboard. A session that reports again after the deletion reappears
+with its new messages alone.
 
 To record and look up findings and caveats:
 
