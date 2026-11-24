@@ -12,7 +12,7 @@ from contextlib import redirect_stdout
 from pathlib import Path
 from unittest import mock
 
-from session_hub import client, collections, core, hooks, local_state, schema, view
+from session_hub import client, collections, core, desktop, hooks, local_state, schema, view
 from session_hub.server import make_server
 from session_hub.store import EventStore
 
@@ -78,6 +78,53 @@ class SchemaTest(TmpMixin, unittest.TestCase):
         self.assertEqual(view.attention_lines(snap), ["FL b boom"])
         start = next(e for e in snap["events"] if e["session_id"] == "a")
         self.assertEqual(start["diff"]["state"], {"from": "queued", "to": "planning"})
+
+
+class ArchiveTest(TmpMixin, unittest.TestCase):
+    def status(self):
+        return view.session_view(self.store.read("s"))[0]
+
+    def test_archive_keeps_the_state_and_silences_attention(self):
+        self.store.append("s", {"type": "ask", "attention": {"kind": "decision", "question": "?"}})
+        before = self.status()
+        self.assertTrue(before["needs_action"])
+        self.store.append("s", {"type": "archive", "actor": "script"}, writer="desktop")
+        st, tl = view.session_view(self.store.read("s"))
+        self.assertEqual(st["state"], "needs_human")
+        self.assertEqual(st["heartbeat"], before["heartbeat"])
+        self.assertFalse(st["needs_action"])
+        self.assertIn("archived", tl[-1]["diff"])
+        self.assertEqual(view.attention_lines({"sessions": [st]}), [])
+        self.store.append("s", {"type": "unarchive", "actor": "script"}, writer="desktop")
+        after = self.status()
+        self.assertTrue(after["needs_action"])
+        self.assertEqual(after["attention"], before["attention"])
+
+    def test_archived_session_is_never_stale(self):
+        self.store.append("s", {"type": "start", "state": "working"})
+        self.store.append("s", {"type": "archive"}, writer="parent")
+        st, _ = view.session_view(self.store.read("s"), stale_minutes=0)
+        self.assertFalse(st["stale"])
+
+    def test_archive_events_alone_make_no_session(self):
+        self.store.append("s", {"type": "archive", "actor": "parent"}, writer="parent")
+        self.assertEqual(self.status()["archived"]["by"], "parent")
+        self.assertEqual(view.snapshot(self.store.read_all())["sessions"], [])
+
+    def test_report_reopens_a_manual_archive_alone(self):
+        for writer, reopened in (("parent", True), ("desktop", False)):
+            self.store.delete_session("s")
+            self.store.append("s", {"type": "start"})
+            self.store.append("s", {"type": "archive", "actor": "parent"}, writer=writer)
+            self.store.append("s", {"type": "heartbeat", "actor": "hook"})
+            self.store.append("s", {"type": "report", "actor": "hook", "summary": "todo"})
+            self.assertTrue(self.status()["archived"])
+            self.store.append("s", {"type": "report", "state": "working"})
+            self.assertEqual(self.status()["archived"] is None, reopened)
+            self.store.append("s", {"type": "unarchive"}, writer=writer)
+            self.store.append("s", {"type": "archive"}, writer=writer)
+            self.store.append("s", {"type": "pr", "actor": "script", "pr": {"number": 1}})
+            self.assertEqual(self.status()["archived"] is None, reopened)
 
 
 class CollectionsTest(TmpMixin, unittest.TestCase):
@@ -298,6 +345,100 @@ class ServerTest(TmpMixin, unittest.TestCase):
                 cli.main(["delete", "c2"])  # The hub is down: delete from the shared store
             self.assertEqual(out.getvalue().strip(), "deleted c2 (1 events)")
         self.assertEqual(self.store.session_ids(), [])
+
+    def desktop_file(self, sid, archived, name="a"):
+        d = self.dir / "desktop" / "acct" / "org"
+        d.mkdir(parents=True, exist_ok=True)
+        path = d / f"local_{name}.json"
+        path.write_text(json.dumps({"cliSessionId": sid, "isArchived": archived}))
+        return path
+
+    def test_desktop_archive_is_mirrored(self):
+        self.hub.desktop = desktop.DesktopSessions(self.dir / "desktop")
+        self.assertEqual(self.hub.sync_desktop(), 0)  # The directory does not exist
+        client.post(self.url, {"session_id": "c1", "fields": {"type": "start"}}, token="tok")
+        self.desktop_file("c1", False)
+        self.desktop_file("unknown", True, "b")
+        self.assertEqual(self.hub.sync_desktop(), 0)
+        path = self.desktop_file("c1", True)
+        q, _ = self.hub.subscribe()
+        self.assertEqual(self.hub.sync_desktop(), 1)
+        self.assertIn('"id":"c1@desktop#1"', q.get(timeout=1))
+        self.assertEqual(self.hub.snap["sessions"][0]["archived"]["by"], "desktop")
+        self.assertEqual(self.hub.sync_desktop(), 0)
+        # A late report does not fight the app, and neither does a broken or vanished file
+        client.post(self.url, {"session_id": "c1", "fields": {"type": "done"}}, token="tok")
+        path.write_text("{")
+        self.assertEqual(self.hub.sync_desktop(), 0)
+        path.unlink()
+        self.assertEqual(self.hub.sync_desktop(), 0)
+        self.desktop_file("c1", False)
+        self.assertEqual(self.hub.sync_desktop(), 1)
+        self.assertIsNone(self.hub.snap["sessions"][0]["archived"])
+        self.assertEqual(self.store.session_ids(), ["c1"])
+
+    def test_desktop_leaves_manual_archives_and_deleted_sessions(self):
+        self.hub.desktop = desktop.DesktopSessions(self.dir / "desktop")
+        self.desktop_file("c1", False)
+        client.post(self.url, {"session_id": "c1", "fields": {"type": "start"}}, token="tok")
+        client.post(self.url, {"session_id": "c1", "writer": "parent",
+                               "fields": {"type": "archive", "actor": "parent"}}, token="tok")
+        self.assertEqual(self.hub.sync_desktop(), 0)
+        client.post(self.url, {"session_id": "c1", "fields": {"type": "report", "state": "working"}}, token="tok")
+        self.desktop_file("c1", True)
+        self.store.delete_session("c1")  # Behind the hub's back: the event must not bring it back
+        self.assertEqual(self.hub.sync_desktop(), 0)
+        self.assertEqual(self.store.session_ids(), [])
+
+    def test_desktop_session_shared_by_two_app_sessions(self):
+        self.desktop_file("c1", True, "a")
+        self.desktop_file("c1", False, "b")
+        d = desktop.DesktopSessions(self.dir / "desktop")
+        self.assertEqual(d.scan(), {"c1": False})
+        self.desktop_file("c1", True, "b")
+        self.assertEqual(d.scan(), {"c1": True})
+
+    def test_run_loop_survives_a_failing_desktop_scan(self):
+        self.hub.desktop = desktop.DesktopSessions(self.dir)
+        self.hub.desktop_every = 0.01
+        calls = []
+
+        def scan():
+            calls.append(1)
+            if len(calls) == 3:
+                self.hub._stop.set()
+            raise RuntimeError("boom")
+
+        with mock.patch.object(self.hub.desktop, "scan", scan), redirect_stdout(io.StringIO()):
+            t = threading.Thread(target=self.hub.run)
+            t.start()
+            t.join(5)
+        self.assertEqual(len(calls), 3)
+
+    def test_cli_archive(self):
+        from session_hub import cli
+        client.post(self.url, {"session_id": "c1", "fields": {"type": "start"}}, token="tok")
+        env = {"HUB_URL": self.url, "HUB_TOKEN": "tok", "HUB_STORE": str(self.store.root)}
+        with mock.patch.dict(os.environ, env):
+            with redirect_stdout(io.StringIO()):
+                cli.main(["archive", "c1"])
+            self.assertTrue(self.hub.snap["sessions"][0]["archived"])
+            out = io.StringIO()
+            with redirect_stdout(out):
+                cli.main(["status"])
+            self.assertTrue(out.getvalue().startswith("AR c1"))
+            with self.assertRaises(SystemExit):
+                cli.main(["archive", "nope"])
+        with mock.patch.dict(os.environ, {**env, "HUB_URL": "http://127.0.0.1:9"}):
+            with redirect_stdout(io.StringIO()), mock.patch("sys.stderr", io.StringIO()):
+                cli.main(["unarchive", "c1"])  # The hub is down: write to the shared store
+        self.assertIsNone(schema.fold(self.store.read("c1"))["archived"])
+        self.assertEqual(self.store.session_ids(), ["c1"])
+
+    def test_desktop_root_setting(self):
+        for value, want in (("", None), ("0", None), ("/x", Path("/x"))):
+            with mock.patch.dict(os.environ, {"HUB_DESKTOP_SESSIONS": value}):
+                self.assertEqual(desktop.default_root(), want)
 
     def test_auth_and_validation(self):
         with self.assertRaises(ValueError):  # A 4xx raises ValueError (no retry)

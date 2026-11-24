@@ -135,6 +135,10 @@ Each note states a fact we verified, why it matters, and what to do about it.
   also the id that `claude --resume` accepts.
 - Subagents started with the Agent tool share the parent's session id, so they do not appear as
   separate sub-sessions. A sub-session must be a separate Claude Code process.
+- The Claude desktop app on macOS keeps one file per session under
+  `~/Library/Application Support/Claude/claude-code-sessions/*/*/local_*.json`. Its `cliSessionId`
+  equals the local hub session id, and `isArchived` is the archive flag. The format is undocumented,
+  so read it defensively and never write to it.
 
 ### APM (Agent Package Manager) packaging
 

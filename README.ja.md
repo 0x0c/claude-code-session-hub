@@ -189,6 +189,15 @@ session-hub delete <session_id>
 
 削除は取り消せません。ダッシュボードでは、セッションを選ぶとタイムラインの見出しに現れる **セッションを削除** で同じ操作ができます。削除後に再び報告したセッションは、新しいメッセージだけを持って再び現れます。
 
+macOSのClaudeデスクトップアプリでセッションをアーカイブすると、ハブが数秒で検知し、ダッシュボードの **アーカイブ済み** グループへ移します。アーカイブ済みのセッションは履歴と最後の状態を保ち、対応を求めなくなります。アプリでアーカイブを解除すると元に戻ります。アプリ外のセッションには次のコマンドを使います。
+
+```bash
+session-hub archive <session_id>
+session-hub unarchive <session_id>
+```
+
+コマンドでアーカイブしたセッションは、再び報告したときにも元に戻ります。
+
 知見や注意点を記録し、参照するには次のコマンドを使います。
 
 ```bash
@@ -237,6 +246,7 @@ session-hub export --out dashboard.html
 | `HUB_PARENT_SESSION_ID` | 親のセッションID（子が`[HUB/1]`行を送る宛先） |
 | `HUB_STOP_GUARD` | `0`でStop hookの確認を無効化 |
 | `HUB_AUTOSTART` | `1`で、ローカルのハブサーバーが動いていなければセッション開始時に起動（`HUB_URL`が127.0.0.1またはlocalhostを指すときだけ） |
+| `HUB_DESKTOP_SESSIONS` | Claudeデスクトップアプリのセッションファイルのディレクトリー。ハブサーバーがアーカイブの検知のために読む（macOSでの既定は`~/Library/Application Support/Claude/claude-code-sessions`）。`0`で検知を無効化 |
 | `HUB_OUTBOX` / `HUB_STATE_DIR` | outboxとローカル状態の置き場所（既定は`~/.cache/...`） |
 
 ## テスト

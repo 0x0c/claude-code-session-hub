@@ -4,7 +4,7 @@ Child session:   session-hub start / report / ask / ready / pr / done / fail / l
                  Pushes to the hub server when HUB_URL is set; otherwise writes to the local store.
 Parent session:  session-hub attention / log / status / answer / command / knowledge / collection
 Human:           session-hub serve (real-time dashboard) / session-hub export (static HTML) /
-                 session-hub delete (remove a session's messages)
+                 session-hub archive / unarchive / delete (remove a session's messages)
 Hook:            session-hub hook session-start|stop|todo (hook JSON on stdin)
 """
 
@@ -184,8 +184,7 @@ def cmd_status(a):
         return
     for s in snap["sessions"]:
         p = s["progress"]
-        code = "ST" if s["stale"] else view.ICON.get(s["state"], "??")
-        print(f"{code} {s['session_id']:<28} {p['done']}/{p['total']} {s.get('title') or '':<24} {s.get('summary') or ''}")
+        print(f"{view.state_code(s)} {s['session_id']:<28} {p['done']}/{p['total']} {s.get('title') or '':<24} {s.get('summary') or ''}")
 
 
 def cmd_log(a):
@@ -277,6 +276,25 @@ def cmd_delete(a):
     if not deleted:
         sys.exit(f"session-hub: no such session: {a.target}")
     print(f"deleted {a.target} ({deleted} events)")
+
+
+def _session_exists(a, sid: str) -> bool:
+    url = client.hub_url()
+    if url and not a.store:
+        try:
+            snap = client.get_snapshot(url, os.environ.get("HUB_TOKEN"))
+            return any(s["session_id"] == sid for s in snap["sessions"])
+        except client.PushError as e:
+            if not os.environ.get("HUB_STORE"):
+                sys.exit(f"session-hub: {e}")
+    return bool(EventStore(a.store).read(sid))
+
+
+def cmd_archive(a):
+    """Record that a session was archived, or that it came back."""
+    if not _session_exists(a, a.target):  # Recording would otherwise create the session
+        sys.exit(f"session-hub: no such session: {a.target}")
+    _record(a, {"type": a.cmd, "actor": "parent"}, writer=a.writer, session=a.target)
 
 
 def cmd_hook(a):
@@ -393,6 +411,12 @@ def build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser("delete", help="delete every stored message of one session (cannot be undone)")
     s.add_argument("target", help="session ID to delete")
     s.set_defaults(func=cmd_delete)
+    for name, hlp in (("archive", "mark a session as archived; it stops asking for attention"),
+                      ("unarchive", "bring a session back from the archive")):
+        s = sub.add_parser(name, help=hlp)
+        s.add_argument("target", help="target session ID")
+        s.add_argument("--writer", default="parent", help="writer name (default: parent)")
+        s.set_defaults(func=cmd_archive)
     s = sub.add_parser("serve", help="start the real-time dashboard")
     s.add_argument("--host", default="127.0.0.1"); s.add_argument("--port", type=int, default=8765)
     s.add_argument("--watch-files", action="store_true",
