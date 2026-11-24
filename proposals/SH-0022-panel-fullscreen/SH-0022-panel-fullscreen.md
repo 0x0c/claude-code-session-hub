@@ -1,11 +1,11 @@
-**English** · [日本語](SH-XXXX-panel-fullscreen.ja.md)
+**English** · [日本語](SH-0022-panel-fullscreen.ja.md)
 
-# SH-XXXX — Fullscreen mode for the detail panel
+# SH-0022 — Fullscreen mode for the detail panel
 
 <!-- SH-METADATA -->
 | Field | Value |
 |---|---|
-| Proposal | SH-XXXX |
+| Proposal | SH-0022 |
 | Author | [@0x0c](https://github.com/0x0c) |
 | Status | **Implemented** |
 | Topic | Dashboard |

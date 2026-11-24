@@ -1,11 +1,11 @@
-[English](SH-XXXX-panel-drag-resize.md) · **日本語**
+[English](SH-0021-panel-drag-resize.md) · **日本語**
 
-# SH-XXXX — 詳細パネルのドラッグによる幅の変更
+# SH-0021 — 詳細パネルのドラッグによる幅の変更
 
 <!-- SH-METADATA -->
 | 項目 | 値 |
 |---|---|
-| 提案 | SH-XXXX |
+| 提案 | SH-0021 |
 | 作者 | [@0x0c](https://github.com/0x0c) |
 | 状態 | **Implemented** |
 | トピック | Dashboard |

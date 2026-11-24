@@ -1,11 +1,11 @@
-**English** · [日本語](SH-XXXX-panel-drag-resize.ja.md)
+**English** · [日本語](SH-0021-panel-drag-resize.ja.md)
 
-# SH-XXXX — Drag to resize the detail panel
+# SH-0021 — Drag to resize the detail panel
 
 <!-- SH-METADATA -->
 | Field | Value |
 |---|---|
-| Proposal | SH-XXXX |
+| Proposal | SH-0021 |
 | Author | [@0x0c](https://github.com/0x0c) |
 | Status | **Implemented** |
 | Topic | Dashboard |
