@@ -425,6 +425,8 @@ label, it gives the English label and the Japanese label in parentheses.
     failed, done, and stale.
 - **Session list** (left): split into "needs action" (要対応), "working or waiting"
   (作業中・待機), and "done" (完了), each sorted by the priority in §4.3.
+  - Clicking a group heading collapses or expands that group. A collapsed heading keeps its count,
+    and glows when a hidden session sends a message. The browser remembers the collapsed groups.
   - Each card shows a state badge, a task progress bar, the remaining work, the PR and CI, the
     tokens and cost, the last update, and any unanswered question (with its options, its default,
     and the command to answer it).

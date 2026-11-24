@@ -51,7 +51,13 @@ main { display: grid; grid-template-columns: minmax(300px, 380px) 1fr; gap: 16px
 section.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; min-width: 0; }
 .panel > h2 { font-size: 13px; margin: 0; padding: 10px 14px; border-bottom: 1px solid var(--line);
   display: flex; align-items: center; gap: 8px; }
-.group-title { font-size: 11px; font-weight: 600; letter-spacing: .04em; color: var(--muted); padding: 10px 14px 4px; }
+.group-title { margin: 0; font-size: 11px; font-weight: 600; letter-spacing: .04em; color: var(--muted); }
+.group-title button { display: flex; align-items: center; gap: 6px; width: 100%; padding: 10px 14px 6px 11px; border: 0;
+  border-left: 3px solid transparent; background: none; font: inherit; letter-spacing: inherit; text-align: left; cursor: pointer; }
+.group-title button:hover { background: var(--hover); }
+.group-title button.selected { border-left-color: var(--accent); }
+.group-title button::before { content: "▾"; font-size: 14px; line-height: 1; width: 1em; flex: none; text-align: center; }
+.group-title button[aria-expanded="false"]::before { content: "▸"; }
 .card { padding: 10px 14px; border-top: 1px solid var(--line); cursor: pointer; border-left: 3px solid transparent; }
 .card:hover { background: var(--hover); }
 .card.selected { background: var(--hover); border-left-color: var(--accent); }
@@ -396,9 +402,11 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     types: new Set(Object.keys(TYPES).filter((t) => t !== "heartbeat")),
     fresh: new Set(), unseen: 0, notify: false,
     colGroups: {}, showObsolete: false,
+    collapsed: new Set(), // ids of the collapsed session-list groups
   };
   const prevStates = new Map();
   try { ui.notify = localStorage.getItem("hub.notify") === "1"; } catch (_) {}
+  try { ui.collapsed = new Set(JSON.parse(localStorage.getItem("hub.collapsed") || "[]")); } catch (_) {}
 
   // ---- Display utilities ----
   // States in which a child session is doing work (excludes pure waiting, such as waiting for CI)
@@ -430,20 +438,36 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
   // ---- Session list ----
   function renderSessions() {
     const box = $("sessions");
+    // Every update rebuilds the list; give the focus back to the group heading that held it
+    const focused = document.activeElement && box.contains(document.activeElement) ? document.activeElement.dataset.group : null;
     box.replaceChildren();
     if (!db.sessions.length) {
       box.append(el("div", { class: "empty" }, t("sessions.empty")));
       return;
     }
-    const groups = [[t("group.action"), (s) => s.needs_action],
-                    [t("group.active"), (s) => !s.needs_action && !["done", "abandoned"].includes(s.state)],
-                    [t("group.done"), (s) => ["done", "abandoned"].includes(s.state)]];
-    for (const [title, pred] of groups) {
+    const groups = [["action", (s) => s.needs_action],
+                    ["active", (s) => !s.needs_action && !["done", "abandoned"].includes(s.state)],
+                    ["done", (s) => ["done", "abandoned"].includes(s.state)]];
+    for (const [id, pred] of groups) {
       const list = db.sessions.filter(pred);
       if (!list.length) continue;
-      box.append(el("div", { class: "group-title" }, `${title} (${list.length})`));
-      for (const s of list) box.append(sessionCard(s));
+      const collapsed = ui.collapsed.has(id);
+      // A collapsed heading stands in for its hidden cards: it takes over their glow and the selection mark
+      const hidden = collapsed ? list : [];
+      const toggle = el("button", glowProps(hidden.map((s) => glowKey.session(s.session_id)), {
+        class: hidden.some((s) => s.session_id === ui.session) ? "selected" : "",
+        type: "button", "data-group": id, "aria-expanded": String(!collapsed), onclick: () => toggleGroup(id),
+      }), `${t("group." + id)} (${list.length})`);
+      box.append(el("h3", { class: "group-title" }, toggle));
+      if (id === focused) toggle.focus({ preventScroll: true });
+      if (!collapsed) for (const s of list) box.append(sessionCard(s));
     }
+  }
+
+  function toggleGroup(id) {
+    ui.collapsed.has(id) ? ui.collapsed.delete(id) : ui.collapsed.add(id);
+    try { localStorage.setItem("hub.collapsed", JSON.stringify([...ui.collapsed])); } catch (_) {}
+    renderSessions();
   }
 
   function sessionCard(s) {
