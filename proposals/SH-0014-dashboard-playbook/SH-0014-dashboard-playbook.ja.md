@@ -1,11 +1,11 @@
-[English](SH-XXXX-dashboard-playbook.md) · **日本語**
+[English](SH-0014-dashboard-playbook.md) · **日本語**
 
-# SH-XXXX — ダッシュボードの部品を一覧するPlaybook
+# SH-0014 — ダッシュボードの部品を一覧するPlaybook
 
 <!-- SH-METADATA -->
 | 項目 | 値 |
 |---|---|
-| 提案 | SH-XXXX |
+| 提案 | SH-0014 |
 | 作者 | [@0x0c](https://github.com/0x0c) |
 | 状態 | **Implemented** |
 | トピック | Developer workflow |

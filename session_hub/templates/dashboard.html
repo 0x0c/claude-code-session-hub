@@ -22,6 +22,7 @@
   --space-1: 1px; --space-2: 2px; --space-4: 4px; --space-6: 6px; --space-8: 8px; --space-10: 10px;
   --space-12: 12px; --space-14: 14px; --space-16: 16px; --space-24: 24px;
   --radius-xs: 3px; --radius-sm: 4px; --radius-md: 6px; --radius-lg: 8px; --radius-xl: 10px; --radius-pill: 999px;
+  --detail-w: min(720px, 55%); /* The open detail panel of the grid layout */
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
@@ -93,15 +94,18 @@ section.panel { background: var(--panel); border: 1px solid var(--line); border-
 #tlScope { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 #closePanel { margin-left: auto; }
 .iconbtn.danger:not([hidden]) + #closePanel { margin-left: 0; }
-/* Grid layout: the cards take the full width, and the timeline becomes a panel on the right */
+/* Grid layout: the cards take the full width, and the timeline becomes a panel on the right. The open
+   panel takes its width from the cards; a small window has no room for both, so the panel covers it */
 main.grid { grid-template-columns: minmax(0, 1fr); max-width: none; }
+main.grid.withpanel { padding-right: calc(var(--detail-w) + var(--space-16)); }
+@media (max-width: 860px) { main.grid { --detail-w: 100%; } main.grid.withpanel { padding-right: var(--space-16); } }
 main.grid #sessions { padding: 0 var(--space-14) var(--space-14); }
 main.grid .project { margin: var(--space-12) 0; border: 1px solid var(--line); border-radius: var(--radius-lg); }
 main.grid .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); gap: var(--space-12); }
 main.grid .cardwrap { min-width: 0; }
 main.grid .card { padding-left: var(--space-14); border: 1px solid var(--line); border-left-width: 3px; border-radius: var(--radius-lg); height: 100%; }
 main.grid .card.selected { border-color: var(--accent); }
-main.grid #detail { position: fixed; top: var(--header-h, 0px); right: 0; bottom: 0; z-index: 4; width: min(720px, 100%);
+main.grid #detail { position: fixed; top: var(--header-h, 0px); right: 0; bottom: 0; z-index: 4; width: var(--detail-w);
   overflow-y: auto; overscroll-behavior: contain; border-width: 0 0 0 1px; border-radius: 0; outline: none;
   transform: translateX(100%); visibility: hidden; }
 /* Slide when the panel opens or closes, never when the page loads or the layout changes */
@@ -1039,12 +1043,25 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     openPanel(sid);
   }
 
+  // Opening or closing the panel reflows the cards. Run `change`, then scroll the window so that the
+  // card `sid` (or else the first visible card) keeps its place on the screen.
+  function keepCardInPlace(sid, change) {
+    const top = document.querySelector("header").offsetHeight;
+    const cards = [...document.querySelectorAll(".card")].filter((c) => c.getClientRects().length);
+    const anchor = cards.find((c) => c.dataset.sid === sid)
+      || (scrollY > 0 && cards.find((c) => c.getBoundingClientRect().bottom > top));
+    const id = anchor && anchor.dataset.sid;
+    const before = anchor && anchor.getBoundingClientRect().top;
+    change();
+    const after = id && [...document.querySelectorAll(".card")].find((c) => c.dataset.sid === id); // Rendering replaces the cards
+    if (after && after.getClientRects().length) window.scrollBy({ top: after.getBoundingClientRect().top - before, behavior: "instant" });
+  }
+
   function openPanel(sid) {
     ui.panelOpen = true;
     $("detail").classList.add("slide");
     clearUnseen();
-    applyLayout();
-    selectSession(sid);
+    keepCardInPlace(sid, () => { applyLayout(); selectSession(sid); });
     $("detail").scrollTop = 0;
     $("detail").focus({ preventScroll: true });
   }
@@ -1054,8 +1071,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     ui.panelOpen = false;
     $("detail").classList.add("slide");
     clearUnseen();
-    applyLayout();
-    selectSession("");
+    keepCardInPlace(sid, () => { applyLayout(); selectSession(""); });
     const card = [...document.querySelectorAll(".card")].find((c) => c.dataset.sid === sid);
     (card || $("openPanel")).focus({ preventScroll: true });
   }
@@ -1063,6 +1079,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
   function applyLayout() {
     const grid = ui.layout === "grid";
     $("main").classList.toggle("grid", grid);
+    $("main").classList.toggle("withpanel", grid && ui.panelOpen);
     document.body.classList.toggle("gridlayout", grid);
     // Only a panel that scrolls on its own takes keyboard focus
     for (const id of ["sessions", "detailScroll"]) isSplit() ? ($(id).tabIndex = 0) : $(id).removeAttribute("tabindex");

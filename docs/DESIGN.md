@@ -369,7 +369,7 @@ lines. When the parent launches a new child, the parent adds only the relevant i
 |---|---|
 | Where children run | On the user's own computer: `claude` sessions a human starts side by side, or sessions the parent starts in the background with `claude -p --append-system-prompt ...` |
 | Shared settings | In the `env` of `~/.claude/settings.json`: `HUB_URL=http://127.0.0.1:8765`, `HUB_STORE=~/.session-hub`, `HUB_AUTOSTART=1` |
-| Server | Listens on 127.0.0.1 alone (no token needed). With `HUB_AUTOSTART=1`, the SessionStart hook of the first session to start launches the server in the background. Competition for the port prevents a second instance |
+| Server | Listens on 127.0.0.1 alone (no token needed). With `HUB_AUTOSTART=1`, the SessionStart hook of the first session to start launches the server in the background. Competition for the port prevents a second instance. Without a token, it refuses a request whose `Host` header is not loopback, against Domain Name System (DNS) rebinding |
 | Message delivery | 1. Push to the server (shown at once). 2. If the push fails, write directly to the shared store. 3. If no store is set either, queue in the outbox |
 | Messages sent while the server is down | Kept in the store, so none are lost. They appear on screen when the server starts, on the next push, or at the re-check every 30 seconds |
 | Notifying the parent | Send the `[HUB/1]` line through local inter-session messaging, where available. Otherwise a human notices through the dashboard's browser notifications and the tab title (the count of sessions that need action) |
@@ -477,6 +477,8 @@ label, it gives the English label and the Japanese label in parentheses.
   - Clicking a card slides a detail panel in from the right. The panel is the timeline with its tabs
     and filters, limited to that session. **All sessions** (すべてのセッション) opens the panel without
     the limit.
+  - The open panel takes at most 720px, and at most 55% of the window. The grid narrows beside it, so
+    the panel covers no card. In a window at most 860px wide, the panel covers the whole grid.
   - Clicking the same card, the close button, or Escape closes the panel and clears the selection.
 - **Collection tabs** (right panel): each defined collection adds a tab automatically, for example
   "Knowledge (6)" (ナレッジ (6)).

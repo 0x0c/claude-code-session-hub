@@ -371,7 +371,9 @@ the dashboard.
 - **Stalls are inferred.** A working session counts as stalled after 30 minutes without a message.
   Confirm a stall before you act on it, because a long build can stay silent that long.
 - **Open to local processes by default.** Without `HUB_TOKEN`, any process on the machine can read
-  the dashboard and push messages. Set a token if other users share the machine.
+  the dashboard and push messages. Set a token if other users share the machine. A hub without a
+  token answers only requests addressed to `127.0.0.1`, `localhost`, or `::1`, so a custom host name
+  also needs a token.
 - **Built for thousands of events.** The hub rebuilds its snapshot from the whole store on every
   message. A store that grows far beyond that needs incremental updates first.
 
