@@ -48,7 +48,8 @@ Set `Status` to `Implemented`, tick every *Progress* box, and fill the `Implemen
 as the pull request exists, in both language files (`implement-proposal` step 8). Until the user asks for the pull request,
 leave `Status` at `In progress` and say that the promotion waits for the pull request number. The
 first session that learns the number fills the row and pushes the change, whatever else that session
-was asked to do.
+was asked to do. Push while the pull request is a draft; if it is ready, follow the draft cycle in
+the Git section of [`AGENTS.md`](../../../AGENTS.md).
 
 ## References
 

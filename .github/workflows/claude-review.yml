@@ -5,32 +5,40 @@
 # norms) and posts inline, line-level comments alone. It posts no top-level summary, because a fresh
 # summary from each of a pull request's runs would leave stale, contradictory overviews on it.
 #
-# WHEN IT RUNS: automatically when a person (not a bot) opens or reopens a pull request, and after
-# that only when a trusted person (OWNER, MEMBER, or COLLABORATOR) writes `@claude review` on it. It
-# does not re-review every push (`synchronize` is not a trigger): a per-push review can post a
+# WHEN IT RUNS: automatically when a person (not a bot) marks a draft pull request ready for review,
+# or opens or reopens one that is not a draft. The check fails on a pull request that opens or reopens
+# as a draft, because its author is still working. Returning a pull request to draft starts no run: the
+# earlier result stays until a push, and the new head commit then has no check. A
+# trusted person (OWNER, MEMBER, or COLLABORATOR) can also ask by writing `@claude review`, on a draft
+# too. A push does not start a review (`synchronize` is not a trigger): a per-push review can post a
 # finding on the fix for its own previous finding, so the fix-push-review cycle need never converge.
+# To review later pushes, return the pull request to draft, push, and mark it ready again.
 #
 # Every run reads the full diff, so no changed line goes unreviewed, and also receives every finding
 # already posted on the pull request, with an instruction never to re-post one. The review dedupes by
 # suppressing repeats, not by narrowing what it reads. A request from anyone else is dropped silently:
-# the gate is a job-level `if:`, so the run still completes green with the `claude review` job
-# skipped. A requester confirms that the job actually started rather than reading silence as a clean
+# the gate is a job-level `if:`, so the run still completes green with the job skipped. A requester confirms that the job actually started rather than reading silence as a clean
 # review.
 #
-# When a bot opens or reopens a pull request (such as a Renovate dependency update), the automatic
-# review is skipped: claude-code-action refuses a run whose actor (the event's sender, not the pull
-# request's author) is a bot, and would fail the job. A maintainer who wants a review comments
-# `@claude review`, or reopens the pull request, so that a person starts the run.
+# When a bot opens or reopens a pull request, or marks it ready (such as a Renovate dependency update), the `claude review`
+# check fails without a review: claude-code-action refuses a run whose actor (the event's sender, not the pull
+# request's author) is a bot. To review it, a person returns
+# the pull request to draft and marks it ready again, or closes and reopens it, so that a person starts the run.
 #
-# ADVISORY ONLY: do not add this job to `main`'s required status checks. A review that found issues
-# is a successful review; the job fails only on an infrastructure error, never on a finding.
+# REQUIRED TO RUN (PLANNED), ADVISORY IN CONTENT: `main`'s ruleset is to require the `claude review`
+# check once a draft pull request confirms that a success replaces the draft's failure. A review
+# that found issues is a successful review; the job fails on a draft, on
+# a bot's event, or on an infrastructure error, never on a finding. GitHub counts a skipped job as
+# passing, so a `pull_request` run never skips the job, and a comment-triggered run reports under
+# another name (`claude review (requested)`). A comment therefore neither satisfies nor overwrites the
+# required check.
 #
 # AUTH: the `claude-review` Environment holds the credential, picked at run time (the gate step):
 # - a Claude Code subscription, through the `CLAUDE_CODE_OAUTH_TOKEN` secret (from `claude
 #   setup-token`), preferred when present; or
 # - Amazon Bedrock, through GitHub's OpenID Connect (OIDC) token exchanged for short-lived AWS
 #   credentials (the `AWS_BEDROCK_ROLE_ARN` secret plus the `BEDROCK_MODEL_ID` variable; no static key).
-# With neither configured, the job is a green no-op. A `pull_request` run from a fork receives no
+# With neither configured, the job is a green no-op, except that a draft or a bot's event still fails. A `pull_request` run from a fork receives no
 # secrets by GitHub's design, so a maintainer reviews a fork's pull request on demand with
 # `@claude review`. We deliberately avoid `pull_request_target`, which would run with secrets against
 # untrusted fork code.
@@ -38,7 +46,7 @@ name: Claude review
 
 on:
   pull_request:
-    types: [opened, reopened]
+    types: [opened, reopened, ready_for_review]
   issue_comment:
     types: [created]
   pull_request_review_comment:
@@ -51,7 +59,8 @@ permissions:
   pull-requests: write
   id-token: write
 
-# One group per pull request and event type. A reopen cancels a still-running review from the open,
+# One group per pull request and event type. A reopen, or a pull request marked ready again, cancels a
+# still-running automatic review,
 # while comment-triggered runs stay independent: a comment posted mid-review (even `@claude review`
 # itself) would otherwise cancel a pass someone asked for. Two quick requests therefore run side by
 # side, and each reads the prior findings before the other posts its own, so an overlap can post
@@ -61,9 +70,10 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  # Keep this job off main's required status checks: the review is advisory.
+  # main's ruleset is to require the check `claude review`; once it does, renaming it blocks every merge. A comment run
+  # needs another name: its skipped job would otherwise pass as the required check.
   review:
-    name: claude review
+    name: ${{ github.event_name == 'pull_request' && 'claude review' || 'claude review (requested)' }}
     runs-on: ubuntu-latest
     # A review takes several minutes; a run far beyond this is a hang (a provider outage or a runaway
     # tool loop), so cap it instead of GitHub's 360-minute default.
@@ -73,9 +83,10 @@ jobs:
     # request, so the association check is what stops an untrusted commenter from starting a
     # credentialed run.
     # A `pull_request` run needs a human actor: claude-code-action checks `github.actor`, which is the
-    # sender of the open or reopen event, not the pull request's author.
+    # sender of the event, not the pull request's author. The first step fails a draft or a bot's event;
+    # a condition here would skip the job, and GitHub counts a skipped job as passing.
     if: >-
-      (github.event_name == 'pull_request' && github.event.sender.type != 'Bot') ||
+      github.event_name == 'pull_request' ||
       (
         (
           (github.event_name == 'issue_comment' && github.event.issue.pull_request) ||
@@ -87,6 +98,12 @@ jobs:
     # Scope the review credential to this Environment, so no other job can read it.
     environment: claude-review
     steps:
+      - name: Fail a draft or a bot's event
+        if: github.event_name == 'pull_request' && (github.event.pull_request.draft || github.event.sender.type == 'Bot')
+        run: |
+          echo "::error::Not reviewed: the pull request is a draft, or a bot started this run. Re-running this job replays the same event and fails again. To start a review, a person marks the draft ready for review; if the pull request is not a draft, a person first converts it to one."
+          exit 1
+
       - name: Pick the AI provider (or no-op)
         id: gate
         env:
@@ -96,7 +113,7 @@ jobs:
         run: |
           # Prefer the subscription token; otherwise use Bedrock. Enable a provider only when all of
           # its inputs exist (Bedrock needs both the role and the model id), so a half-configured
-          # Environment stays a dormant no-op instead of turning the advisory check red.
+          # Environment stays a dormant no-op. The step above fails a draft or a bot's event even then.
           if [ -n "$OAUTH_TOKEN" ]; then
             echo "provider=oauth" >> "$GITHUB_OUTPUT"
           elif [ -n "$ROLE_ARN" ] && [ -n "$MODEL_ID" ]; then
