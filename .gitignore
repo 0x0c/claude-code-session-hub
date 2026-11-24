@@ -250,3 +250,6 @@ pyrightconfig.json
 !/*/**/target/
 !/*/**/var/
 !/*/**/wheels/
+
+# The built playbook (scripts/playbook.py)
+/playbook.html
