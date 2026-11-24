@@ -42,7 +42,7 @@ async function waitForHub(url) {
       page.on("pageerror", (e) => errors.push(`${lang}: ${e.message}`));
       await page.goto(`${url}/?lang=${lang}`);
       await page.waitForSelector(".conn.live");
-      await page.click("details.archived > summary"); // unfold the archived sessions
+      await page.click('[data-group="status:archived"]'); // unfold the archived sessions
       await page.mouse.move(0, 0); // leave no card in its hover color
       execFileSync("python3", ["-m", "session_hub", "report", "--summary", LIVE_SUMMARY[lang], "--phase", "test"], {
         cwd: ROOT, stdio: "ignore",
