@@ -703,7 +703,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     types: new Set(Object.keys(TYPES).filter((t) => t !== "heartbeat")),
     fresh: new Set(), unseen: 0, notify: false,
     colGroups: {}, showObsolete: false,
-    byProject: true, collapsed: new Set(), // keys of the collapsed groups
+    byProject: true, collapsed: new Set(), // marks of the folded groups and families (see foldMark)
     lane: { span: null, end: null }, // span null: the whole period; end null: follow the present
     layout: "list", panelOpen: false, // panelOpen matters in the grid layout alone
     fullscreen: false, // only while the grid's panel is open; applyLayout clears it otherwise

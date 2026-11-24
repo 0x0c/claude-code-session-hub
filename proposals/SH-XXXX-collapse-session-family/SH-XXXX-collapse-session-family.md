@@ -30,7 +30,9 @@ collapsed after a live update and after a page reload.
 
 ## Detailed design
 
-The change touches the dashboard page alone, `session_hub/templates/dashboard.html`.
+The behavior is in the dashboard page alone, `session_hub/templates/dashboard.html`. The playbook
+(`session_hub/templates/playbook.js`) gains stories for a collapsed family, and a click on a toggle in a
+story does not change the saved state.
 
 - **Button.** A card with sub-sessions below it, in the same list, shows its number of sub-sessions as
   a button with an arrow marker and `aria-expanded`. The number still counts the direct sub-sessions
