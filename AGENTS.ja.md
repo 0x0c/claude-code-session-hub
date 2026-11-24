@@ -78,12 +78,14 @@ scripts/check.sh
 - matcherを`TodoWrite|TaskCreate|TaskUpdate`にした**PostToolUse** hookは、`tool_input`からタスク一覧を読めます。そのため、モデルのトークンを使わずに進捗を送れます。`TaskUpdate`にはタスク識別子（ID）しかないので、`TaskCreate`の時点でIDと名前の対応を記録しています。
 - hookに渡される情報には`transcript_path`が含まれます。トークン使用量は、アシスタントの各エントリの`message.usage`を`message.id`で重複を除いて合計して求めます。1つの応答が複数行にまたがることがあるためです。
 - トランスクリプトにはセッション名も含まれます。最後の`custom-title`レコード（人間またはデスクトップアプリが付けた名前）を使い、なければ最後の`ai-title`レコードを使います。セッションは送信のたびに名前を添え、ハブはその名前をタイトルとして表示します。名前はSessionStartの後に付くことがあるため、送信のたびにトランスクリプトを読み直します。
+- トランスクリプトの`pr-link`レコードは、Claude Codeがセッションに結び付けたプルリクエストを持ちます（`prNumber`、`prUrl`）。同じレコードが繰り返し書かれ、1つのセッションが複数のプルリクエストを持つこともあるため、最後のレコードを使います。
 - hookは`HUB_URL`も`HUB_STORE`も設定されていなければ何もしません。そのため、プラグインを常に有効にしても安全です。
 
 ### セッションのID
 
 - クラウドのセッションでは、`CLAUDE_CODE_REMOTE_SESSION_ID`に`cse_<id>`が入っています。セッション関連のツールは`session_<id>`を使うので、接頭辞を書き換えています。ローカルでは`CLAUDE_CODE_SESSION_ID`に汎用一意識別子（UUID）が入っており、これは`claude --resume`が受け付けるIDと同じです。
 - Agentツールで起動したサブエージェントは親と同じセッションIDを使うので、別のサブセッションとしては表示されません。サブセッションは別のClaude Codeプロセスとして動かす必要があります。
+- macOSのClaudeデスクトップアプリは、`~/Library/Application Support/Claude/claude-code-sessions/*/*/local_*.json`にセッションごとのファイルを持ちます。`cliSessionId`はローカルのハブのセッションIDと同じ値で、`isArchived`がアーカイブのフラグです。形式は文書化されていないので、防御的に読み、書き込みは決してしません。
 
 ### APM（Agent Package Manager）での配布
 

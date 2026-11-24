@@ -7,6 +7,7 @@ Events are append-only, so they also serve directly as the source data for the t
 from __future__ import annotations
 
 import copy
+import re
 from datetime import datetime, timezone
 
 SCHEMA_VERSION = 1
@@ -31,7 +32,13 @@ EVENT_TYPES = (
     "done",
     "fail",
     "finding",    # insight, caveat, or similar learned during work (aggregated into collections)
+    "archive",    # the session was archived (by the desktop app or by hand)
+    "unarchive",  # the session came back from the archive
 )
+
+ARCHIVE_TYPES = ("archive", "unarchive")
+# The writer name of the archive events that mirror the Claude desktop app
+DESKTOP_WRITER = "desktop"
 
 ACTORS = ("child", "parent", "hook", "human", "script")
 ATTENTION_KINDS = ("decision", "clarification", "credential", "permission", "review", "external")
@@ -45,7 +52,7 @@ FINDING_STATUS = ("active", "obsolete")
 LIMITS = {
     "summary": 80, "next": 80, "note": 200, "question": 200, "last_error": 120,
     "title": 80, "session_name": 200, "task": 40, "option": 40, "value": 200,
-    "body": 600, "tag": 30, "scope": 120, "key": 80, "repo": 120, "repo_hint": 120,
+    "body": 600, "tag": 30, "scope": 120, "key": 80, "repo": 120, "repo_hint": 120, "pr_url": 500,
 }
 
 
@@ -84,6 +91,34 @@ def clip(value: str | None, key: str) -> str | None:
     return value
 
 
+def _normalize_pr_link(link) -> dict | None:
+    """Return the link with its two fields, or None when it is malformed or unsafe to show."""
+    if not isinstance(link, dict):
+        return None
+    number, url = link.get("number"), link.get("url")
+    if not isinstance(number, int) or isinstance(number, bool) or number < 1 or not isinstance(url, str):
+        return None
+    if len(url) > LIMITS["pr_url"] or not re.match(r"https?://[^\s/]", url):
+        return None
+    return {"number": number, "url": url}
+
+
+def _apply_pr(st: dict, ev: dict) -> None:
+    """Fold the linked and the reported pull request into st["pr"]; a different one starts afresh."""
+    link = ev.get("pr_link")
+    # Every send repeats the link, so it acts only when it changes; otherwise it would undo a later report.
+    if link and link != st["pr_link"]:
+        st["pr_link"] = link
+        same = st["pr"].get("number") in (None, link["number"]) and st["pr"].get("url") in (None, link["url"])
+        st["pr"] = {**(st["pr"] if same else {}), **link}
+    if "pr" in ev:
+        before, pr = st["pr"], ev["pr"]
+        replaced = any(before.get(k) and pr.get(k) and before[k] != pr[k] for k in ("number", "url"))
+        st["pr"] = {**({} if replaced else before), **pr}
+    if st["pr_link"] and st["pr"].get("number") == st["pr_link"]["number"] and not st["pr"].get("url"):
+        st["pr"]["url"] = st["pr_link"]["url"]
+
+
 def _check_enum(value, allowed, name):
     if value is not None and value not in allowed:
         raise SchemaError(f"invalid {name}={value!r}; choose one of: {', '.join(allowed)}")
@@ -116,6 +151,12 @@ def normalize_event(ev: dict) -> dict:
             _check_enum(t.get("size", "M"), TASK_SIZES, "task.size")
             tasks.append({"t": clip(t["t"], "task"), "s": t.get("s", "todo"), "size": t.get("size", "M")})
         ev["tasks"] = tasks
+
+    # Every send carries the link, so drop a malformed one instead of rejecting the update
+    if "pr_link" in ev:
+        ev["pr_link"] = _normalize_pr_link(ev["pr_link"])
+        if ev["pr_link"] is None:
+            del ev["pr_link"]
 
     att = ev.get("attention")
     if att:
@@ -158,8 +199,8 @@ def empty_status(session_id: str) -> dict:
         "v": SCHEMA_VERSION, "session_id": session_id,
         "title": None, "session_name": None, "parent_id": None, "task_ref": None, "repo": None, "branch": None,
         "state": "queued", "phase": None, "summary": None, "next": None, "confidence": None,
-        "tasks": [], "attention": None, "pr": {}, "ready": {}, "usage": {},
-        "last_error": None, "started_at": None, "updated_at": None, "heartbeat": None,
+        "tasks": [], "attention": None, "pr": {}, "pr_link": None, "ready": {}, "usage": {},
+        "last_error": None, "archived": None, "started_at": None, "updated_at": None, "heartbeat": None,
         "event_count": 0,
     }
 
@@ -168,6 +209,19 @@ def apply_event(status: dict, ev: dict) -> dict:
     """Return a new status dict advanced by one event."""
     st = copy.deepcopy(status)
     st["event_count"] += 1
+    if ev["type"] in ARCHIVE_TYPES:
+        # Archiving is bookkeeping about the session, not activity of it: the state, an open
+        # question, and the liveness times all stay, so that unarchiving restores them.
+        if ev["type"] == "unarchive":
+            st["archived"] = None
+        elif not st["archived"]:
+            st["archived"] = {"since": ev["ts"], "by": ev.get("writer") or ev["actor"]}
+        return st
+    if (st["archived"] and st["archived"]["by"] != DESKTOP_WRITER
+            and ev["actor"] in ("child", "script") and not ev.get("writer") and ev["type"] != "heartbeat"):
+        # A session archived by hand that reports again is back at work; hiding it would lose a
+        # question. For a session the app archived, the app alone decides when it comes back.
+        st["archived"] = None
     st["heartbeat"] = ev["ts"]
     if ev["type"] != "heartbeat":
         st["updated_at"] = ev["ts"]
@@ -184,7 +238,8 @@ def apply_event(status: dict, ev: dict) -> dict:
         st["title"] = st["session_name"]
     if "tasks" in ev:
         st["tasks"] = ev["tasks"]
-    for key in ("pr", "ready", "usage"):
+    _apply_pr(st, ev)
+    for key in ("ready", "usage"):
         if key in ev:
             st[key] = {**st[key], **ev[key]}
 
@@ -233,7 +288,7 @@ def fold(events: list[dict]) -> dict:
 def diff_status(before: dict, after: dict) -> dict:
     """Return the diff that shows, in the timeline view, what this event changed."""
     keys = ("state", "phase", "summary", "next", "confidence", "attention",
-            "pr", "ready", "last_error", "progress")
+            "pr", "ready", "last_error", "progress", "archived")
     out = {}
     for k in keys:
         b, a = before.get(k), after.get(k)

@@ -129,9 +129,11 @@ main.grid .action-section .card:not(.selected):not(:hover) { background: var(--p
 @media (hover: hover) {
   .cardwrap:not(:hover):not(:has(:focus-visible)) .carddel:not([aria-disabled]) { opacity: 0; }
 }
+.card.archived .title { font-weight: 400; color: var(--muted); }
 .card .row1 { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .card .title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
 .card .meta { font-size: 12px; color: var(--muted); display: flex; gap: 10px; flex-wrap: wrap; margin-top: 2px; }
+.card .meta a.pr { color: var(--accent); }
 .card .summary { font-size: 13px; margin-top: 4px; overflow-wrap: anywhere; }
 .spinner { width: 14px; height: 14px; flex: none; border-radius: 50%; border: 2px solid var(--line);
   border-top-color: var(--s-work); animation: spin .9s linear infinite; }
@@ -321,13 +323,14 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
       "state.review_pending": "Not yet reviewable", "state.failed": "Failed", "state.stale": "Stale?",
       "state.working": "Working", "state.planning": "Planning", "state.waiting_ci": "Waiting for CI",
       "state.blocked": "Blocked", "state.in_review": "In review", "state.changes_requested": "Changes requested",
-      "state.done": "Done", "state.abandoned": "Abandoned", "state.queued": "Queued",
+      "state.done": "Done", "state.abandoned": "Abandoned", "state.queued": "Queued", "state.archived": "Archived",
       "type.start": "Start", "type.report": "Report", "type.ask": "Question", "type.answer": "Answer",
       "type.command": "Command", "type.ready": "Ready", "type.pr": "PR/CI", "type.done": "Done",
       "type.fail": "Failure", "type.finding": "Finding", "type.heartbeat": "heartbeat",
+      "type.archive": "Archived", "type.unarchive": "Unarchived",
       "ago.now": "just now", "ago.min": "{n} min ago", "ago.hour": "{n} h ago", "ago.day": "{n} d ago",
       "sessions.empty": "No reports yet. They appear here when a sub-session runs `session-hub start`.",
-      "group.action": "Needs action", "group.active": "Working and waiting", "group.done": "Done",
+      "group.action": "Needs action", "group.active": "Working and waiting", "group.done": "Done", "group.archived": "Archived",
       "card.progress": "{done}/{total} · ≈{rem} left", "card.threads": " · {n} open threads",
       "card.showTimeline": "Show the timeline of {name}", "card.working": "Working",
       "ask.blocking": " (blocked)", "ask.nonblocking": " (continuing with the default)",
@@ -377,13 +380,14 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
       "state.review_pending": "レビュー条件未達", "state.failed": "失敗", "state.stale": "停滞?",
       "state.working": "作業中", "state.planning": "計画中", "state.waiting_ci": "CI待ち",
       "state.blocked": "ブロック", "state.in_review": "レビュー中", "state.changes_requested": "修正依頼",
-      "state.done": "完了", "state.abandoned": "中止", "state.queued": "待機",
+      "state.done": "完了", "state.abandoned": "中止", "state.queued": "待機", "state.archived": "アーカイブ済み",
       "type.start": "開始", "type.report": "報告", "type.ask": "質問", "type.answer": "回答",
       "type.command": "指示", "type.ready": "準備完了", "type.pr": "PR/CI", "type.done": "完了",
       "type.fail": "失敗", "type.finding": "知見", "type.heartbeat": "heartbeat",
+      "type.archive": "アーカイブ", "type.unarchive": "アーカイブ解除",
       "ago.now": "たった今", "ago.min": "{n}分前", "ago.hour": "{n}時間前", "ago.day": "{n}日前",
       "sessions.empty": "まだ報告がありません。子セッションで `session-hub start` を実行すると表示されます。",
-      "group.action": "要対応", "group.active": "作業中・待機", "group.done": "完了",
+      "group.action": "要対応", "group.active": "作業中・待機", "group.done": "完了", "group.archived": "アーカイブ済み",
       "card.progress": "{done}/{total} 残≈{rem}", "card.threads": " 指摘{n}",
       "card.showTimeline": "{name} のタイムラインを表示", "card.working": "作業中",
       "ask.blocking": "（停止中）", "ask.nonblocking": "（既定値で継続中）",
@@ -438,9 +442,9 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     needs_human: "--s-needs", review_ready: "--s-review", review_pending: "--s-wait", failed: "--s-fail",
     stale: "--s-stale", working: "--s-work", planning: "--s-work", waiting_ci: "--s-wait", blocked: "--s-block",
     in_review: "--s-wait", changes_requested: "--s-needs", done: "--s-done", abandoned: "--s-done",
-    queued: "--s-queue",
+    queued: "--s-queue", archived: "--s-queue",
   };
-  const TYPE_KEYS = ["start", "report", "ask", "answer", "command", "ready", "pr", "done", "fail", "finding", "heartbeat"];
+  const TYPE_KEYS = ["start", "report", "ask", "answer", "command", "ready", "pr", "done", "fail", "finding", "archive", "unarchive", "heartbeat"];
   let STATE, TYPES;
   function buildLabels() {
     STATE = Object.fromEntries(Object.entries(STATE_COLORS).map(([k, c]) => [k, [t("state." + k), c]]));
@@ -507,8 +511,8 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
 
   // ---- Display utilities ----
   // States in which a child session is doing work (excludes pure waiting, such as waiting for CI)
-  const isActive = (s) => !s.stale && ["planning", "working", "changes_requested"].includes(s.state);
-  const stateKey = (s) => (s.stale ? "stale" : s.state === "review_ready" && s.gate && s.gate.length ? "review_pending" : s.state);
+  const isActive = (s) => !s.archived && !s.stale && ["planning", "working", "changes_requested"].includes(s.state);
+  const stateKey = (s) => (s.archived ? "archived" : s.stale ? "stale" : s.state === "review_ready" && s.gate && s.gate.length ? "review_pending" : s.state);
   const badge = (key) => {
     const [label, color] = STATE[key] || [key, "--s-queue"];
     return el("span", { class: "badge", style: { background: `var(${color})` } }, label);
@@ -548,30 +552,35 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     return [...groups].sort(([a], [b]) => (a === "") - (b === ""));
   }
 
-  const statusOf = (s) => (s.needs_action ? "action" : ["done", "abandoned"].includes(s.state) ? "done" : "active");
+  const statusOf = (s) => (s.archived ? "archived" : s.needs_action ? "action" : ["done", "abandoned"].includes(s.state) ? "done" : "active");
   // The prefix keeps a status key apart from a project of the same name
   const ACTION_KEY = "status:action";
   // Sessions that need action form a group of their own in both groupings
-  const groupKey = (s) => (ui.byProject && !s.needs_action ? s.repo || "" : "status:" + statusOf(s));
+  // So do archived sessions, which start out collapsed: the browser remembers that group when it is open
+  const ARCHIVED_KEY = "status:archived";
+  const foldMark = (key) => (key === ARCHIVED_KEY ? "open:" + key : key);
+  const isCollapsed = (key) => ui.collapsed.has(foldMark(key)) !== (key === ARCHIVED_KEY);
+  const groupKey = (s) => (ui.byProject && !s.needs_action && !s.archived ? s.repo || "" : "status:" + statusOf(s));
 
   // [key, label, sessions] of each non-empty group, in display order
   function sessionGroups(sessions) {
     const status = (id) => ["status:" + id, t("group." + id), sessions.filter((s) => statusOf(s) === id)];
     const rest = ui.byProject
-      ? projectGroups(sessions.filter((s) => !s.needs_action)).map(([key, list]) => [key, key || t("project.none"), list])
+      ? projectGroups(sessions.filter((s) => !s.needs_action && !s.archived)).map(([key, list]) => [key, key || t("project.none"), list])
       : [status("active"), status("done")];
-    return [status("action"), ...rest].filter(([, , list]) => list.length);
+    return [status("action"), ...rest, status("archived")].filter(([, , list]) => list.length);
   }
 
   function groupHeader(key, label, list) {
-    const open = !ui.collapsed.has(key);
+    const open = !isCollapsed(key);
     // A collapsed group hides its cards, so the header carries their glow and the selection mark
     const hidden = open ? [] : list;
     return el("button", glowProps(hidden.map((s) => glowKey.session(s.session_id)), {
       class: "project" + (hidden.some((s) => s.session_id === ui.session) ? " selected" : ""),
       type: "button", "aria-expanded": String(open), title: label, "data-group": key,
       onclick: () => {
-        open ? ui.collapsed.add(key) : ui.collapsed.delete(key);
+        const mark = foldMark(key);
+        ui.collapsed.has(mark) ? ui.collapsed.delete(mark) : ui.collapsed.add(mark);
         try { localStorage.setItem("hub.collapsed", JSON.stringify([...ui.collapsed])); } catch (_) {}
         renderSessions();
       },
@@ -597,7 +606,7 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     if (!wrap) return;
     // A session that moved into a collapsed group has no card: focus its heading, never another session's control
     const moved = db.sessions.find((s) => s.session_id === wrap.dataset.sid);
-    if (moved && ui.collapsed.has(groupKey(moved))) return focusGroup(groupKey(moved));
+    if (moved && isCollapsed(groupKey(moved))) return focusGroup(groupKey(moved));
     const wraps = [...box.querySelectorAll(".cardwrap")];
     const next = wraps.find((w) => w.dataset.sid === wrap.dataset.sid) || wraps[Math.min(at, wraps.length - 1)];
     if (next) next.querySelector(old.classList.contains("carddel") ? ".carddel" : ".card").focus({ preventScroll: true });
@@ -612,7 +621,7 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     const sorted = [...db.sessions].sort(byRecent);
     const cards = (list, inProject) => el("div", { class: "cards" }, list.map((s) => sessionCard(s, inProject)));
     for (const [key, label, list] of sessionGroups(sorted)) {
-      const parts = [groupHeader(key, label, list), ui.collapsed.has(key) ? null : cards(list, !key.startsWith("status:"))].filter(Boolean);
+      const parts = [groupHeader(key, label, list), isCollapsed(key) ? null : cards(list, !key.startsWith("status:"))].filter(Boolean);
       box.append(...(key === ACTION_KEY ? [el("section", { class: "action-section", "aria-label": label }, parts)] : parts));
     }
   }
@@ -621,12 +630,20 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     const p = s.progress || { done: 0, total: 0, remaining: 0 };
     const pct = p.total ? Math.round((p.done / p.total) * 100) : 0;
     const pr = s.pr || {};
+    // Only a web address becomes a link: the URL comes from a message
+    const prUrl = /^https?:\/\//i.test(pr.url || "") ? pr.url : null;
+    const prName = pr.number ? `PR#${pr.number}` : "PR";
+    const prLabel = !prUrl ? prName : el("a", {
+      class: "pr", href: prUrl, target: "_blank", rel: "noopener noreferrer", title: prUrl,
+      onclick: (e) => e.stopPropagation(), // Opening the pull request does not select the card
+      onkeydown: (e) => e.stopPropagation(),
+    }, prName);
     const u = s.usage || {};
     const meta = [
       !inProject && s.repo && el("span", {}, s.repo),
       s.task_ref && el("span", {}, s.task_ref),
       p.total ? el("span", {}, t("card.progress", { done: p.done, total: p.total, rem: p.remaining })) : null,
-      pr.number ? el("span", {}, `PR#${pr.number}` + (pr.ci ? ` CI:${pr.ci}` : "") + (pr.unresolved_threads != null ? t("card.threads", { n: pr.unresolved_threads }) : "")) : null,
+      pr.number || prUrl ? el("span", {}, prLabel, (pr.ci ? ` CI:${pr.ci}` : "") + (pr.unresolved_threads != null ? t("card.threads", { n: pr.unresolved_threads }) : "")) : null,
       s.phase && el("span", {}, s.phase),
       (u.input || u.output) ? el("span", {}, `${fmtNum(u.input)}/${fmtNum(u.output)} tok`) : null,
       u.cost_usd != null ? el("span", {}, `$${Number(u.cost_usd).toFixed(2)}`) : null,
@@ -635,7 +652,7 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     const name = s.title || s.session_id;
     const card = el("div", glowProps([glowKey.session(s.session_id)], {
       "aria-pressed": String(ui.session === s.session_id),
-      class: "card" + (ui.session === s.session_id ? " selected" : ""), tabindex: "0", role: "button", "data-sid": s.session_id,
+      class: "card" + (s.archived ? " archived" : "") + (ui.session === s.session_id ? " selected" : ""), tabindex: "0", role: "button", "data-sid": s.session_id,
       "aria-label": t("card.showTimeline", { name }),
       onclick: () => toggleCard(s.session_id),
       onkeydown: (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); card.click(); } },
@@ -645,13 +662,15 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
           ? el("span", { class: "spinner", role: "img", "aria-label": t("card.working") })
           : el("span", { class: "dot", style: { background: laneColor(s.session_id) } }),
         el("span", { class: "title", title: s.session_id }, name),
+        // An archived session keeps showing how it ended
+        s.archived ? el("span", { class: "chip" }, (STATE[s.state] || [s.state])[0]) : null,
         badge(stateKey(s))),
       el("div", { class: "meta" }, meta),
       s.summary ? el("div", { class: "summary" }, s.summary) : null,
       p.total && s.state !== "done" ? el("div", { class: "progress", "aria-hidden": "true" }, el("i", { style: { width: pct + "%" } })) : null,
     );
     const a = s.attention;
-    if (a) {
+    if (a && !s.archived) {
       card.append(el("div", { class: "ask" },
         el("div", {}, el("b", {}, `Q${a.qid} ${a.kind}${a.blocking ? t("ask.blocking") : t("ask.nonblocking")}: `), a.question || ""),
         a.options && a.options.length
@@ -815,13 +834,14 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
         const st = e.state_after;
         if (!segs.length || segs[segs.length - 1].state !== st) segs.push({ state: st, from: Date.parse(e.ts) });
       }
-      const end = ["done", "abandoned", "failed"].includes(s.state) ? Date.parse(s.updated_at) : t1;
+      const end = ["done", "abandoned", "failed"].includes(s.state) ? Date.parse(s.updated_at)
+        : s.archived ? Date.parse(s.archived.since) : t1;
       segs.forEach((g, j) => {
-        const to = j + 1 < segs.length ? segs[j + 1].from : end;
+        const to = j + 1 < segs.length ? segs[j + 1].from : Math.max(g.from, end);
         const key = j === segs.length - 1 && s.stale ? "stale" : g.state;
         const rect = mk("rect", { x: x(g.from), y: y + 8, width: Math.max(6, x(to) - x(g.from)), height: laneH - 16, rx: 3,
           fill: css((STATE[key] || [0, "--s-queue"])[1]), opacity: 0.85 });
-        tip(rect, () => `${(STATE[key] || [key])[0]}\n${new Date(g.from).toLocaleString(LOCALE)} – ${j + 1 < segs.length ? new Date(to).toLocaleString(LOCALE) : t("lanes.now")}`);
+        tip(rect, () => `${(STATE[key] || [key])[0]}\n${new Date(g.from).toLocaleString(LOCALE)} – ${j + 1 < segs.length || s.archived ? new Date(to).toLocaleString(LOCALE) : t("lanes.now")}`);
       });
       for (const e of evs) {
         if (e.type === "heartbeat") continue;
@@ -833,7 +853,7 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     });
     box.append(svg);
     const legend = $("legend");
-    legend.replaceChildren(...Object.entries(STATE).map(([, [label, color]]) =>
+    legend.replaceChildren(...Object.entries(STATE).filter(([k]) => k !== "archived").map(([, [label, color]]) =>
       el("span", {}, el("i", { style: { background: `var(${color})` } }), label)),
       el("span", {}, t("lanes.legend")));
   }
