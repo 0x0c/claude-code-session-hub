@@ -1,11 +1,11 @@
-[English](SH-XXXX-grid-panel-resize.md) · **日本語**
+[English](SH-0017-grid-panel-resize.md) · **日本語**
 
-# SH-XXXX — 詳細パネルに合わせたグリッドのリサイズ
+# SH-0017 — 詳細パネルに合わせたグリッドのリサイズ
 
 <!-- SH-METADATA -->
 | 項目 | 値 |
 |---|---|
-| 提案 | SH-XXXX |
+| 提案 | SH-0017 |
 | 作者 | [@0x0c](https://github.com/0x0c) |
 | 状態 | **Implemented** |
 | トピック | Dashboard |

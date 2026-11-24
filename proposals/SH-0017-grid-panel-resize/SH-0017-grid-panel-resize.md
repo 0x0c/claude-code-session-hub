@@ -1,11 +1,11 @@
-**English** · [日本語](SH-XXXX-grid-panel-resize.ja.md)
+**English** · [日本語](SH-0017-grid-panel-resize.ja.md)
 
-# SH-XXXX — Resize the grid beside the detail panel
+# SH-0017 — Resize the grid beside the detail panel
 
 <!-- SH-METADATA -->
 | Field | Value |
 |---|---|
-| Proposal | SH-XXXX |
+| Proposal | SH-0017 |
 | Author | [@0x0c](https://github.com/0x0c) |
 | Status | **Implemented** |
 | Topic | Dashboard |
