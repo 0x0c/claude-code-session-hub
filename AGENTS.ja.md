@@ -107,6 +107,7 @@ scripts/check.sh
 - 要素の`hidden`属性は、CSSの`display`の指定に負けます。スタイルシートに`[hidden] { display: none !important; }`を入れています。
 - `Object.assign`で`element.style`にカスタムプロパティを設定しても反映されません。`style.setProperty("--name", value)`を使ってください。
 - 表示していないタブには古いDOMが残ります。タブを切り替えるときに中身を消さないと、期限切れのグローのような古い状態が残ります。
+- ダッシュボードの見た目は、`:root`ブロックのデザイントークンで組みます。トークンは、色・文字（`--fs-*`、`--fw-*`）・余白（`--space-*`）・角丸（`--radius-*`）です。これらのプロパティの直書きは、テスト（`tests/test_dashboard.py`）が拒否します。配置の寸法は直書きのままにします。
 
 ### 実際のブラウザーでダッシュボードを確認する
 
