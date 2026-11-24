@@ -76,7 +76,8 @@ network access, the first setup fails and edits stay blocked.
 
 `.gitleaks.toml` extends the built-in rules of gitleaks with two rules:
 
-- `anthropic-api-key` also covers OAuth tokens (`sk-ant-oat01-`), which the built-in rule misses.
+- `anthropic-api-key` also covers OAuth access and refresh tokens (`sk-ant-oat01-`, `sk-ant-ort01-`),
+  which the built-in rule misses.
 - `hub-token` matches `HUB_TOKEN` followed by a literal value of 16 or more characters. A shell
   variable or a short placeholder does not match.
 

@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parent.parent
 # Assembled at run time, so that this file does not trip the check it tests.
 BODY = "Zx8Qw3Lr7Tn2Vb9Kd4Mf6Hs1Jp5Gc0Yt"
 OAUTH = "sk-ant-" + "oat01-" + BODY
+REFRESH = "sk-ant-" + "ort01-" + BODY
 HUB = "HUB_" + "TOKEN=" + BODY
 # The copy that `make setup` installed, as the hooks resolve it.
 GITLEAKS = subprocess.run(["sh", "-c", '. .githooks/gitleaks.sh; echo "$GITLEAKS"'], cwd=ROOT,
@@ -64,7 +65,7 @@ class SecretHooksTest(unittest.TestCase):
 
     @unittest.skipUnless(HAVE_GITLEAKS, "gitleaks is not installed")
     def test_staged_secrets_are_blocked_and_redacted(self):
-        for secret in (OAUTH, HUB):
+        for secret in (OAUTH, REFRESH, HUB):
             with self.subTest(secret[:10]):
                 self.assert_blocked(self.commit(secret), "the staged change")
 
@@ -78,6 +79,15 @@ class SecretHooksTest(unittest.TestCase):
     @unittest.skipUnless(HAVE_GITLEAKS, "gitleaks is not installed")
     def test_a_secret_in_the_message_is_blocked(self):
         self.assert_blocked(self.commit("ok", message="use " + OAUTH), "the commit message")
+
+    @unittest.skipUnless(HAVE_GITLEAKS, "gitleaks is not installed")
+    def test_a_verbose_commit_may_delete_a_secret(self):
+        (self.dir / "f.txt").write_text(OAUTH + "\n")
+        self.git("add", "f.txt")
+        self.git("commit", "-qnm", "leak")
+        (self.dir / "f.txt").write_text("clean\n")
+        self.git("add", "f.txt")
+        self.git("commit", "-qv", "-m", "remove the secret", "-e", GIT_EDITOR="true")
 
     @unittest.skipUnless(HAVE_GITLEAKS, "gitleaks is not installed")
     def test_a_merge_that_brings_a_secret_is_blocked(self):

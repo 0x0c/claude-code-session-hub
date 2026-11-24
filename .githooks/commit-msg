@@ -4,5 +4,7 @@ set -eu
 . "$(dirname "$0")/gitleaks.sh"
 
 need_gitleaks "the commit message"
-"$GITLEAKS" stdin --redact --verbose --no-banner --log-level warn \
-  --config .gitleaks.toml <"$1" || blocked "the commit message"
+# `git commit -v` appends the staged diff below a scissors line, which Git drops from the message. The
+# diff's removed lines would block the very commit that deletes a secret.
+sed '/^. -\{24\} >8 -\{24\}$/,$d' "$1" | "$GITLEAKS" stdin --redact --verbose --no-banner \
+  --log-level warn --config .gitleaks.toml || blocked "the commit message"
