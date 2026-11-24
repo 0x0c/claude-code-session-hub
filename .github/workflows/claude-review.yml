@@ -6,8 +6,9 @@
 # summary from each of a pull request's runs would leave stale, contradictory overviews on it.
 #
 # WHEN IT RUNS: automatically when a person (not a bot) marks a draft pull request ready for review,
-# or opens or reopens one that is not a draft. The check fails on a draft, because its author is still
-# working, so that a draft never carries a passing check. A
+# or opens or reopens one that is not a draft. The check fails on a pull request that opens or reopens
+# as a draft, because its author is still working. Returning a pull request to draft starts no run: the
+# earlier result stays until a push, and the new head commit then has no check. A
 # trusted person (OWNER, MEMBER, or COLLABORATOR) can also ask by writing `@claude review`, on a draft
 # too. A push does not start a review (`synchronize` is not a trigger): a per-push review can post a
 # finding on the fix for its own previous finding, so the fix-push-review cycle need never converge.

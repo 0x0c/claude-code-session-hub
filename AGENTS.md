@@ -125,7 +125,9 @@ look at the page with demo data, as described under [Field notes](#check-the-das
   reopens (`.github/workflows/claude-review.yml`, against the contract in
   `.github/claude-review-prompt.md`). The review posts inline comments. `main` requires the review to
   run, but a finding never fails it. A push alone does not start a review. The required
-  check fails on a draft, so a draft shows a red `claude review` until it is ready. A comment of
+  check fails on a pull request that opens or reopens as a draft, so `claude review` stays red there
+  until a push or until the pull request is ready. After `gh pr ready --undo`, the earlier result
+  stays until you push; the new head commit then has no `claude review` check until `gh pr ready`. A comment of
   `@claude review` asks for a review, on a draft too, but its run reports as
   `claude review (requested)` and does not satisfy the required check. Only a comment from an owner, member, or
   collaborator of the repository starts a pass. Anyone else's request completes green with the
