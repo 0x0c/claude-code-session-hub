@@ -7,7 +7,7 @@
 |---|---|
 | Proposal | SH-XXXX |
 | Author | [@0x0c](https://github.com/0x0c) |
-| Status | **In progress** |
+| Status | **Implemented** |
 | Topic | Dashboard |
 | Implementing PR | [#31](https://github.com/0x0c/claude-code-session-hub/pull/31) |
 | Related | — |
@@ -63,7 +63,7 @@ The session filter keeps its options grouped by project alone.
 - [x] Design approved
 - [x] Implementation checked in a browser (the test suite has no browser harness)
 - [x] Documentation updated (README.md, docs/DESIGN.md)
-- [ ] README screenshots regenerated
+- [x] README screenshots regenerated
 
 ## References
 
