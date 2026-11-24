@@ -69,7 +69,10 @@ def record(store: EventStore, session_id: str, fields: dict, writer: str | None 
     if writer is None and after["state"] in schema.ESCALATE_STATES and (
             after["state"] != before["state"] or ev["type"] == "ask"):
         gate = schema.ready_gate(after) if after["state"] == "review_ready" else []
-        if gate:
+        if after["archived"]:
+            # attention would not list the session, so waking the parent would cost tokens for nothing
+            message += " (not sent to the parent: the session is archived)"
+        elif gate:
             message += f" (not sent to the parent: the review gate is not met: {', '.join(gate)})"
         else:
             escalate = escalation_line(after)

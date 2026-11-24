@@ -87,6 +87,7 @@ queued → planning → working ⇄ waiting_ci
                       ▼                          ▼                       │
                    blocked                     done (merged)   ←── working ┘
 any state → failed / abandoned
+any state + archived (a flag; the state stays, §3.1)
 ```
 
 | state | Meaning | Wakes the parent? |
@@ -199,6 +200,11 @@ immediately**.
   locks and pushes the removal to every browser. The operation works on whole sessions alone, so the
   folded state of every other session stays intact
   ([SH-0002](../proposals/SH-0002-delete-session/SH-0002-delete-session.md)).
+- **Archiving a session**: `archive` and `unarchive` events set and clear the status field `archived`,
+  a flag beside `state`. An archived session is neither stale nor in need of action, and unarchiving
+  restores its previous status. The hub scans the Claude desktop app's session files every five
+  seconds, read-only, and records the events in `events/<session_id>@desktop.jsonl`. A manual
+  `session-hub archive` records the same event as `parent`; a later report of the child clears it.
 
 ### 3.2 Child → hub (`session-hub report` and related commands)
 
@@ -438,7 +444,7 @@ label, it gives the English label and the Japanese label in parentheses.
     "working or waiting" (作業中・待機) and "done" (完了).
   - Clicking any group heading, "needs action" included, collapses or expands that group. A
     collapsed heading keeps its count, and glows when a hidden session sends a message. The browser
-    remembers the collapsed groups.
+    remembers the collapsed groups. The **Archived** group comes last and starts collapsed.
   - Each card shows a state badge, a task progress bar (hidden in the `done` state), the remaining work, the PR and CI, the
     tokens and cost, the last update, and any unanswered question (with its options, its default,
     and the command to answer it).
@@ -619,12 +625,12 @@ claude-code-session-hub/
 |---|---|
 | Message | One update that arrives at the hub from a sub-session. Once stored, a message becomes one event. On receipt, the dashboard makes the related elements glow for a while. A `send_message` to the parent (a `[HUB/1]` line) is called an "escalation notice" to keep the two apart |
 | Glow | The highlight shown when a message arrives. The sender's session card, the matching timeline row, the swimlane band, and the collection item the message landed in glow for about six seconds in the color of the new state (heartbeats excluded) |
-| Event | One report (one JSON line) from a child or the parent. Types: start / report / ask / answer / command / ready / pr / heartbeat / done / fail / finding |
+| Event | One report (one JSON line) from a child or the parent. Types: start / report / ask / answer / command / ready / pr / heartbeat / done / fail / finding / archive / unarchive |
 | Status (status record) | A session's current state. The hub computes the status by applying the events oldest first (folding) and never stores it |
 | Fold | Applying events one by one, in order, to compute the latest state |
 | Event sourcing | A design that appends what happened instead of storing state, and computes state from what happened. This design is why the timeline can be traced |
 | Append-only | A storage discipline: an event, once written, is never rewritten. The single exception deletes a whole session on request (§3.1) |
-| Writer | The owner of an event file. The child writes `<id>.jsonl`; the parent's answers and instructions go to `<id>@parent.jsonl` |
+| Writer | The owner of an event file. The child writes `<id>.jsonl`; the parent's answers and instructions go to `<id>@parent.jsonl`; the hub records the desktop app's archive flags in `<id>@desktop.jsonl` |
 | seq | A sequence number per writer file. An event ID is `<file name>#<seq>` (for example `session_01ABC#3`) |
 | state | A session's state, one of the 12 values in §1.2. Examples: working, needs_human, review_ready |
 | phase | The stage of work: plan / implement / test / fix / docs / self_review and so on |

@@ -33,7 +33,7 @@ The `:root` block holds every token:
 |---|---|
 | `--bg`, `--panel`, `--ink`, `--muted`, `--line`, `--hover`, `--accent`, `--flash` | Surfaces, text, lines, and accents |
 | `--s-*` | The state of a session |
-| `--g-action`, `--g-active`, `--g-done` | Fill of a group heading, the same in both themes |
+| `--g-action`, `--g-active`, `--g-done`, `--g-archived` | Fill of a group heading, the same in both themes |
 | `--on-fill` | Text on a fill |
 | `--font-sans`, `--fs-*` | Font family, and five sizes: 11, 12, 13, 14, and 16px |
 | `--fw-normal`, `--fw-strong` | Weights 400 and 600 |
@@ -44,10 +44,11 @@ Existing colors keep their values. Values off the scale move to a nearby step: 3
 
 A group heading is a 12px, weight-600 badge with `--on-fill` text on a `--g-*` fill. Its text stays smaller than the 14px session names below it. The fills give white text a contrast of at least 4.5:1 in both themes.
 
-A test reads the stylesheet and checks three rules:
+A test reads the stylesheet and checks four rules:
 
 - No rule outside the token blocks sets a font size, weight, spacing, corner, or color to a literal value.
 - Every custom property that a rule uses is defined.
+- Every status group has a fill.
 - The two dark blocks define the same tokens with the same values.
 
 ## Alternatives considered
