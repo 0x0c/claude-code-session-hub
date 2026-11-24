@@ -108,6 +108,15 @@
     ]],
     ["SessionFamily", [
       ["In one group, across two levels", () => pbCapture("sessions", { sessions: pbFamily() }, renderSessions), "narrow"],
+      ["Collapsed", () => pbCapture("sessions", { sessions: pbFamily() }, () => {
+        ui.collapsed = new Set([familyKey("pb-working")]);
+        renderSessions();
+      }), "narrow"],
+      ["Collapsed around the selected session", () => pbCapture("sessions", { sessions: pbFamily() }, () => {
+        ui.collapsed = new Set([familyKey("pb-working")]);
+        ui.session = "pb-waiting_ci";
+        renderSessions();
+      }), "narrow"],
       ["Parent in another group", () => pbCapture("sessions", { sessions: [
         pbSession("working"), pbSession("done", { title: pbText("other"), parent_id: "pb-working" })] }, renderSessions), "narrow"],
       ["Grid layout", () => el("main", { class: "grid", style: { padding: "0" } }, pbCapture("sessions", { sessions: pbFamily() }, renderSessions))],

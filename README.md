@@ -21,7 +21,8 @@ them on a browser dashboard.
   comes from the Git remote or the folder; `session-hub start --repo <name>` overrides it. The
   **By project** button switches to grouping by status.
 - **Families at a glance.** A sub-session sits under its parent's card, tied to it by lines, or links to
-  its parent when the two are in different groups. The hub finds the parent of a session that the Claude
+  its parent when the two are in different groups. A click on the number of sub-sessions on a parent's
+  card collapses the family. The hub finds the parent of a session that the Claude
   desktop app on macOS started from another session; elsewhere, `session-hub start --parent <id>` or
   `HUB_PARENT_SESSION_ID` names it.
 - **A few lines for the parent.** The parent session reads no transcripts. It decides from the few

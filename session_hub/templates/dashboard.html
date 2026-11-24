@@ -162,6 +162,12 @@ main.grid .subcards { padding: var(--space-4) 0 var(--space-8) var(--space-24); 
 .parentlink { max-width: 100%; padding: 0; border: 0; overflow: hidden; background: none; color: var(--accent); font-size: var(--fs-meta);
   text-align: left; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
 .parentlink:hover { text-decoration: underline; }
+/* Shows or hides the sub-sessions under the card */
+.kidstoggle { display: inline-flex; align-items: center; gap: var(--space-4); padding: 0; border: 0; background: none; color: inherit; font-size: var(--fs-meta); cursor: pointer; }
+.kidstoggle:hover { color: var(--accent); }
+.kidstoggle.selected { color: var(--accent); font-weight: var(--fw-strong); }
+.kidstoggle .chev { transition: transform .15s; }
+.kidstoggle[aria-expanded="true"] .chev { transform: rotate(90deg); }
 /* Sub-sessions under their parent's card: indented, and tied to it by lines */
 .kids { padding-left: var(--space-24); }
 .kid { position: relative; }
@@ -771,6 +777,12 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
   const ARCHIVED_KEY = "status:archived";
   const foldMark = (key) => (key === ARCHIVED_KEY ? "open:" + key : key);
   const isCollapsed = (key) => ui.collapsed.has(foldMark(key)) !== (key === ARCHIVED_KEY);
+  function toggleFold(...keys) {
+    for (const mark of keys.map(foldMark)) ui.collapsed.has(mark) ? ui.collapsed.delete(mark) : ui.collapsed.add(mark);
+    try { localStorage.setItem("hub.collapsed", JSON.stringify([...ui.collapsed])); } catch (_) {}
+  }
+  // The sub-sessions under a session's card; the object form keeps the key apart from every group key
+  const familyKey = (sid) => JSON.stringify({ family: sid });
   const inProject = (s) => ui.byProject && !s.needs_action && !s.archived;
   // A status inside a project, or a project inside Archived (the status "archived"); the array form
   // keeps a key apart from every project name
@@ -808,6 +820,19 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     return [...roots];
   }
 
+  // Keys of everything that can hide a session's card, outermost first: the headings above it, then the
+  // ancestors that it sits under, which are the unbroken line of parents in the same list
+  function foldKeys(s, byId) {
+    const keys = groupKeys(s);
+    const list = JSON.stringify(keys);
+    const above = [];
+    for (let p = parentOf(s, byId); p && JSON.stringify(groupKeys(p)) === list; p = parentOf(p, byId)) above.unshift(familyKey(p.session_id));
+    return [...keys, ...above];
+  }
+
+  // Every session below a node of families()
+  const descendants = (node) => node.kids.flatMap((kid) => [kid.s, ...descendants(kid)]);
+
   // [key, label, sessions] of each non-empty group, in display order
   function sessionGroups(sessions) {
     const status = (id) => ["status:" + id, t("group." + id), sessions.filter((s) => statusOf(s) === id)];
@@ -842,9 +867,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       type: "button", "aria-expanded": String(open), title: label, "data-group": key, "data-parent": parent,
       "aria-description": status && helpText("group." + status),
       onclick: () => {
-        const mark = foldMark(key);
-        ui.collapsed.has(mark) ? ui.collapsed.delete(mark) : ui.collapsed.add(mark);
-        try { localStorage.setItem("hub.collapsed", JSON.stringify([...ui.collapsed])); } catch (_) {}
+        toggleFold(key);
         renderSessions();
       },
     }),
@@ -863,7 +886,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     const at = wrap ? [...box.querySelectorAll(".cardwrap")].indexOf(wrap) : -1;
     rebuildSessions(box);
     const focusGroup = (key) => {
-      const head = [...box.querySelectorAll(".project")].find((n) => n.dataset.group === key);
+      const head = [...box.querySelectorAll("[data-group]")].find((n) => n.dataset.group === key);
       if (head) head.focus({ preventScroll: true });
       return !!head;
     };
@@ -873,13 +896,14 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       return;
     }
     if (!wrap) return;
-    // A session that moved into a collapsed group has no card: focus its heading, never another session's control
+    // A session inside a collapsed group or family has no card: focus what hides it, never another session's control
     const moved = db.sessions.find((s) => s.session_id === wrap.dataset.sid);
-    const closed = moved && groupKeys(moved).find(isCollapsed);
+    const closed = moved && foldKeys(moved, sessionsById()).find(isCollapsed);
     if (closed !== undefined) return focusGroup(closed);
     const wraps = [...box.querySelectorAll(".cardwrap")];
     const next = wraps.find((w) => w.dataset.sid === wrap.dataset.sid) || wraps[Math.min(at, wraps.length - 1)];
-    if (next) ((old.classList.contains("parentlink") && next.querySelector(".parentlink")) || next.querySelector(".card")).focus({ preventScroll: true });
+    const control = [".parentlink", ".kidstoggle"].find((c) => old.matches(c));
+    if (next) ((control && next.dataset.sid === wrap.dataset.sid && next.querySelector(control)) || next.querySelector(".card")).focus({ preventScroll: true });
   }
 
   function rebuildSessions(box) {
@@ -897,8 +921,8 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     }
     // A card under its parent needs no link to it
     const family = (node, named, nested) => {
-      const card = sessionCard(node.s, named, { parent: nested ? null : parentOf(node.s, byId), children: counts.get(node.s) });
-      if (!node.kids.length) return [card];
+      const card = sessionCard(node.s, named, { parent: nested ? null : parentOf(node.s, byId), children: counts.get(node.s), below: descendants(node) });
+      if (!node.kids.length || isCollapsed(familyKey(node.s.session_id))) return [card];
       const name = node.s.title || node.s.session_id;
       return [card, el("div", { class: "kids", role: "group", "aria-label": t("card.childrenOf", { name }) },
         node.kids.map((kid) => el("div", { class: "kid" }, family(kid, named, true))))];
@@ -934,13 +958,12 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     }, prName(pr));
   }
 
-  // Show a session from a link to it: open the groups that hide its card, then select it
+  // Show a session from a link to it: open the groups and families that hide its card, then select it
   function showSession(sid) {
     const s = db.sessions.find((x) => x.session_id === sid);
     if (!s) return;
-    const closed = groupKeys(s).filter(isCollapsed);
-    for (const mark of closed.map(foldMark)) ui.collapsed.has(mark) ? ui.collapsed.delete(mark) : ui.collapsed.add(mark);
-    if (closed.length) try { localStorage.setItem("hub.collapsed", JSON.stringify([...ui.collapsed])); } catch (_) {}
+    const closed = foldKeys(s, sessionsById()).filter(isCollapsed);
+    if (closed.length) toggleFold(...closed);
     selectSession(sid);
     const opens = ui.layout === "grid" && !ui.panelOpen;
     if (opens) openPanel(sid);
@@ -965,7 +988,22 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     }, "↳ " + name);
   }
 
-  function sessionCard(s, inProject, { parent = null, children = 0 } = {}) {
+  // below: the sessions that the toggle hides. Its count stays the number of direct sub-sessions, in any group
+  function kidsToggle(s, children, below) {
+    const key = familyKey(s.session_id);
+    const open = !isCollapsed(key);
+    const hidden = open ? [] : below;
+    return el("button", glowProps(hidden.map((k) => glowKey.session(k.session_id)), {
+      class: "kidstoggle" + (hidden.some((k) => k.session_id === ui.session) ? " selected" : ""),
+      type: "button", "aria-expanded": String(open), "data-group": key, title: t("card.childrenOf", { name: s.title || s.session_id }),
+      onclick: (e) => { e.stopPropagation(); toggleFold(key); renderSessions(); },
+      onkeydown: (e) => { if (e.key === "Enter" || e.key === " ") e.stopPropagation(); }, // The card would take the key
+    }),
+      el("span", { class: "chev", "aria-hidden": "true" }, "▸"), t("card.children", { n: children }));
+  }
+
+  // below: the sessions under this card in its list
+  function sessionCard(s, inProject, { parent = null, children = 0, below = [] } = {}) {
     const p = s.progress || { done: 0, total: 0, remaining: 0 };
     const pct = p.total ? Math.round((p.done / p.total) * 100) : 0;
     const pr = s.pr || {};
@@ -973,7 +1011,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     const u = s.usage || {};
     const meta = [
       parent && parentLink(parent),
-      children ? el("span", {}, t("card.children", { n: children })) : null,
+      below.length ? kidsToggle(s, children, below) : children ? el("span", {}, t("card.children", { n: children })) : null,
       !inProject && s.repo && el("span", {}, s.repo),
       s.task_ref && el("span", {}, s.task_ref),
       p.total ? el("span", {}, t("card.progress", { done: p.done, total: p.total, rem: p.remaining })) : null,
