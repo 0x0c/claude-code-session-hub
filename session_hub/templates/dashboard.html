@@ -201,10 +201,20 @@ a.pr { color: var(--accent); }
     0 0 12px 2px color-mix(in srgb, var(--glow) 12%, transparent), inset 0 0 8px color-mix(in srgb, var(--glow) 8%, transparent); }
   100% { box-shadow: 0 0 0 0 transparent, 0 0 0 0 transparent, 0 0 0 0 transparent, inset 0 0 0 transparent; }
 }
+/* Rows and cards in the detail panel sit flush against each other and the panel edge, so their glow stays inside them */
+.ev.glow, .kcard.glow, .ctable tr.glow { animation-name: glow-inset; }
+@keyframes glow-inset {
+  0%, 30%, 60% { box-shadow: inset 0 0 0 1.5px var(--glow), inset 0 0 10px 2px color-mix(in srgb, var(--glow) 55%, transparent),
+    inset 0 0 24px color-mix(in srgb, var(--glow) 35%, transparent); }
+  15%, 45%, 75% { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--glow) 30%, transparent), inset 0 0 5px 1px color-mix(in srgb, var(--glow) 18%, transparent),
+    inset 0 0 10px color-mix(in srgb, var(--glow) 10%, transparent); }
+  100% { box-shadow: inset 0 0 0 0 transparent, inset 0 0 0 0 transparent, inset 0 0 0 transparent; }
+}
 .lanes .laneglow { animation: laneglow var(--glow-ms, 6s) ease-in-out both; pointer-events: none; }
 @keyframes laneglow { 0%, 30%, 60% { opacity: .45; } 15%, 45%, 75% { opacity: .12; } 100% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) {
   @keyframes laneglow { 0%, 30% { opacity: .35; } 100% { opacity: 0; } }
+  @keyframes glow-inset { 0%, 75% { box-shadow: inset 0 0 0 2px var(--glow); } 100% { box-shadow: inset 0 0 0 0 transparent; } }
   @keyframes glow { 0%, 75% { box-shadow: 0 0 0 2px var(--glow); } 100% { box-shadow: 0 0 0 0 transparent; } }
 }
 .ev time { font-size: var(--fs-meta); color: var(--muted); font-variant-numeric: tabular-nums; padding-top: var(--space-1); }
