@@ -188,6 +188,12 @@
         el("span", { class: "chip" }, t("tl.all")), el("button", { class: "iconbtn danger" }, t("sessions.delete"))))],
       ["Resize handle, at rest and dragged", () => el("div", { class: "pb-row" }, ["resizer", "resizer active"].map((c) =>
         el("div", { class: c, style: { height: "72px" } })))],
+      ["Fullscreen button, off and on", () => el("div", { class: "pb-row" }, ["false", "true"].map((on) => {
+        const copy = pbPage.querySelector("#fullscreenPanel").cloneNode(true);
+        copy.hidden = false;
+        copy.setAttribute("aria-pressed", on);
+        return copy;
+      }))],
     ]],
     ["Controls", [
       ["Buttons", () => el("div", { class: "pb-row" }, el("button", { class: "iconbtn" }, t("btn.theme")),

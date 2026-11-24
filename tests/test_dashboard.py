@@ -70,6 +70,27 @@ class DashboardTest(unittest.TestCase):
     def test_closed_grid_panel_is_inert(self):
         self.assertRegex(PAGE, r'\$\("detail"\)\.inert\s*=\s*grid\s*&&\s*!ui\.panelOpen\b')
 
+    def test_fullscreen_covers_the_window_without_touching_the_panel_width(self):
+        rule = re.search(r"main\.grid\.fullscreen #detail \{([^}]*)\}", PAGE)[1]
+        self.assertIn("inset: 0; width: auto;", rule)
+        z = lambda pattern: int(re.search(pattern + r" \{[^}]*z-index: (\d+)", PAGE, re.M)[1])
+        self.assertLess(z(r"^header"), int(re.search(r"z-index: (\d+)", rule)[1]))
+        self.assertGreater(z(r"^\.tip"), int(re.search(r"z-index: (\d+)", rule)[1]))
+        self.assertNotIn("transition", rule)  # nothing to reduce for prefers-reduced-motion
+
+    def test_fullscreen_ends_with_the_panel_and_hides_what_it_covers(self):
+        self.assertIn('on = ui.fullscreen && ui.layout === "grid" && ui.panelOpen;', PAGE)
+        self.assertIn('document.querySelector("header").inert = $("sessions").closest("section").inert = on;', PAGE)
+        self.assertRegex(PAGE, r'aria-pressed", String\(b\.dataset\.layout === ui\.layout\)\)\);\n    applyFullscreen\(\);\n  \}')
+        self.assertLessEqual({"panel.fullscreenOn", "panel.fullscreenOff"}, messages("ja"))
+
+    def test_escape_clears_the_search_then_leaves_fullscreen_then_closes_the_panel(self):
+        handler = re.search(r'if \(e\.key !== "Escape".*?\n  \}\);', PAGE, re.S)[0]
+        steps = [handler.index(s) for s in ('e.target === $("fText")', "setFullscreen(false)", "closePanel()")]
+        self.assertEqual(steps, sorted(steps))
+        self.assertIn("return setFullscreen(false);", handler)
+        self.assertIn("if (!e.repeat) closePanel();", handler)
+
     def test_pull_request_link_is_limited_to_web_addresses(self):
         self.assertIn(r'/^https?:\/\//i.test(pr.url || "") ? pr.url : null', PAGE)
         self.assertRegex(PAGE, r'class: "pr", href: prUrl, target: "_blank", rel: "noopener noreferrer"')

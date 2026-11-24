@@ -92,8 +92,10 @@ section.panel { background: var(--panel); border: 1px solid var(--line); border-
 .seg { white-space: nowrap; }
 #sessionsTitle { flex-wrap: wrap; }
 #tlScope { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-#closePanel { margin-left: auto; }
-.iconbtn.danger:not([hidden]) + #closePanel { margin-left: 0; }
+#fullscreenPanel { margin-left: auto; }
+.iconbtn.danger:not([hidden]) + #fullscreenPanel { margin-left: 0; }
+#fullscreenPanel svg { display: block; width: 12px; height: 12px; margin: var(--space-2) 0; fill: none; stroke: currentColor; stroke-width: 1.5; }
+#fullscreenPanel[aria-pressed="true"] .expand, #fullscreenPanel[aria-pressed="false"] .shrink { display: none; }
 /* Grid layout: the cards take the full width, and the timeline becomes a panel on the right. The open
    panel takes its width from the cards; a small window has no room for both, so the panel covers it */
 main.grid { grid-template-columns: minmax(0, 1fr); max-width: none; }
@@ -125,6 +127,10 @@ main.grid .newbar { top: 48px; }
 main > #panelResize { display: none; position: fixed; z-index: 5; top: var(--header-h, 0px); bottom: 0; right: var(--detail-w); transform: translateX(50%); }
 @media (min-width: 860.02px) { main.grid.withpanel:not(.fullscreen) > #panelResize { display: block; } }
 @media (pointer: coarse) { .resizer { width: 20px; } .resizer::before { inset: 0 9px; } }
+/* Fullscreen: the open panel covers the window, header included, and the page behind it does not scroll.
+   The geometry is overridden here, so leaving the mode brings the previous width back */
+main.grid.fullscreen #detail { inset: 0; width: auto; z-index: 6; border-width: 0; box-shadow: none; }
+html:has(main.fullscreen) { overflow: hidden; }
 /* Sessions that need action: a section of its own above the other groups */
 .action-section { margin: var(--space-10); border: 1px solid var(--s-needs); border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--s-needs) 6%, var(--panel)); }
@@ -303,6 +309,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
   <section class="panel" id="detail" tabindex="-1" aria-labelledby="tlTitle">
     <h2 id="tlTitle"><span id="tlName"></span> <span class="chip" id="tlScope"></span> <a class="pr" id="tlPr" target="_blank" rel="noopener noreferrer" hidden></a>
       <button class="iconbtn danger" id="deleteSession" hidden data-i18n="sessions.delete" data-i18n-title="sessions.deleteTitle"></button>
+      <button class="iconbtn" id="fullscreenPanel" hidden aria-pressed="false" data-i18n-aria="panel.fullscreen" data-i18n-title="panel.fullscreenOn"><svg viewBox="0 0 12 12" aria-hidden="true"><path class="expand" d="M1 4V1H4M8 1H11V4M11 8V11H8M4 11H1V8"/><path class="shrink" d="M4 1V4H1M11 4H8V1M8 11V8H11M1 8H4V11"/></svg></button>
       <button class="iconbtn" id="closePanel" hidden data-i18n-aria="panel.close" data-i18n-title="panel.close">✕</button></h2>
     <div class="toolbar">
       <div class="tabs" role="tablist">
@@ -370,6 +377,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       "panel.openAll": "All sessions", "panel.openAllTitle": "Open the timeline of every session",
       "panel.close": "Close the panel (Esc)",
       "panel.resize": "Width of the detail panel", "panel.resizeTitle": "Drag to change the width; double-click to reset it",
+      "panel.fullscreen": "Fullscreen", "panel.fullscreenOn": "Expand the panel to the whole window", "panel.fullscreenOff": "Leave fullscreen (Esc)",
       "tl.title": "Timeline", "tl.all": "All", "tab.feed": "Feed", "tab.lanes": "Swimlanes",
       "filter.sessionAria": "Filter by session", "filter.allSessions": "All sessions",
       "filter.searchAria": "Search", "filter.textFeed": "Search summaries, questions, and answers",
@@ -437,6 +445,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       "panel.openAll": "すべてのセッション", "panel.openAllTitle": "すべてのセッションのタイムラインを開く",
       "panel.close": "パネルを閉じる（Esc）",
       "panel.resize": "詳細パネルの幅", "panel.resizeTitle": "ドラッグで幅を変更、ダブルクリックで既定の幅に戻す",
+      "panel.fullscreen": "全画面", "panel.fullscreenOn": "パネルをウィンドウ全体に広げる", "panel.fullscreenOff": "全画面を終了（Esc）",
       "tl.title": "タイムライン", "tl.all": "すべて", "tab.feed": "フィード", "tab.lanes": "スイムレーン",
       "filter.sessionAria": "セッションで絞り込み", "filter.allSessions": "すべてのセッション",
       "filter.searchAria": "検索", "filter.textFeed": "要約・質問・回答を検索",
@@ -575,6 +584,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     byProject: true, collapsed: new Set(), // keys of the collapsed groups
     lane: { span: null, end: null }, // span null: the whole period; end null: follow the present
     layout: "list", panelOpen: false, // panelOpen matters in the grid layout alone
+    fullscreen: false, // only while the grid's panel is open; applyLayout clears it otherwise
   };
   const prevStates = new Map();
   try { ui.byProject = localStorage.getItem("hub.byProject") !== "0"; } catch (_) {}
@@ -1453,7 +1463,40 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     $("detail").inert = grid && !ui.panelOpen;
     $("openPanel").hidden = $("closePanel").hidden = !grid;
     document.querySelectorAll("[data-layout]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.layout === ui.layout)));
+    applyFullscreen();
   }
+
+  // ---- Fullscreen (the grid's open panel covers the window) ----
+  function applyFullscreen() {
+    const button = $("fullscreenPanel"), on = ui.fullscreen && ui.layout === "grid" && ui.panelOpen;
+    ui.fullscreen = on;
+    $("main").classList.toggle("fullscreen", on);
+    // Keep the keyboard and screen readers out of what the panel covers
+    document.querySelector("header").inert = $("sessions").closest("section").inert = on;
+    button.hidden = ui.layout !== "grid";
+    button.setAttribute("aria-pressed", String(on));
+    button.dataset.i18nTitle = on ? "panel.fullscreenOff" : "panel.fullscreenOn";
+    button.title = t(button.dataset.i18nTitle);
+  }
+
+  function setFullscreen(on) {
+    const box = $("detail");
+    // The new width reflows the panel: keep the first visible row where it is, below the sticky title
+    const rows = () => [...box.querySelectorAll(".ev, .kcard, .ctable tbody tr")].filter((n) => n.getClientRects().length);
+    const below = (n) => n.getBoundingClientRect().top - $("tlTitle").getBoundingClientRect().bottom;
+    const at = box.scrollTop > 0 ? rows().findIndex((n) => below(n) + n.offsetHeight > 0) : -1;
+    const before = at >= 0 && below(rows()[at]);
+    tipEl.style.display = "none"; // what it describes moves away from the pointer
+    keepCardInPlace(ui.session, () => {
+      ui.fullscreen = on;
+      applyLayout();
+      if (ui.view === "lanes") render(); // the swimlanes are drawn to the panel's width
+    });
+    const row = at >= 0 && rows()[at];
+    if (row) box.scrollTop += below(row) - before;
+    if (!box.contains(document.activeElement)) $("fullscreenPanel").focus({ preventScroll: true }); // Safari does not focus a clicked button
+  }
+  $("fullscreenPanel").addEventListener("click", () => setFullscreen(!ui.fullscreen));
 
   function setLayout(layout) {
     ui.layout = layout;
@@ -1806,7 +1849,8 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       render();
       return;
     }
-    closePanel();
+    if (ui.fullscreen) return setFullscreen(false);
+    if (!e.repeat) closePanel(); // A held key leaves fullscreen without closing the panel as well
   });
   // The panel starts below the sticky header, whose height changes when it wraps
   const measureHeader = () => document.documentElement.style.setProperty("--header-h", document.querySelector("header").offsetHeight + "px");
