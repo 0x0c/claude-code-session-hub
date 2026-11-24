@@ -231,6 +231,18 @@ a.pr { color: var(--accent); }
 .lanes .lname { fill: var(--ink); font-size: var(--fs-meta); cursor: pointer; }
 .lanes .grid { stroke: var(--line); }
 .lanes .evdot { cursor: pointer; stroke: var(--panel); stroke-width: 1.5; }
+.overview { padding: var(--space-10) var(--space-14) var(--space-14); }
+.ovaxis, .ovrow { display: grid; grid-template-columns: minmax(80px, 160px) 1fr; column-gap: var(--space-8); align-items: center; }
+.ovaxis { font-size: var(--fs-label); color: var(--muted); }
+.ovticks { position: relative; height: 16px; }
+.ovticks span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+.ovticks span:first-child { transform: none; }
+.ovticks span:last-child { transform: translateX(-100%); }
+.ovrow { padding: var(--space-2) 0; }
+.ovrow.sel { background: var(--hover); border-radius: var(--radius-md); }
+.ovname { border: 0; background: none; padding: 0; text-align: left; cursor: pointer; color: var(--ink); font-size: var(--fs-meta); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ovtrack { position: relative; height: 14px; background-image: linear-gradient(var(--line), var(--line)); background-size: 100% 1px; background-position: center; background-repeat: no-repeat; }
+.ovseg { position: absolute; top: 0; bottom: 0; min-width: 3px; border-radius: var(--radius-xs); opacity: .85; }
 .legend { display: flex; flex-wrap: wrap; gap: var(--space-10); padding: 0 var(--space-14) var(--space-12); font-size: var(--fs-label); color: var(--muted); }
 .legend span { display: inline-flex; align-items: center; gap: var(--space-4); }
 .legend i { width: 10px; height: 10px; border-radius: var(--radius-xs); display: inline-block; }
@@ -279,7 +291,6 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
 <main id="main">
   <section class="panel" aria-labelledby="sessionsTitle">
     <h2 id="sessionsTitle"><span data-i18n="sessions.title"></span> <span class="chip" id="clearSel" hidden style="cursor:pointer" data-i18n="sessions.clear"></span>
-      <button class="iconbtn" id="openPanel" hidden data-i18n="panel.openAll" data-i18n-title="panel.openAllTitle"></button>
       <button class="iconbtn" id="groupBtn" data-i18n="btn.byProject" data-i18n-title="btn.byProjectTitle"></button>
       <span class="seg" role="group" data-i18n-aria="layout.aria">
         <button data-layout="list" data-i18n="layout.list"></button>
@@ -296,6 +307,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       <div class="tabs" role="tablist">
         <button role="tab" aria-selected="true" data-view="feed" data-i18n="tab.feed"></button>
         <button role="tab" aria-selected="false" data-view="lanes" data-i18n="tab.lanes"></button>
+        <button role="tab" aria-selected="false" data-view="overview" data-i18n="tab.overview"></button>
         <span id="colTabs" style="display:contents"></span>
       </div>
       <select id="fSession" data-i18n-aria="filter.sessionAria"><option value=""></option></select>
@@ -308,6 +320,10 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     <button class="newbar" id="newbar"><span id="newbarText"></span> ↑</button>
     <div id="feedView" class="feed" aria-live="polite"></div>
     <div id="colView" hidden></div>
+    <div id="overviewView" hidden>
+      <div class="overview" id="overview" role="group" data-i18n-aria="overview.aria"></div>
+      <div class="legend" id="ovLegend"></div>
+    </div>
     <div id="lanesView" hidden>
       <div class="lanebar" id="lanebar" role="group" data-i18n-aria="lanes.zoomAria">
         <button class="iconbtn" id="laneOut" data-i18n-aria="lanes.out" data-i18n-title="lanes.out">−</button>
@@ -355,9 +371,8 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       "sessions.deleteConfirm_one": "Delete the 1 message of \"{name}\"? This cannot be undone.",
       "sessions.deleteFailed": "Could not delete the session: {error}",
       "layout.aria": "Layout of the session list", "layout.list": "List", "layout.grid": "Grid",
-      "panel.openAll": "All sessions", "panel.openAllTitle": "Open the timeline of every session",
       "panel.close": "Close the panel (Esc)",
-      "tl.title": "Timeline", "tl.all": "All", "tab.feed": "Feed", "tab.lanes": "Swimlanes",
+      "tl.title": "Timeline", "tl.all": "All", "tab.feed": "Feed", "tab.lanes": "Swimlanes", "tab.overview": "Overview",
       "filter.sessionAria": "Filter by session", "filter.allSessions": "All sessions",
       "filter.searchAria": "Search", "filter.textFeed": "Search summaries, questions, and answers",
       "filter.textCol": "Search titles, bodies, and tags", "filter.oldest": "Oldest first",
@@ -386,7 +401,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       "chip.tasks": "Tasks {a} → {b}", "chip.resolved": "Q{q} resolved", "chip.ready": "Self-check updated",
       "chip.confidence": "Confidence {v}", "events.empty": "No matching events", "opt.default": " (default)",
       "details": "Details", "lanes.empty": "No data", "lanes.aria": "How each session's state changed over time",
-      "lanes.now": "now", "lanes.legend": "● question = orange / answer = blue / other = black",
+      "lanes.now": "now", "overview.aria": "The lifespan of every session on one time axis", "overview.open": "Show {name}", "overview.end": "now", "lanes.legend": "● question = orange / answer = blue / other = black",
       "lanes.zoomAria": "Zoom the swimlanes", "lanes.in": "Zoom in", "lanes.out": "Zoom out",
       "lanes.fit": "Show all", "lanes.fitTitle": "Show the whole period",
       "lanes.hint": "Ctrl/⌘ + wheel zooms, dragging moves",
@@ -421,9 +436,8 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       "sessions.deleteConfirm": "「{name}」のメッセージ {n} 件をすべて削除しますか？この操作は取り消せません。",
       "sessions.deleteFailed": "セッションを削除できませんでした: {error}",
       "layout.aria": "セッション一覧の表示形式", "layout.list": "リスト", "layout.grid": "グリッド",
-      "panel.openAll": "すべてのセッション", "panel.openAllTitle": "すべてのセッションのタイムラインを開く",
       "panel.close": "パネルを閉じる（Esc）",
-      "tl.title": "タイムライン", "tl.all": "すべて", "tab.feed": "フィード", "tab.lanes": "スイムレーン",
+      "tl.title": "タイムライン", "tl.all": "すべて", "tab.feed": "フィード", "tab.lanes": "スイムレーン", "tab.overview": "俯瞰",
       "filter.sessionAria": "セッションで絞り込み", "filter.allSessions": "すべてのセッション",
       "filter.searchAria": "検索", "filter.textFeed": "要約・質問・回答を検索",
       "filter.textCol": "タイトル・本文・タグを検索", "filter.oldest": "古い順",
@@ -452,7 +466,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       "chip.tasks": "タスク {a} → {b}", "chip.resolved": "Q{q} 解決", "chip.ready": "自己チェック更新",
       "chip.confidence": "確信度 {v}", "events.empty": "該当するイベントはありません", "opt.default": "（既定）",
       "details": "詳細", "lanes.empty": "データがありません", "lanes.aria": "セッションごとの状態の推移",
-      "lanes.now": "現在", "lanes.legend": "● 質問=橙 / 回答=青 / その他=黒",
+      "lanes.now": "現在", "overview.aria": "すべてのセッションの存続期間を1本の時間軸に並べた図", "overview.open": "{name} を表示", "overview.end": "現在", "lanes.legend": "● 質問=橙 / 回答=青 / その他=黒",
       "lanes.zoomAria": "スイムレーンの拡大縮小", "lanes.in": "拡大", "lanes.out": "縮小",
       "lanes.fit": "全体を表示", "lanes.fitTitle": "すべての期間を表示",
       "lanes.hint": "Ctrl/⌘+ホイールで拡大縮小、ドラッグで移動",
@@ -888,6 +902,45 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
   }
   const stripEvent = (e) => { const { state_after, ...rest } = e; return rest; };
 
+  // ---- Timeline (overview) ----
+  // One thin band per session over the whole history, so that every session's lifespan fits one screen
+  function renderOverview() {
+    const box = $("overview"), legend = $("ovLegend");
+    const all = [...db.events.values()];
+    legend.hidden = !db.sessions.length || !all.length;
+    if (legend.hidden) { box.replaceChildren(el("div", { class: "empty" }, t("lanes.empty"))); return; }
+    let t0 = Infinity, t1 = Date.now();
+    for (const e of all) { const at = Date.parse(e.ts); t0 = Math.min(t0, at); t1 = Math.max(t1, at); }
+    const full = Math.max(1, t1 - t0);
+    const pct = (ts) => ((ts - t0) / full) * 100;
+    const bySession = new Map(db.sessions.map((s) => [s.session_id, []]));
+    for (const e of all) bySession.get(e.session_id)?.push(e);
+    // Labels on the smallest step whose labels do not touch, at most six between the start and "now"
+    const trackW = Math.max(100, ((box.clientWidth || 560) - 28) - 168); // the widest name column
+    const room = (full > 86400000 ? 84 : 52) / trackW * full; // the time that one label covers
+    const step = LANE_STEPS.find((n) => n >= Math.max(full / 6, room)) || Math.ceil(Math.max(full / 6, room) / 2592e6) * 2592e6;
+    const label = (ts) => (full > 86400000 ? `${new Date(ts).getMonth() + 1}/${new Date(ts).getDate()} ` : "") + hhmm(ts);
+    const ticks = [el("span", { style: { left: "0%" } }, label(t0))];
+    const offset = new Date(t1).getTimezoneOffset() * 60000; // round local times, not round UTC times
+    for (let at = Math.ceil((t0 - offset) / step) * step + offset; at < t1 - room * 1.2; at += step) if (at > t0 + room * 1.6) ticks.push(el("span", { style: { left: pct(at) + "%" } }, label(at)));
+    ticks.push(el("span", { style: { left: "100%" } }, t("overview.end")));
+    const rows = db.sessions.map((s) => {
+      const name = s.title || s.session_id;
+      const evs = bySession.get(s.session_id).sort((a, b) => (a.ts < b.ts ? -1 : 1));
+      const segs = laneSegments(s, evs, t1).map((g) => {
+        const seg = el("i", { class: "ovseg", style: { left: pct(g.from) + "%", width: Math.max(0, pct(g.to) - pct(g.from)) + "%",
+          background: `var(${(STATE[g.key] || [0, "--s-queue"])[1]})` } });
+        tip(seg, () => `${(STATE[g.key] || [g.key])[0]}\n${new Date(g.from).toLocaleString(LOCALE)} – ${g.open ? t("lanes.now") : new Date(g.to).toLocaleString(LOCALE)}`);
+        return seg;
+      });
+      const btn = el("button", { class: "ovname", title: name, "aria-label": t("overview.open", { name }), onclick: () => selectSession(s.session_id) }, name);
+      return el("div", { class: "ovrow" + (s.session_id === ui.session ? " sel" : "") }, btn, el("div", { class: "ovtrack" }, segs));
+    });
+    box.replaceChildren(el("div", { class: "ovaxis" }, el("span"), el("div", { class: "ovticks" }, ticks)), ...rows);
+    legend.replaceChildren(...Object.entries(STATE).filter(([k]) => k !== "archived").map(([, [text, color]]) =>
+      el("span", {}, el("i", { style: { background: `var(${color})` } }), text)));
+  }
+
   // ---- Timeline (swimlanes) ----
   const LANE_MIN = 60000; // the closest zoom shows one minute
   const LANE_STEPS = [1, 2, 5, 10, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200, 10800, 21600, 43200, 86400, 172800, 604800, 1209600].map((n) => n * 1000);
@@ -1280,6 +1333,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     renderColTabs();
     if (ui.view === "feed") renderFeed();
     else if (ui.view === "lanes") renderLanes();
+    else if (ui.view === "overview") renderOverview();
     else renderCollection(ui.view.slice(4));
   }
 
@@ -1325,6 +1379,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     $("detail").focus({ preventScroll: true });
   }
 
+  const gridButton = () => document.querySelector('[data-layout="grid"]');
   function closePanel() {
     const sid = ui.session;
     ui.panelOpen = false;
@@ -1332,7 +1387,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     clearUnseen();
     keepCardInPlace(sid, () => { applyLayout(); selectSession(""); });
     const card = [...document.querySelectorAll(".card")].find((c) => c.dataset.sid === sid);
-    (card || $("openPanel")).focus({ preventScroll: true });
+    (card || gridButton()).focus({ preventScroll: true });
   }
 
   function applyLayout() {
@@ -1344,7 +1399,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     for (const id of ["sessions", "detailScroll"]) isSplit() ? ($(id).tabIndex = 0) : $(id).removeAttribute("tabindex");
     $("detail").classList.toggle("open", grid && ui.panelOpen);
     $("detail").inert = grid && !ui.panelOpen;
-    $("openPanel").hidden = $("closePanel").hidden = !grid;
+    $("closePanel").hidden = !grid;
     document.querySelectorAll("[data-layout]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.layout === ui.layout)));
   }
 
@@ -1368,12 +1423,16 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     const isCol = v.startsWith("col:");
     $("feedView").hidden = v !== "feed";
     $("lanesView").hidden = v !== "lanes";
+    $("overviewView").hidden = v !== "overview";
+    if (v !== "overview") $("overview").replaceChildren(); // Leave no stale content in a hidden tab
     $("colView").hidden = !isCol;
     if (!isCol) $("colView").replaceChildren(); // Leave no stale content (such as a glow) in a hidden tab
     // The type, heartbeat, and order controls apply to the timeline alone
-    $("fTypes").hidden = isCol;
-    $("fHeartbeat").parentElement.hidden = isCol;
-    $("fOrder").parentElement.hidden = isCol;
+    const unfiltered = v === "overview"; // it draws every session and lists no event
+    $("fTypes").hidden = isCol || unfiltered;
+    $("fHeartbeat").parentElement.hidden = isCol || unfiltered;
+    $("fOrder").parentElement.hidden = isCol || unfiltered;
+    $("fText").hidden = unfiltered;
     updateViewText();
     render();
     if (changed && isSplit()) $("detailScroll").scrollTop = 0;
@@ -1539,7 +1598,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       const refocus = ui.layout === "grid" && ui.panelOpen && (focused === document.body || $("detail").contains(focused));
       ui.panelOpen = false;
       applyLayout();
-      if (refocus) $("openPanel").focus({ preventScroll: true });
+      if (refocus) gridButton().focus({ preventScroll: true });
     }
     db.total = snap.total || {};
     if (snap.collections) db.collections = snap.collections;
@@ -1688,7 +1747,6 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     for (const n of [$("sessions"), $("detail"), $("tlTitle")]) ro.observe(n);
   }
   document.querySelectorAll("[data-layout]").forEach((b) => b.addEventListener("click", () => setLayout(b.dataset.layout)));
-  $("openPanel").addEventListener("click", () => openPanel(""));
   $("closePanel").addEventListener("click", closePanel);
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape" || e.isComposing || ui.layout !== "grid" || !ui.panelOpen) return;
@@ -1723,7 +1781,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     if (ui.view === "lanes") render();
   });
   try { const theme = localStorage.getItem("hub.theme"); if (theme) document.documentElement.dataset.theme = theme; } catch (_) {}
-  window.addEventListener("resize", () => { if (ui.view === "lanes") render(); else drawLink(); });
+  window.addEventListener("resize", () => { if (ui.view === "lanes" || ui.view === "overview") render(); else drawLink(); });
   bindLanes();
   // Refresh the "N minutes ago" labels periodically
   setInterval(() => {
