@@ -1,11 +1,11 @@
-**English** · [日本語](SH-XXXX-status-guide.ja.md)
+**English** · [日本語](SH-0023-status-guide.ja.md)
 
-# SH-XXXX — Explain every status and state
+# SH-0023 — Explain every status and state
 
 <!-- SH-METADATA -->
 | Field | Value |
 |---|---|
-| Proposal | SH-XXXX |
+| Proposal | SH-0023 |
 | Author | [@0x0c](https://github.com/0x0c) |
 | Status | **In progress** |
 | Topic | Dashboard |
