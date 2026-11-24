@@ -441,6 +441,8 @@ label, it gives the English label and the Japanese label in parentheses.
   - Every section sorts by last update, the newest first. The last update is the time on the card,
     and a heartbeat counts. The project with the newest update comes first, and sessions without a
     project come last.
+  - Each project section holds the status groups "working or waiting" (作業中・待機) and "done" (完了),
+    in this order. A status group without sessions is not shown.
   - The **By project** button switches the sessions below "needs action" to grouping by status:
     "working or waiting" (作業中・待機) and "done" (完了).
   - Clicking any group heading, "needs action" included, collapses or expands that group. A

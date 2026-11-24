@@ -115,6 +115,11 @@ main.grid .action-section .card:not(.selected):not(:hover) { background: var(--p
 .project .pname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .project .chev { color: var(--muted); transition: transform .15s; }
 .project[aria-expanded="true"] .chev { transform: rotate(90deg); }
+/* The status groups inside a project */
+main .project.sub { margin: 0; padding: 5px 14px 5px 28px; border-width: 1px 0 0; border-radius: 0; background: none; font-weight: 500; }
+main .project.sub:hover { background: var(--hover); }
+main.grid .project.sub { border: 0; border-radius: 8px; }
+main.grid .subcards { padding: 4px 0 8px 28px; }
 .project .count { color: var(--muted); font-weight: 400; font-variant-numeric: tabular-nums; }
 .card { padding: 10px 14px; border-top: 1px solid var(--line); cursor: pointer; border-left: 3px solid transparent; }
 .cardwrap:hover .card { background: var(--hover); }
@@ -560,24 +565,36 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
   const ARCHIVED_KEY = "status:archived";
   const foldMark = (key) => (key === ARCHIVED_KEY ? "open:" + key : key);
   const isCollapsed = (key) => ui.collapsed.has(foldMark(key)) !== (key === ARCHIVED_KEY);
-  const groupKey = (s) => (ui.byProject && !s.needs_action && !s.archived ? s.repo || "" : "status:" + statusOf(s));
+  const inProject = (s) => ui.byProject && !s.needs_action && !s.archived;
+  // The status groups inside a project; the array form keeps a key apart from every project name
+  const subKey = (project, id) => JSON.stringify([project, id]);
+  // Keys of the headings above a session's card, outermost first
+  const groupKeys = (s) => (inProject(s) ? [s.repo || "", subKey(s.repo || "", statusOf(s))] : ["status:" + statusOf(s)]);
 
   // [key, label, sessions] of each non-empty group, in display order
   function sessionGroups(sessions) {
     const status = (id) => ["status:" + id, t("group." + id), sessions.filter((s) => statusOf(s) === id)];
     const rest = ui.byProject
-      ? projectGroups(sessions.filter((s) => !s.needs_action && !s.archived)).map(([key, list]) => [key, key || t("project.none"), list])
+      ? projectGroups(sessions.filter(inProject)).map(([key, list]) => [key, key || t("project.none"), list])
       : [status("active"), status("done")];
     return [status("action"), ...rest, status("archived")].filter(([, , list]) => list.length);
   }
 
-  function groupHeader(key, label, list) {
+  // [key, label, sessions] of each non-empty status group inside a project, in display order
+  function projectStatusGroups(project, sessions) {
+    return ["active", "done"]
+      .map((id) => [subKey(project, id), t("group." + id), sessions.filter((s) => statusOf(s) === id)])
+      .filter(([, , list]) => list.length);
+  }
+
+  // parent is the key of the enclosing project, for a status group inside one
+  function groupHeader(key, label, list, parent = null) {
     const open = !isCollapsed(key);
     // A collapsed group hides its cards, so the header carries their glow and the selection mark
     const hidden = open ? [] : list;
     return el("button", glowProps(hidden.map((s) => glowKey.session(s.session_id)), {
-      class: "project" + (hidden.some((s) => s.session_id === ui.session) ? " selected" : ""),
-      type: "button", "aria-expanded": String(open), title: label, "data-group": key,
+      class: "project" + (parent === null ? "" : " sub") + (hidden.some((s) => s.session_id === ui.session) ? " selected" : ""),
+      type: "button", "aria-expanded": String(open), title: label, "data-group": key, "data-parent": parent,
       onclick: () => {
         const mark = foldMark(key);
         ui.collapsed.has(mark) ? ui.collapsed.delete(mark) : ui.collapsed.add(mark);
@@ -601,12 +618,18 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     const focusGroup = (key) => {
       const head = [...box.querySelectorAll(".project")].find((n) => n.dataset.group === key);
       if (head) head.focus({ preventScroll: true });
+      return !!head;
     };
-    if (old && old.classList.contains("project")) return focusGroup(old.dataset.group);
+    // A status group that emptied has no heading: focus the heading of its project
+    if (old && old.classList.contains("project")) {
+      if (!focusGroup(old.dataset.group) && old.dataset.parent !== undefined) focusGroup(old.dataset.parent);
+      return;
+    }
     if (!wrap) return;
     // A session that moved into a collapsed group has no card: focus its heading, never another session's control
     const moved = db.sessions.find((s) => s.session_id === wrap.dataset.sid);
-    if (moved && isCollapsed(groupKey(moved))) return focusGroup(groupKey(moved));
+    const closed = moved && groupKeys(moved).find(isCollapsed);
+    if (closed !== undefined) return focusGroup(closed);
     const wraps = [...box.querySelectorAll(".cardwrap")];
     const next = wraps.find((w) => w.dataset.sid === wrap.dataset.sid) || wraps[Math.min(at, wraps.length - 1)];
     if (next) next.querySelector(old.classList.contains("carddel") ? ".carddel" : ".card").focus({ preventScroll: true });
@@ -619,9 +642,12 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
       return;
     }
     const sorted = [...db.sessions].sort(byRecent);
-    const cards = (list, inProject) => el("div", { class: "cards" }, list.map((s) => sessionCard(s, inProject)));
+    const cards = (list, named) => el("div", { class: "cards" }, list.map((s) => sessionCard(s, named)));
+    const subgroups = (project, list) => projectStatusGroups(project, list).flatMap(([key, label, part]) =>
+      [groupHeader(key, label, part, project), isCollapsed(key) ? null : el("div", { class: "subcards" }, cards(part, true))]);
     for (const [key, label, list] of sessionGroups(sorted)) {
-      const parts = [groupHeader(key, label, list), isCollapsed(key) ? null : cards(list, !key.startsWith("status:"))].filter(Boolean);
+      const body = () => (key.startsWith("status:") ? [cards(list, false)] : subgroups(key, list));
+      const parts = [groupHeader(key, label, list), ...(isCollapsed(key) ? [] : body())].filter(Boolean);
       box.append(...(key === ACTION_KEY ? [el("section", { class: "action-section", "aria-label": label }, parts)] : parts));
     }
   }

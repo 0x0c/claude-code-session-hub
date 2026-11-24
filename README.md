@@ -14,7 +14,7 @@ them on a browser dashboard.
   top: waiting for a human, failed, ready for review, or stalled. A spinner marks a session that is working. A
   **timeline** (a feed or swimlanes) replays every report in order.
 - **Grouped by project.** The session list gathers the other sessions by repository or project, the most
-  recently updated first. The
+  recently updated first, and splits each project into "Working and waiting" and "Done". The
   name comes from the Git remote or the folder; `session-hub start --repo <name>` overrides it. The
   **By project** button switches to grouping by status.
 - **A few lines for the parent.** The parent session reads no transcripts. It decides from the few
