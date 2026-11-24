@@ -51,6 +51,7 @@ Each session has one status record, a JSON object. The field `v` holds the schem
 | Group | Field | Writer | Description |
 |---|---|---|---|
 | Identity | `v`, `session_id`, `parent_id`, `title`, `task_ref` | At launch (parent) | `task_ref` is an issue number or a task identifier (ID) |
+| | `session_name` | Hook or command (automatic) | The session's name in Claude Code, read from the transcript. Clipped at 200 characters. When present, it replaces `title`, so the dashboard shows the name |
 | Location | `repo`, `branch`, `base` | At launch / hook | |
 | State | `state` | Child (CLI) | One of the values listed in §1.2 |
 | | `phase` | Child | A narrow enumeration such as `plan` / `implement` / `test` / `fix` / `docs` / `self_review` |
@@ -197,7 +198,7 @@ immediately**.
   dashboard's **Delete session** button call `DELETE /api/sessions/<session_id>`, which unlinks every
   file of that session under the files' write locks and pushes the removal to every browser. The
   operation works on whole sessions alone, so the folded state of every other session stays intact
-  ([SH-0001](../proposals/SH-0001-delete-session.md)).
+  ([SH-0002](../proposals/SH-0002-delete-session.md)).
 - **Archiving a session**: `archive` and `unarchive` events set and clear the status field `archived`,
   a flag beside `state`. An archived session is neither stale nor in need of action, and unarchiving
   restores its previous status. The hub scans the Claude desktop app's session files every five
@@ -513,8 +514,9 @@ claude-code-session-hub/
     view.py               Data assembly for the dashboard / attention / log / knowledge
     collections.py        Collection definitions (match / reduce / view / sinks) and projection
     hooks.py              Claude Code hook handlers (session-start / stop / todo)
-    local_state.py        The child's local state (last reported state, task ID mapping)
+    local_state.py        The child's local state (last reported state, task ID mapping, transcript path)
     usage.py              Token totals from the transcript
+    session_name.py       The session's name from the transcript
     cli.py                The session-hub command
     templates/dashboard.html
   bin/session-hub         Wrapper that needs no installation

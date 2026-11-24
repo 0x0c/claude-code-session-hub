@@ -20,7 +20,7 @@ Endpoints:
     GET  /api/snapshot  all data (JSON)
     GET  /api/stream    SSE: a snapshot first, then updates
     POST /api/events    receive an event {"session_id", "writer"?, "fields": {...}}
-    DELETE /api/sessions/<session_id>   physically delete every message of one session (SH-0001)
+    DELETE /api/sessions/<session_id>   physically delete every message of one session (SH-0002)
 """
 
 from __future__ import annotations

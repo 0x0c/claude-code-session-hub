@@ -37,6 +37,7 @@
 | グループ | フィールド | 書き手 | 説明 |
 |---|---|---|---|
 | 識別 | `v`, `session_id`, `parent_id`, `title`, `task_ref` | 起動時（親） | `task_ref`はIssue番号かタスク識別子（ID） |
+| | `session_name` | hookまたはコマンド（自動） | トランスクリプトから読み取った、Claude Codeのセッション名。200文字で切り詰めます。この値があれば`title`を置き換えるので、ダッシュボードはセッション名を表示します |
 | 場所 | `repo`, `branch`, `base` | 起動時 / hook | |
 | 状態 | `state` | 子（CLI） | §1.2に挙げる値のいずれか |
 | | `phase` | 子 | `plan` / `implement` / `test` / `fix` / `docs` / `self_review`のような、選択肢の少ない列挙 |
@@ -167,7 +168,7 @@ queued → planning → working ⇄ waiting_ci
 - **イベントソーシング**: ハブは状態を保存しません。読み出すたびに、追記のみのイベント列を畳み込んで状態を求めます。イベント列はタイムラインビューの元データにもなるので、読み手は何がいつ変わったかを正確にたどれます。
 - **書き手ごとのファイル**: `events/<session_id>.jsonl`には子のイベントが、`events/<session_id>@parent.jsonl`には親の回答と指示が入ります。各ファイルの書き手は常に1人なので、Gitでストアを共有しても衝突しません。
 - **時刻の採番**: ハブサーバーは、ストア全体で単調増加するミリ秒単位の時刻を付けます。そのため、到着順と表示順は常に一致します。
-- **セッションの削除**: 追記のみの原則に対する唯一の例外です。`session-hub delete`とダッシュボードの **セッションを削除** ボタンは`DELETE /api/sessions/<session_id>`を呼びます。ハブはそのセッションのファイルを、書き込みロックを取ったうえですべて削除し、削除をすべてのブラウザーへ配信します。セッション単位でしか働かないので、他のセッションを畳み込んだ状態は変わりません（[SH-0001](../proposals/SH-0001-delete-session.ja.md)）。
+- **セッションの削除**: 追記のみの原則に対する唯一の例外です。`session-hub delete`とダッシュボードの **セッションを削除** ボタンは`DELETE /api/sessions/<session_id>`を呼びます。ハブはそのセッションのファイルを、書き込みロックを取ったうえですべて削除し、削除をすべてのブラウザーへ配信します。セッション単位でしか働かないので、他のセッションを畳み込んだ状態は変わりません（[SH-0002](../proposals/SH-0002-delete-session.ja.md)）。
 - **セッションのアーカイブ**: `archive`と`unarchive`のイベントが、ステータスの`archived`フィールドを設定、解除します。`state`とは別のフラグです。アーカイブ済みのセッションは停滞とも要対応ともみなさず、解除すると以前のステータスに戻ります。ハブはClaudeデスクトップアプリのセッションファイルを5秒ごとに読み取り専用で走査し、イベントを`events/<session_id>@desktop.jsonl`に記録します。手動の`session-hub archive`は同じイベントを`parent`として記録し、その後に子が報告すると解除されます。
 
 ### 3.2 子 → ハブ（`session-hub report`ほか）
@@ -419,8 +420,9 @@ claude-code-session-hub/
     view.py               ダッシュボード / attention / log / knowledge用のデータ組み立て
     collections.py        コレクションの定義（match / reduce / view / sinks）と投影
     hooks.py              Claude Codeのhook処理（session-start / stop / todo）
-    local_state.py        子のローカル状態（最後に報告した状態、タスクIDの対応）
+    local_state.py        子のローカル状態（最後に報告した状態、タスクIDの対応、トランスクリプトのパス）
     usage.py              トランスクリプトからのトークン集計
+    session_name.py       トランスクリプトからのセッション名の読み取り
     cli.py                session-hubコマンド
     templates/dashboard.html
   bin/session-hub         インストール不要のラッパー

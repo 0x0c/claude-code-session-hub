@@ -50,7 +50,7 @@ FINDING_STATUS = ("active", "obsolete")
 # Character limits for free-text fields
 LIMITS = {
     "summary": 80, "next": 80, "note": 200, "question": 200, "last_error": 120,
-    "title": 80, "task": 40, "option": 40, "value": 200,
+    "title": 80, "session_name": 200, "task": 40, "option": 40, "value": 200,
     "body": 600, "tag": 30, "scope": 120, "key": 80,
 }
 
@@ -111,7 +111,7 @@ def normalize_event(ev: dict) -> dict:
     if not isinstance(ev["seq"], int) or ev["seq"] < 1:
         raise SchemaError("seq must be an integer of 1 or more")
 
-    for key in ("summary", "next", "note", "last_error", "title"):
+    for key in ("summary", "next", "note", "last_error", "title", "session_name"):
         if key in ev:
             ev[key] = clip(ev[key], key)
 
@@ -162,7 +162,7 @@ def normalize_event(ev: dict) -> dict:
 def empty_status(session_id: str) -> dict:
     return {
         "v": SCHEMA_VERSION, "session_id": session_id,
-        "title": None, "parent_id": None, "task_ref": None, "repo": None, "branch": None,
+        "title": None, "session_name": None, "parent_id": None, "task_ref": None, "repo": None, "branch": None,
         "state": "queued", "phase": None, "summary": None, "next": None, "confidence": None,
         "tasks": [], "attention": None, "pr": {}, "ready": {}, "usage": {},
         "last_error": None, "archived": None, "started_at": None, "updated_at": None, "heartbeat": None,
@@ -193,10 +193,12 @@ def apply_event(status: dict, ev: dict) -> dict:
     if st["started_at"] is None:
         st["started_at"] = ev["ts"]
 
-    for key in ("title", "parent_id", "task_ref", "repo", "branch", "phase",
+    for key in ("title", "session_name", "parent_id", "task_ref", "repo", "branch", "phase",
                 "summary", "next", "confidence", "last_error"):
         if ev.get(key) is not None:
             st[key] = ev[key]
+    if st["session_name"]:  # The name Claude Code shows wins over the reported title
+        st["title"] = st["session_name"]
     if "tasks" in ev:
         st["tasks"] = ev["tasks"]
     for key in ("pr", "ready", "usage"):

@@ -14,6 +14,7 @@ from unittest import mock
 
 from session_hub import client, collections, core, desktop, hooks, local_state, schema, view
 from session_hub.server import make_server
+from session_hub.deliver import deliver
 from session_hub.store import EventStore
 
 
@@ -508,6 +509,32 @@ class HooksTest(TmpMixin, unittest.TestCase):
         self.run_hook("stop", {"transcript_path": str(t), "stop_hook_active": True})
         st = schema.fold(self.store.read("kid"))
         self.assertEqual((st["usage"]["input"], st["usage"]["output"]), (15, 2))
+
+    def test_session_name_becomes_the_title(self):
+        t = self.dir / "t.jsonl"
+        rec = lambda kind, field, name: json.dumps({"type": kind, field: name}, ensure_ascii=False) + "\n"  # noqa: E731
+        start = {"type": "start", "title": "reported"}
+        title = lambda: schema.fold(self.store.read("kid"))["title"]  # noqa: E731
+
+        self.run_hook("session-start", {"transcript_path": str(t)})  # The file does not exist yet
+        deliver("kid", start)
+        self.assertEqual(title(), "reported")
+        t.write_text("not json custom-title\n" + rec("ai-title", "aiTitle", "generated"), encoding="utf-8")
+        deliver("kid", {"type": "report", "summary": "s"})
+        self.assertEqual(title(), "generated")
+        with t.open("a", encoding="utf-8") as f:
+            f.write(rec("custom-title", "customTitle", "名前" + "x" * 100) + rec("ai-title", "aiTitle", "later")
+                    + rec("custom-title", "customTitle", None) + "[\"custom-title\"]\n")
+        self.run_hook("stop", {"transcript_path": str(t), "stop_hook_active": True})
+        self.assertEqual(title(), "名前" + "x" * 100)
+        deliver("kid", start)  # A later report never replaces the name
+        self.assertEqual(title(), "名前" + "x" * 100)
+        with t.open("a", encoding="utf-8") as f:
+            f.write(rec("custom-title", "customTitle", "renamed"))
+        deliver("kid", {"type": "command", "actor": "parent", "note": "x"}, writer="parent")
+        self.assertNotEqual(title(), "renamed")  # The parent does not speak for the child's name
+        deliver("kid", {"type": "report", "summary": "s"})
+        self.assertEqual(title(), "renamed")
 
     def test_todo_sync(self):
         self.run_hook("todo", {"tool_name": "TodoWrite", "tool_input": {"todos": [

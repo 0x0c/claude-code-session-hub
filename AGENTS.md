@@ -126,6 +126,10 @@ Each note states a fact we verified, why it matters, and what to do about it.
   id, so we record the id-to-name mapping when `TaskCreate` runs.
 - The hook payload includes `transcript_path`. Token usage comes from summing `message.usage` over
   the assistant entries, deduplicated by `message.id`: one response can span several lines.
+- The transcript also holds the session's name: the last `custom-title` record (a name that a person
+  or the desktop app set), or else the last `ai-title` record. Every send by the session attaches the
+  name, and the hub shows it as the title. The name may appear after SessionStart, so we read the
+  transcript again on each send.
 - Hooks are no-ops unless `HUB_URL` or `HUB_STORE` is set, so the plugin is safe to enable globally.
 
 ### Session identity
