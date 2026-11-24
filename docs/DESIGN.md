@@ -472,6 +472,10 @@ label, it gives the English label and the Japanese label in parentheses.
   - **Swimlanes**: one horizontal band per session, with state changes drawn as colored spans.
     Dots mark events (question = orange, answer = blue). Hovering shows details, and clicking jumps
     to the matching feed row. A long wait for a human, or a stall, is visible at a glance.
+    The buttons, Ctrl/⌘ + wheel, and a trackpad pinch zoom the time axis down to one minute. Dragging,
+    horizontal scrolling, and the arrow keys move it. A table below lists the shown period in detail:
+    time, session, event, state, how long the state lasted, and content. The feed's filters and order
+    apply to the table.
 - **Grid layout**: a toggle in the session list's header switches between the list and a grid, and the
   browser remembers the choice (`localStorage`, `hub.layout`; the default is the list).
   - The grid keeps the groups and spreads the cards over the full width.

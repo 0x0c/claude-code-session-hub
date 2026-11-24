@@ -219,7 +219,13 @@ a.pr { color: var(--accent); }
 .ev summary { font-size: var(--fs-label); color: var(--muted); cursor: pointer; }
 .ev pre { font-size: var(--fs-label); background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius-md); padding: var(--space-8); overflow-x: auto; margin: var(--space-4) 0 0; }
 .hb { font-size: var(--fs-label); color: var(--muted); padding: var(--space-2) var(--space-14) var(--space-2) calc(var(--space-14) + 56px + var(--space-10) + 14px); }
-.lanes { padding: var(--space-10) var(--space-14) var(--space-14); overflow-x: auto; }
+.lanebar { display: flex; flex-wrap: wrap; gap: var(--space-6); align-items: center; padding: var(--space-10) var(--space-14) 0; font-size: var(--fs-meta); color: var(--muted); }
+.lanebar button:disabled { opacity: .5; cursor: default; }
+.lanebar .range { font-variant-numeric: tabular-nums; }
+.lanes { padding: var(--space-10) var(--space-14) var(--space-14); overflow-x: auto; touch-action: pan-y; user-select: none; -webkit-user-select: none; }
+.lanes.zoomed { cursor: grab; }
+.lanes.dragging, .lanes.dragging * { cursor: grabbing; }
+.lanes .cursor { stroke: var(--accent); stroke-width: 1.5; pointer-events: none; }
 .lanes svg { display: block; }
 .lanes text { fill: var(--muted); font-size: var(--fs-label); }
 .lanes .lname { fill: var(--ink); font-size: var(--fs-meta); cursor: pointer; }
@@ -242,6 +248,11 @@ a.pr { color: var(--accent); }
 .kcard .src { cursor: pointer; text-decoration: underline dotted; }
 table.ctable { width: 100%; border-collapse: collapse; font-size: var(--fs-body-sm); }
 .ctable-wrap { overflow-x: auto; padding: var(--space-4) var(--space-14) var(--space-12); }
+table.ctable tbody tr:hover { background: var(--hover); }
+table.ctable .nowrap { white-space: nowrap; font-variant-numeric: tabular-nums; }
+table.ctable .wide { min-width: 120px; }
+table.ctable tr.before { color: var(--muted); }
+table.ctable .linkbtn { background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline dotted; font-variant-numeric: tabular-nums; }
 table.ctable th, table.ctable td { text-align: left; padding: var(--space-6) var(--space-8); border-bottom: 1px solid var(--line); vertical-align: top; overflow-wrap: anywhere; }
 table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: var(--fw-strong); }
 .tip { position: fixed; z-index: 10; pointer-events: none; background: var(--ink); color: var(--panel); font-size: var(--fs-meta);
@@ -298,8 +309,16 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     <div id="feedView" class="feed" aria-live="polite"></div>
     <div id="colView" hidden></div>
     <div id="lanesView" hidden>
-      <div class="lanes" id="lanes"></div>
+      <div class="lanebar" id="lanebar" role="group" data-i18n-aria="lanes.zoomAria">
+        <button class="iconbtn" id="laneOut" data-i18n-aria="lanes.out" data-i18n-title="lanes.out">−</button>
+        <button class="iconbtn" id="laneIn" data-i18n-aria="lanes.in" data-i18n-title="lanes.in">＋</button>
+        <button class="iconbtn" id="laneFit" data-i18n="lanes.fit" data-i18n-title="lanes.fitTitle"></button>
+        <span class="range" id="laneRange"></span>
+        <span data-i18n="lanes.hint"></span>
+      </div>
+      <div class="lanes" id="lanes" tabindex="0" role="group" data-i18n-aria="lanes.aria"></div>
       <div class="legend" id="legend"></div>
+      <div id="laneTable"></div>
     </div>
     </div>
   </section>
@@ -368,6 +387,14 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       "chip.confidence": "Confidence {v}", "events.empty": "No matching events", "opt.default": " (default)",
       "details": "Details", "lanes.empty": "No data", "lanes.aria": "How each session's state changed over time",
       "lanes.now": "now", "lanes.legend": "● question = orange / answer = blue / other = black",
+      "lanes.zoomAria": "Zoom the swimlanes", "lanes.in": "Zoom in", "lanes.out": "Zoom out",
+      "lanes.fit": "Show all", "lanes.fitTitle": "Show the whole period",
+      "lanes.hint": "Ctrl/⌘ + wheel zooms, dragging moves",
+      "lanes.list": "Details of the shown period", "lanes.listEmpty": "No events in this period match the filters",
+      "lanes.before": "Before the shown period; its state still applies at the start",
+      "lanes.col.time": "Time", "lanes.col.session": "Session", "lanes.col.event": "Event",
+      "lanes.col.state": "State", "lanes.col.duration": "Lasted", "lanes.col.text": "Content",
+      "dur.sec": "{n}s", "dur.min": "{n}m", "dur.hour": "{n}h", "dur.day": "{n}d",
       "col.count": "{n} items", "col.showObsolete": " Show obsolete", "col.emptyFiltered": "No items match the filters",
       "col.empty": "Nothing yet. Items appear here when a sub-session records them with `session-hub learn`.",
       "col.groupCount": "{n} items", "col.count_one": "1 item", "col.groupCount_one": "1 item",
@@ -426,6 +453,14 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       "chip.confidence": "確信度 {v}", "events.empty": "該当するイベントはありません", "opt.default": "（既定）",
       "details": "詳細", "lanes.empty": "データがありません", "lanes.aria": "セッションごとの状態の推移",
       "lanes.now": "現在", "lanes.legend": "● 質問=橙 / 回答=青 / その他=黒",
+      "lanes.zoomAria": "スイムレーンの拡大縮小", "lanes.in": "拡大", "lanes.out": "縮小",
+      "lanes.fit": "全体を表示", "lanes.fitTitle": "すべての期間を表示",
+      "lanes.hint": "Ctrl/⌘+ホイールで拡大縮小、ドラッグで移動",
+      "lanes.list": "表示中の期間の詳細", "lanes.listEmpty": "この期間に条件に合うイベントはありません",
+      "lanes.before": "表示中の期間より前のイベント（期間の始まりの状態を示します）",
+      "lanes.col.time": "時刻", "lanes.col.session": "セッション", "lanes.col.event": "種別",
+      "lanes.col.state": "状態", "lanes.col.duration": "継続時間", "lanes.col.text": "内容",
+      "dur.sec": "{n}秒", "dur.min": "{n}分", "dur.hour": "{n}時間", "dur.day": "{n}日",
       "col.count": "{n} 件", "col.showObsolete": " 廃止済みも表示", "col.emptyFiltered": "条件に合う項目はありません",
       "col.empty": "まだありません。サブセッションが `session-hub learn` で記録すると、ここに集まります。",
       "col.groupCount": "{n} 件", "tag.search": "このタグで検索", "chip.obsolete": "廃止",
@@ -524,6 +559,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     fresh: new Set(), unseen: 0, notify: false,
     colGroups: {}, showObsolete: false,
     byProject: true, collapsed: new Set(), // keys of the collapsed groups
+    lane: { span: null, end: null }, // span null: the whole period; end null: follow the present
     layout: "list", panelOpen: false, // panelOpen matters in the grid layout alone
   };
   const prevStates = new Map();
@@ -853,19 +889,110 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
   const stripEvent = (e) => { const { state_after, ...rest } = e; return rest; };
 
   // ---- Timeline (swimlanes) ----
-  function renderLanes() {
+  const LANE_MIN = 60000; // the closest zoom shows one minute
+  const LANE_STEPS = [1, 2, 5, 10, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200, 10800, 21600, 43200, 86400, 172800, 604800, 1209600].map((n) => n * 1000);
+  let laneTimer = 0;
+  let laneView = null; // the period that the last render showed, for the zoom and pan handlers
+
+  const fmtDur = (ms) => {
+    const units = [["day", 86400], ["hour", 3600], ["min", 60], ["sec", 1]];
+    let s = Math.max(0, Math.round(ms / 1000));
+    const i = Math.max(0, units.findIndex(([, n]) => s >= n || n === 1));
+    const parts = [];
+    for (const [u, n] of units.slice(i, i + 2)) { const v = Math.floor(s / n); s -= v * n; if (v || !parts.length) parts.push(t("dur." + u, { n: v })); }
+    return parts.join(" ");
+  };
+  const stamp = (ms) => new Date(ms).toLocaleString(LOCALE, { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" });
+
+  // The shown period [from, to] within the whole period [t0, t1]
+  function laneWindow(t0, t1) {
+    const full = Math.max(1, t1 - t0);
+    const { span, end } = ui.lane;
+    if (span == null || span >= full) return { t0, t1, from: t0, to: t0 + full, full, whole: true };
+    const to = end == null ? t1 : Math.min(t1, Math.max(t0 + span, end));
+    return { t0, t1, from: to - span, to, full, whole: false };
+  }
+
+  function setLaneWindow(span, from, gesture) {
+    const v = laneView;
+    if (span >= v.full) ui.lane = { span: null, end: null };
+    else {
+      const to = Math.min(v.t1, Math.max(v.t0, from) + span);
+      ui.lane = { span, end: to >= v.t1 - 1 ? null : to };
+    }
+    renderLanes(gesture);
+  }
+
+  // Zoom around a point: f is its position in the shown period, from 0 (left) to 1 (right)
+  function zoomLanes(factor, f, gesture) {
+    const v = laneView;
+    if (!v) return;
+    const span = v.to - v.from;
+    const next = Math.max(Math.min(LANE_MIN, v.full), Math.min(v.full, span * factor));
+    setLaneWindow(next, v.from + f * (span - next), gesture);
+  }
+  // A button or a key has no pointer: keep the present in view while following it, else zoom around the middle
+  const zoomLanesStep = (factor) => zoomLanes(factor, ui.lane.end == null ? 1 : 0.5);
+  function panLanes(ms, gesture) { if (laneView && !laneView.whole) setLaneWindow(laneView.to - laneView.from, laneView.from + ms, gesture); }
+
+  // Cut a name to a width in pixels; a full-width character takes about twice the room of a Latin one
+  function fitName(name, room) {
+    let used = 0, kept = "";
+    for (const c of name) {
+      used += c.codePointAt(0) > 0x2e7f ? 12.5 : 7;
+      if (used > room) return kept + "…";
+      kept += c;
+    }
+    return name;
+  }
+
+  // The runs of one state, each with the id of the event that begins it
+  function laneSegments(s, evs, t1) {
+    const segs = [];
+    for (const e of evs) {
+      if (!segs.length || segs[segs.length - 1].state !== e.state_after) segs.push({ state: e.state_after, from: Date.parse(e.ts), id: e.id });
+    }
+    const closed = ["done", "abandoned", "failed"].includes(s.state);
+    const end = closed ? Date.parse(s.updated_at) : s.archived ? Date.parse(s.archived.since) : t1;
+    segs.forEach((g, j) => {
+      const last = j === segs.length - 1;
+      g.to = last ? Math.max(g.from, end) : segs[j + 1].from;
+      g.key = last && s.stale ? "stale" : g.state;
+      g.open = last && !s.archived; // the tooltip says "now" for the state that still holds
+      g.final = last && closed;
+    });
+    return segs;
+  }
+
+  // During a gesture, the table waits until the movement settles: it can hold thousands of rows
+  function renderLanes(gesture = false) {
+    clearTimeout(laneTimer);
     const box = $("lanes");
-    const boxW = box.clientWidth; // Measure before clearing, or the layout of the empty box resets the scroll
-    box.replaceChildren();
+    const pad = getComputedStyle(box);
+    // Measure before clearing, or the layout of the empty box resets the scroll
+    const boxW = box.clientWidth - (parseFloat(pad.paddingLeft) + parseFloat(pad.paddingRight) || 0);
+    tipEl.style.display = "none"; // the element under the pointer is about to be replaced
     const sessions = db.sessions.filter((s) => !ui.session || s.session_id === ui.session);
     const all = [...db.events.values()];
-    if (!sessions.length || !all.length) { box.append(el("div", { class: "empty" }, t("lanes.empty"))); return; }
-    const times = all.map((e) => Date.parse(e.ts));
-    const t0 = Math.min(...times), t1 = Math.max(Date.now(), Math.max(...times));
-    const labelW = 160, laneH = 30, top = 22;
-    const width = Math.max(560, boxW - 4);
+    const empty = !sessions.length || !all.length;
+    $("lanebar").hidden = $("legend").hidden = empty;
+    if (empty) {
+      laneView = null;
+      box.classList.remove("zoomed");
+      $("laneTable").replaceChildren();
+      box.replaceChildren(el("div", { class: "empty" }, t("lanes.empty")));
+      return;
+    }
+    let t0 = Infinity, t1 = Date.now();
+    for (const e of all) { const at = Date.parse(e.ts); t0 = Math.min(t0, at); t1 = Math.max(t1, at); }
+    const view = laneView = laneWindow(t0, t1);
+    const { from, to } = view, span = to - from;
+    const width = boxW > 0 ? Math.max(300, boxW) : 560;
+    const narrow = width < 480;
+    const labelW = narrow ? 100 : 160, laneH = 30, top = 22;
     const plotW = width - labelW - 10;
-    const x = (t) => labelW + ((t - t0) / Math.max(1, t1 - t0)) * plotW;
+    const x = (ts) => labelW + ((ts - from) / span) * plotW;
+    Object.assign(view, { labelW, plotW });
     const NS = "http://www.w3.org/2000/svg";
     const svg = document.createElementNS(NS, "svg");
     const height = top + sessions.length * laneH + 6;
@@ -877,15 +1004,23 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       if (text != null) n.textContent = text;
       svg.append(n); return n;
     };
-    // Time axis
-    const ticks = 6;
-    for (let i = 0; i <= ticks; i++) {
-      const tick = t0 + ((t1 - t0) * i) / ticks;
+    // Time axis: the smallest step whose labels do not touch, on round local times
+    const least = span * Math.min(1, 110 / plotW);
+    const step = LANE_STEPS.find((n) => n >= least) || Math.ceil(least / 2592e6) * 2592e6;
+    const offset = (ms) => new Date(ms).getTimezoneOffset() * 60000;
+    for (let local = Math.ceil((from - offset(from)) / step) * step; ; local += step) {
+      const tick = local + offset(local + offset(from)); // its own offset, which daylight saving time can change
+      if (tick > to) break;
+      if (tick < from) continue;
+      const d = new Date(tick), date = `${d.getMonth() + 1}/${d.getDate()}`;
+      const label = step >= 86400000 ? date : (span > 86400000 ? date + " " : "")
+        + (step < 60000 ? d.toLocaleTimeString(LOCALE, { hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" }) : hhmm(tick));
       mk("line", { x1: x(tick), x2: x(tick), y1: top - 4, y2: height, class: "grid" });
-      const d = new Date(tick);
-      mk("text", { x: x(tick), y: 12, "text-anchor": i === 0 ? "start" : i === ticks ? "end" : "middle" },
-        (t1 - t0 > 86400000 ? `${d.getMonth() + 1}/${d.getDate()} ` : "") + hhmm(tick));
+      mk("text", { x: x(tick), y: 12, "text-anchor": x(tick) > width - 36 ? "end" : "middle" }, label);
     }
+    const bySession = new Map(sessions.map((s) => [s.session_id, []]));
+    for (const e of all) bySession.get(e.session_id)?.push(e);
+    const lanes = new Map(); // session id -> its state runs
     sessions.forEach((s, i) => {
       const y = top + i * laneH;
       const name = s.title || s.session_id;
@@ -894,37 +1029,137 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
         const r = mk("rect", { x: 0, y: y + 2, width, height: laneH - 4, rx: 6, class: "laneglow", fill: lg.color });
         r.style.animationDelay = `-${Math.round(lg.elapsed)}ms`;
       }
-      const lbl = mk("text", { x: 0, y: y + laneH / 2 + 4, class: "lname" }, name.length > 18 ? name.slice(0, 17) + "…" : name);
+      const lbl = mk("text", { x: 0, y: y + laneH / 2 + 4, class: "lname" }, fitName(name, labelW - 8));
+      tip(lbl, () => name);
       lbl.addEventListener("click", () => selectSession(s.session_id));
-      const evs = all.filter((e) => e.session_id === s.session_id).sort((a, b) => (a.ts < b.ts ? -1 : 1));
+      const evs = bySession.get(s.session_id).sort((a, b) => (a.ts < b.ts ? -1 : 1));
       // State band: from one state change to the next
-      const segs = [];
-      for (const e of evs) {
-        const st = e.state_after;
-        if (!segs.length || segs[segs.length - 1].state !== st) segs.push({ state: st, from: Date.parse(e.ts) });
+      const segs = laneSegments(s, evs, t1);
+      lanes.set(s.session_id, segs);
+      for (const g of segs) {
+        if (g.to < from || g.from > to) continue;
+        const x0 = x(Math.max(g.from, from)), x1 = x(Math.min(g.to, to));
+        const rect = mk("rect", { x: x0, y: y + 8, width: Math.max(6, x1 - x0), height: laneH - 16, rx: 3,
+          fill: css((STATE[g.key] || [0, "--s-queue"])[1]), opacity: 0.85 });
+        tip(rect, () => `${(STATE[g.key] || [g.key])[0]}\n${new Date(g.from).toLocaleString(LOCALE)} – ${g.open ? t("lanes.now") : new Date(g.to).toLocaleString(LOCALE)}`);
       }
-      const end = ["done", "abandoned", "failed"].includes(s.state) ? Date.parse(s.updated_at)
-        : s.archived ? Date.parse(s.archived.since) : t1;
-      segs.forEach((g, j) => {
-        const to = j + 1 < segs.length ? segs[j + 1].from : Math.max(g.from, end);
-        const key = j === segs.length - 1 && s.stale ? "stale" : g.state;
-        const rect = mk("rect", { x: x(g.from), y: y + 8, width: Math.max(6, x(to) - x(g.from)), height: laneH - 16, rx: 3,
-          fill: css((STATE[key] || [0, "--s-queue"])[1]), opacity: 0.85 });
-        tip(rect, () => `${(STATE[key] || [key])[0]}\n${new Date(g.from).toLocaleString(LOCALE)} – ${j + 1 < segs.length || s.archived ? new Date(to).toLocaleString(LOCALE) : t("lanes.now")}`);
-      });
       for (const e of evs) {
-        if (e.type === "heartbeat") continue;
-        const c = mk("circle", { cx: x(Date.parse(e.ts)), cy: y + laneH / 2, r: e.type === "ask" || e.type === "fail" ? 5 : 3.5,
+        const at = Date.parse(e.ts);
+        if (e.type === "heartbeat" || at < from || at > to) continue;
+        const c = mk("circle", { cx: x(at), cy: y + laneH / 2, r: e.type === "ask" || e.type === "fail" ? 5 : 3.5,
           class: "evdot", fill: e.type === "ask" ? css("--s-needs") : e.type === "answer" ? css("--accent") : css("--ink") });
         tip(c, () => `${hhmm(e.ts)} ${TYPES[e.type] || e.type}\n${eventText(e)}`);
         c.addEventListener("click", () => jumpTo(e));
       }
     });
-    box.append(svg);
+    const cursor = mk("line", { y1: top - 4, y2: height, class: "cursor", visibility: "hidden" });
+    const point = (at) => {
+      if (at != null) { cursor.setAttribute("x1", x(at)); cursor.setAttribute("x2", x(at)); }
+      cursor.setAttribute("visibility", at != null && at >= from && at <= to ? "visible" : "hidden");
+    };
+    box.replaceChildren(svg);
+    box.classList.toggle("zoomed", !view.whole);
+    $("laneRange").textContent = `${stamp(from)} – ${stamp(to)}`;
+    $("laneOut").disabled = $("laneFit").disabled = view.whole;
+    $("laneIn").disabled = span <= LANE_MIN;
     const legend = $("legend");
     legend.replaceChildren(...Object.entries(STATE).filter(([k]) => k !== "archived").map(([, [label, color]]) =>
       el("span", {}, el("i", { style: { background: `var(${color})` } }), label)),
       el("span", {}, t("lanes.legend")));
+    if (gesture) laneTimer = setTimeout(renderLaneTable, 120, view, lanes, point);
+    else renderLaneTable(view, lanes, point);
+  }
+
+  // The events of the shown period, plus the ones that began the states in effect at its start
+  function renderLaneTable({ from, to }, lanes, point) {
+    const box = $("laneTable");
+    const runs = new Map(); // event id -> the state run that it begins
+    for (const segs of lanes.values()) for (const g of segs) runs.set(g.id, g);
+    const rows = filteredEvents().filter((e) => {
+      if (!lanes.has(e.session_id)) return false;
+      const at = Date.parse(e.ts), g = runs.get(e.id);
+      return at >= from ? at <= to : !!g && g.to > from;
+    });
+    const active = document.activeElement, focused = box.contains(active) && active.dataset.ev;
+    const scrolled = box.querySelector(".ctable-wrap")?.scrollLeft || 0;
+    const title = el("div", { class: "day" }, t("lanes.list"), " ", el("span", { class: "chip" }, t("col.count", { n: rows.length })));
+    if (!rows.length) { box.replaceChildren(title, el("div", { class: "empty" }, t("lanes.listEmpty"))); return; }
+    const wrap = el("div", { class: "ctable-wrap" }, el("table", { class: "ctable" },
+      el("thead", {}, el("tr", {}, ["time", "session", "event", "state", "duration", "text"].map((c) => el("th", { scope: "col" }, t("lanes.col." + c))))),
+      el("tbody", {}, rows.map((e) => {
+        const at = Date.parse(e.ts), g = runs.get(e.id), before = at < from;
+        return el("tr", { class: before && "before", title: before && t("lanes.before"),
+          onmouseenter: () => point(at), onmouseleave: () => point(null), onfocusin: () => point(at), onfocusout: () => point(null) },
+          el("td", { class: "nowrap" }, e.type === "heartbeat" && !Object.keys(e.diff || {}).length
+            ? el("span", { title: e.ts }, stamp(at)) // the feed collapses these, so it has no row to open
+            : el("button", { class: "linkbtn", dataset: { ev: e.id }, title: e.ts, onclick: () => jumpTo(e) }, stamp(at))),
+          el("td", { class: "wide" }, sessionName(e.session_id)),
+          el("td", { class: "nowrap" }, TYPES[e.type] || e.type),
+          el("td", { class: "nowrap" }, e.state_after ? badge(e.state_after) : "-"),
+          el("td", { class: "nowrap" }, g && !g.final ? fmtDur(g.to - g.from) : ""),
+          el("td", { class: "wide" }, eventText(e)));
+      }))));
+    box.replaceChildren(title, wrap);
+    wrap.scrollLeft = scrolled;
+    if (focused) [...box.querySelectorAll("[data-ev]")].find((n) => n.dataset.ev === focused)?.focus({ preventScroll: true });
+  }
+
+  // Zoom and pan. The handlers sit on the container, which survives a render.
+  function bindLanes() {
+    const box = $("lanes");
+    // Coalesce the many wheel and pointer events of one frame into one render
+    let frame = 0, queued = [];
+    const queue = (fn) => {
+      queued.push(fn);
+      if (!frame) frame = requestAnimationFrame(() => {
+        frame = 0;
+        const todo = queued; queued = [];
+        const merged = todo.reduce((m, q) => ({ ms: m.ms + (q.ms || 0), zoom: m.zoom * (q.zoom || 1), f: q.f ?? m.f }), { ms: 0, zoom: 1, f: 0.5 });
+        if (merged.zoom !== 1) zoomLanes(merged.zoom, merged.f, true);
+        if (merged.ms) panLanes(merged.ms, true);
+      });
+    };
+    const perPixel = () => (laneView.to - laneView.from) / laneView.plotW;
+    box.addEventListener("wheel", (ev) => {
+      if (!laneView) return;
+      const unit = ev.deltaMode ? 16 : 1;
+      if (ev.ctrlKey || ev.metaKey) {
+        ev.preventDefault(); // a trackpad pinch arrives as a wheel event with ctrlKey
+        const at = ev.clientX - box.querySelector("svg").getBoundingClientRect().left - laneView.labelW;
+        const dy = Math.max(-60, Math.min(60, ev.deltaY * unit));
+        queue({ zoom: Math.exp(dy * 0.008), f: Math.max(0, Math.min(1, at / laneView.plotW)) });
+      } else {
+        const dx = ev.shiftKey && !ev.deltaX ? ev.deltaY : ev.deltaX;
+        if (laneView.whole || !dx || Math.abs(dx) < Math.abs(ev.deltaY) && !ev.shiftKey) return;
+        ev.preventDefault();
+        queue({ ms: dx * unit * perPixel() });
+      }
+    }, { passive: false });
+    let drag = null;
+    box.addEventListener("pointerdown", (ev) => {
+      if (ev.button === 0 && ev.isPrimary && laneView && !laneView.whole) drag = { id: ev.pointerId, x: ev.clientX, moved: false };
+    });
+    box.addEventListener("pointermove", (ev) => {
+      if (!drag || ev.pointerId !== drag.id) return;
+      if (!(ev.buttons & 1) || !laneView) { drag = null; box.classList.remove("dragging"); return; }
+      // A small movement still counts as a click on a dot or a name
+      if (!drag.moved && Math.abs(ev.clientX - drag.x) < 4) return;
+      if (!drag.moved) { drag.moved = true; box.setPointerCapture(ev.pointerId); box.classList.add("dragging"); }
+      queue({ ms: (drag.x - ev.clientX) * perPixel() });
+      drag.x = ev.clientX;
+    });
+    for (const type of ["pointerup", "pointercancel"]) box.addEventListener(type, () => { drag = null; box.classList.remove("dragging"); });
+    box.addEventListener("keydown", (ev) => {
+      if (!laneView || ev.ctrlKey || ev.metaKey || ev.altKey) return;
+      const span = laneView.to - laneView.from;
+      const act = { "+": () => zoomLanesStep(0.5), "=": () => zoomLanesStep(0.5), "-": () => zoomLanesStep(2), "0": fitLanes,
+        ArrowLeft: () => panLanes(-span / 4), ArrowRight: () => panLanes(span / 4) }[ev.key];
+      if (act) { ev.preventDefault(); act(); }
+    });
+    const fitLanes = () => { ui.lane = { span: null, end: null }; renderLanes(); };
+    $("laneIn").addEventListener("click", () => zoomLanesStep(0.5));
+    $("laneOut").addEventListener("click", () => zoomLanesStep(2));
+    $("laneFit").addEventListener("click", fitLanes);
   }
 
   const tipEl = $("tip");
@@ -1489,6 +1724,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
   });
   try { const theme = localStorage.getItem("hub.theme"); if (theme) document.documentElement.dataset.theme = theme; } catch (_) {}
   window.addEventListener("resize", () => { if (ui.view === "lanes") render(); else drawLink(); });
+  bindLanes();
   // Refresh the "N minutes ago" labels periodically
   setInterval(() => {
     document.querySelectorAll("[data-ago]").forEach((n) => { n.textContent = ago(n.dataset.ago); });
