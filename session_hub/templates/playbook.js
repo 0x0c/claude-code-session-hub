@@ -145,6 +145,15 @@
       })],
       ["New events bar", () => el("button", { class: "newbar show" }, t("newbar", { n: 3 }) + " ↑")],
     ]],
+    ["Overview", [
+      ["Every session on one axis", () => {
+        const sess = [pbSession("working"), { ...pbSession("done"), session_id: "pb-done", title: pbText("other") }];
+        const list = [["start", 180, "working"], ["ask", 90, "needs_human"], ["answer", 60, "working"]].map(([type, min, after], i) =>
+          pbEvent(type, { id: "pb-o" + i, ts: pbAt(min), ...(PB_EVENTS[type] || (() => ({})))(), state_after: after }));
+        const nodes = pbCapture("overview", { sessions: sess, events: pbEvents(list) }, renderOverview, { session: "pb-done" });
+        return [el("div", { class: "overview" }, nodes), el("div", { class: "legend" }, [...$("ovLegend").childNodes])];
+      }],
+    ]],
     ["Swimlanes", [
       ["States over time", () => {
         const list = [["start", 120, "working"], ["ask", 80, "needs_human"], ["answer", 60, "working"], ["ready", 20, "review_ready"]].map(([type, min, after], i) =>
