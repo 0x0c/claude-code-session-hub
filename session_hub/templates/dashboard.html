@@ -63,7 +63,7 @@ section.panel { background: var(--panel); border: 1px solid var(--line); border-
 .carddel:hover, .carddel:focus-visible { color: var(--s-fail); background: color-mix(in srgb, var(--s-fail) 14%, transparent); }
 .carddel[aria-disabled] { opacity: .5; cursor: progress; }
 @media (hover: hover) {
-  .cardwrap:not(:hover):not(:focus-within) .carddel:not([aria-disabled]) { opacity: 0; }
+  .cardwrap:not(:hover):not(:has(:focus-visible)) .carddel:not([aria-disabled]) { opacity: 0; }
 }
 .card .row1 { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .card .title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
