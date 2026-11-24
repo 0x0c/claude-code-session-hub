@@ -5,7 +5,7 @@ description: Build an Approved Session Hub proposal (SH-NNNN) end to end — pla
 
 # Implement a proposal
 
-Ship one proposal (`proposals/SH-NNNN-<slug>.md`) as working code. The proposal is the
+Ship one proposal (`proposals/SH-NNNN-<slug>/SH-NNNN-<slug>.md`) as working code. The proposal is the
 specification; the test suite and the format check are the judge. Converse in the user's language;
 write code, comments, documentation, commits, and pull request text in English.
 

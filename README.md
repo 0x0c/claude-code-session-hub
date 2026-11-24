@@ -23,7 +23,8 @@ them on a browser dashboard.
 - **A Claude Code plugin.** The plugin ships skills that describe how to report, and hooks that keep
   reports from being missed. The hooks send heartbeats, token usage, and task progress
   automatically, and they ask for a report when a session tries to stop while still marked as
-  working.
+  working. The dashboard shows each session under its name in Claude Code; the `--title` of
+  `session-hub start` appears only until the session has a name.
 
 [docs/DESIGN.md](docs/DESIGN.md) covers the design rationale and the protocol, and its
 [glossary](docs/DESIGN.md#appendix-a-glossary) defines the terms.
@@ -67,6 +68,11 @@ The knowledge tab gathers what sub-sessions learned. When two sessions report th
 dashboard shows one card that lists both reporters.
 
 ![The knowledge tab: findings grouped into caveats, open issues, decisions, how-tos, and insights](docs/images/knowledge-en.png)
+
+With many sessions, switch the session list to **Grid**. The cards fill the window, and a click on a
+card opens that session's timeline in a panel on the right. The browser remembers the choice.
+
+![The grid layout: session cards side by side, and the detail panel with the selected session's timeline](docs/images/grid-en.png)
 
 The dashboard follows the browser's language (English or Japanese). Switch it with the button in
 the header, or open the page with `?lang=en` or `?lang=ja`.

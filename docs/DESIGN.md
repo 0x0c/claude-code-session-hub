@@ -51,6 +51,7 @@ Each session has one status record, a JSON object. The field `v` holds the schem
 | Group | Field | Writer | Description |
 |---|---|---|---|
 | Identity | `v`, `session_id`, `parent_id`, `title`, `task_ref` | At launch (parent) | `task_ref` is an issue number or a task identifier (ID) |
+| | `session_name` | Hook or command (automatic) | The session's name in Claude Code, read from the transcript. Clipped at 200 characters. When present, it replaces `title`, so the dashboard shows the name |
 | Location | `repo`, `branch`, `base` | At launch / hook | |
 | State | `state` | Child (CLI) | One of the values listed in §1.2 |
 | | `phase` | Child | A narrow enumeration such as `plan` / `implement` / `test` / `fix` / `docs` / `self_review` |
@@ -196,7 +197,7 @@ immediately**.
   dashboard's **Delete session** button call `DELETE /api/sessions/<session_id>`, which unlinks every
   file of that session under the files' write locks and pushes the removal to every browser. The
   operation works on whole sessions alone, so the folded state of every other session stays intact
-  ([SH-0001](../proposals/SH-0001-delete-session.md)).
+  ([SH-0002](../proposals/SH-0002-delete-session/SH-0002-delete-session.md)).
 
 ### 3.2 Child → hub (`session-hub report` and related commands)
 
@@ -445,6 +446,13 @@ label, it gives the English label and the Japanese label in parentheses.
   - **Swimlanes**: one horizontal band per session, with state changes drawn as colored spans.
     Dots mark events (question = orange, answer = blue). Hovering shows details, and clicking jumps
     to the matching feed row. A long wait for a human, or a stall, is visible at a glance.
+- **Grid layout**: a toggle in the session list's header switches between the list and a grid, and the
+  browser remembers the choice (`localStorage`, `hub.layout`; the default is the list).
+  - The grid keeps the groups and spreads the cards over the full width.
+  - Clicking a card slides a detail panel in from the right. The panel is the timeline with its tabs
+    and filters, limited to that session. **All sessions** (すべてのセッション) opens the panel without
+    the limit.
+  - Clicking the same card, the close button, or Escape closes the panel and clears the selection.
 - **Collection tabs** (right panel): each defined collection adds a tab automatically, for example
   "Knowledge (6)" (ナレッジ (6)).
   - A `cards` view shows one card per item, grouped (knowledge is grouped by kind). Each card shows
@@ -509,8 +517,9 @@ claude-code-session-hub/
     view.py               Data assembly for the dashboard / attention / log / knowledge
     collections.py        Collection definitions (match / reduce / view / sinks) and projection
     hooks.py              Claude Code hook handlers (session-start / stop / todo)
-    local_state.py        The child's local state (last reported state, task ID mapping)
+    local_state.py        The child's local state (last reported state, task ID mapping, transcript path)
     usage.py              Token totals from the transcript
+    session_name.py       The session's name from the transcript
     cli.py                The session-hub command
     templates/dashboard.html
   bin/session-hub         Wrapper that needs no installation

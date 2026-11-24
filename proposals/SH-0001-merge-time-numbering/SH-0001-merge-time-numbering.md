@@ -132,6 +132,6 @@ proposal from other proposals alone.
 
 ## References
 
-- [`scripts/proposals.py`](../scripts/proposals.py) — `new`, `lint`, `allocate`, and `guard`.
-- [`.github/workflows/proposal-id.yml`](../.github/workflows/proposal-id.yml) — the workflow.
-- [`proposals/README.md`](README.md) — the proposal format and how a proposal gets its number.
+- [`scripts/proposals.py`](../../scripts/proposals.py) — `new`, `lint`, `allocate`, and `guard`.
+- [`.github/workflows/proposal-id.yml`](../../.github/workflows/proposal-id.yml) — the workflow.
+- [`proposals/README.md`](../README.md) — the proposal format and how a proposal gets its number.

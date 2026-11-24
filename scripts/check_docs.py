@@ -10,7 +10,7 @@ to it. For every pair, this script checks that:
 - both files have the same number of fenced code blocks;
 - every relative link in either file resolves.
 
-Proposals (``proposals/SH-*.md``) follow the same rules, checked by ``scripts/proposals.py lint``.
+Proposals (``proposals/SH-*/SH-*.md``) follow the same rules, checked by ``scripts/proposals.py lint``.
 """
 
 from __future__ import annotations
