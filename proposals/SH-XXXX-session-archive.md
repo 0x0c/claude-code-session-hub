@@ -7,9 +7,9 @@
 |---|---|
 | Proposal | SH-XXXX |
 | Author | [@0x0c](https://github.com/0x0c) |
-| Status | **In progress** |
+| Status | **Implemented** |
 | Topic | Hub server |
-| Implementing PR | — |
+| Implementing PR | [#24](https://github.com/0x0c/claude-code-session-hub/pull/24) |
 | Related | — |
 <!-- /SH-METADATA -->
 
