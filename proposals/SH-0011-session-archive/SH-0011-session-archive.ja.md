@@ -1,11 +1,11 @@
-[English](SH-XXXX-session-archive.md) · **日本語**
+[English](SH-0011-session-archive.md) · **日本語**
 
-# SH-XXXX — アーカイブされたセッションの反映
+# SH-0011 — アーカイブされたセッションの反映
 
 <!-- SH-METADATA -->
 | 項目 | 値 |
 |---|---|
-| 提案 | SH-XXXX |
+| 提案 | SH-0011 |
 | 作者 | [@0x0c](https://github.com/0x0c) |
 | 状態 | **Implemented** |
 | トピック | Hub server |

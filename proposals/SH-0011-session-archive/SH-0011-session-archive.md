@@ -1,11 +1,11 @@
-**English** · [日本語](SH-XXXX-session-archive.ja.md)
+**English** · [日本語](SH-0011-session-archive.ja.md)
 
-# SH-XXXX — Reflect archived sessions
+# SH-0011 — Reflect archived sessions
 
 <!-- SH-METADATA -->
 | Field | Value |
 |---|---|
-| Proposal | SH-XXXX |
+| Proposal | SH-0011 |
 | Author | [@0x0c](https://github.com/0x0c) |
 | Status | **Implemented** |
 | Topic | Hub server |
