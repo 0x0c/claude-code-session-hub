@@ -4,7 +4,8 @@ This file is the contract for a cold review of a change in this repository: a pr
 documentation. A reviewer that has not seen the authoring conversation applies it to a diff and
 reports findings. The [`ideation`](skills/ideation/SKILL.md),
 [`implement-proposal`](skills/implement-proposal/SKILL.md), and
-[`propose-and-build`](skills/propose-and-build/SKILL.md) skills run it before every push.
+[`propose-and-build`](skills/propose-and-build/SKILL.md) skills run it before every push, and every
+session runs it before it marks a pull request ready (the Git section of [`AGENTS.md`](../AGENTS.md)).
 
 ## Inputs
 
@@ -51,7 +52,7 @@ Apply every lens that matches the diff.
 The reviewer never edits a file. Each finding is one of two kinds:
 
 - a **fix instruction**: the file, the exact location, and the exact change to make; or
-- an **escalation**: a finding that calls for a design change, which is the author's decision.
+- an **escalation**: a finding that calls for a design change, which is the user's decision.
 
 A false positive, or a trade-off that the change already explains, comes back with its rationale and
 no instruction. When nothing warrants a finding, the reviewer reports nothing; an empty report is a
@@ -62,7 +63,8 @@ complete review.
 A separate implement pass applies the fix instructions as given, without re-judging them. A fresh
 reviewer then reviews the updated diff, with the earlier dismissed findings and their rationale in
 its prompt, so the reviewer does not raise them again. Stop when a review comes back empty, or after
-three review rounds; if the third round still reports findings, the author decides.
+three review rounds. If the third round still reports findings, or a round reports an escalation, the
+pull request stays in draft and the author asks the user.
 
 When no subagent is available, the author cannot act as a cold reviewer of their own draft. Run the
 review in a separate pass from the edits, and tell the user that the review ran without a cold

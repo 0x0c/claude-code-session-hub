@@ -108,12 +108,18 @@ look at the page with demo data, as described under [Field notes](#check-the-das
   `--no-verify`: remove the secret, or scope an allowlist in `.gitleaks.toml` to the false positive.
   Assemble a fake secret in a test at run time.
 - Open a pull request only when the user asks for one, and always open it as a draft:
-  `gh pr create --draft`. Push every commit to the draft. When the work is complete and
-  `scripts/check.sh` passes on the pushed commit, mark it ready with `gh pr ready`. Do not ask the
-  user again; the request for the pull request covers this step.
+  `gh pr create --draft`. Push every commit to the draft. When the work is complete, the
+  self-review is empty, and `scripts/check.sh` passes on the pushed commit, mark it ready with
+  `gh pr ready`. Do not ask the user again; the request for the pull request covers this step.
+- Self-review every pull request before each `gh pr ready`, whatever its size and however you made the
+  change. Run the cold review in [`.claude/review-contract.md`](.claude/review-contract.md) on the
+  whole branch diff, fix every finding, and review again with a fresh reviewer until a review comes
+  back empty. Write the reason for each finding you dismiss in the pull request body. When a finding
+  needs a design decision, or the third round still reports findings, leave the pull request in draft
+  and ask the user.
 - Never push to a pull request that is ready. To change one, whether for a review finding, a
-  conflict, or a failed check, run `gh pr ready --undo`, push the complete fix, and run `gh pr ready`
-  again. The required `claude review` check counts on the head commit alone, so a push without this
+  conflict, or a failed check, run `gh pr ready --undo`, push the complete fix, self-review the
+  whole diff, and run `gh pr ready` again. The required `claude review` check counts on the head commit alone, so a push without this
   cycle leaves the pull request blocked.
 - Claude Code reviews a pull request when it leaves draft, and when one that is not a draft opens or
   reopens (`.github/workflows/claude-review.yml`, against the contract in
@@ -123,8 +129,9 @@ look at the page with demo data, as described under [Field notes](#check-the-das
   comment does not satisfy the required check. Only a comment from an owner, member, or
   collaborator of the repository starts a pass. Anyone else's request completes green with the
   `claude review` job skipped, so check that the job ran. When a bot opens or reopens a pull
-  request or marks it ready, such as a Renovate update, the automatic review is skipped, because the action refuses a
-  bot as the triggering actor; comment `@claude review` to ask for one.
+  request or marks it ready, as Renovate does, the automatic review is skipped, because the action
+  refuses a bot as the triggering actor. To review it and satisfy the required check, a person runs
+  `gh pr ready --undo` and `gh pr ready` on it, or closes and reopens it.
 
 ## Field notes
 

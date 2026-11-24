@@ -16,7 +16,7 @@
 ## Introduction
 
 Claude Code reviews a pull request (PR) when the PR leaves draft. Every session opens its PR as a
-draft, completes the work there, and marks the PR ready.
+draft, completes and self-reviews the work there, and marks the PR ready.
 
 ## Motivation
 
@@ -36,10 +36,15 @@ head commit, and the review covers the finished work.
   `@claude review` on a draft to ask for an early pass.
 - **Sessions.** The Git section of `AGENTS.md` gives every session the same flow:
   1. Open the PR with `gh pr create --draft`, when the user asks for a PR.
-  2. Push every commit to the draft, and pass `scripts/check.sh`.
-  3. Run `gh pr ready`.
+  2. Push every commit to the draft, and pass `scripts/check.sh` on the final commit.
+  3. Run the cold review in `.claude/review-contract.md` on the whole branch diff, whatever the size of
+     the change. Fix every finding, and repeat with a fresh reviewer until a review comes back empty.
+     Write the reason for each dismissed finding in the PR body.
+  4. Leave the PR in draft and ask the user when a finding needs a design decision, or when the third
+     round still reports findings.
+  5. Run `gh pr ready`.
 - **Later changes.** A session that must change a ready PR runs `gh pr ready --undo`, pushes the
-  complete fix, and runs `gh pr ready` again. This cycle starts one review of the new head commit.
+  complete fix, repeats the self-review, and runs `gh pr ready` again. This cycle starts one review of the new head commit.
 - **Proposal skills.** `ideation`, `implement-proposal`, and `propose-and-build` point to the draft flow. A draft also gives
   a proposal its PR number before the review starts.
 - **Limits.** GitHub counts a skipped job as passing. The skipped check of a draft therefore stays green on
@@ -53,14 +58,14 @@ head commit, and the review covers the finished work.
 - **Review every push.** A `synchronize` trigger would keep the check on the head commit, but each
   intermediate push would spend tokens, and a review could comment on the fix for its own finding.
 - **Drop the required check.** A PR could then merge before its review ran.
-- **A hook that forces `--draft`.** A hook would miss PRs opened outside the `gh` command. We start
-  with the shared instruction, which covers every route.
+- **A hook that forces `--draft` and the self-review.** A hook would miss PRs that a session opens or
+  marks ready outside the `gh` command. We start with the shared instruction, which covers every route.
 
 ## Progress
 
 - [x] Design approved
 - [x] Implementation with tests
-- [x] Documentation updated (AGENTS.md, the proposal skills)
+- [x] Documentation updated (AGENTS.md, the review contract, the proposal skills)
 
 ## References
 
