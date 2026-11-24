@@ -1,11 +1,11 @@
-**English** · [日本語](SH-XXXX-dashboard-design-tokens.ja.md)
+**English** · [日本語](SH-0013-dashboard-design-tokens.ja.md)
 
-# SH-XXXX — Design tokens for the dashboard
+# SH-0013 — Design tokens for the dashboard
 
 <!-- SH-METADATA -->
 | Field | Value |
 |---|---|
-| Proposal | SH-XXXX |
+| Proposal | SH-0013 |
 | Author | [@0x0c](https://github.com/0x0c) |
 | Status | **Implemented** |
 | Topic | Dashboard |
