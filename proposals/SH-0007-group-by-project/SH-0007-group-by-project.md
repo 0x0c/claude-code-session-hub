@@ -1,11 +1,11 @@
-**English** · [日本語](SH-XXXX-group-by-project.ja.md)
+**English** · [日本語](SH-0007-group-by-project.ja.md)
 
-# SH-XXXX — Group sessions by project
+# SH-0007 — Group sessions by project
 
 <!-- SH-METADATA -->
 | Field | Value |
 |---|---|
-| Proposal | SH-XXXX |
+| Proposal | SH-0007 |
 | Author | [@0x0c](https://github.com/0x0c) |
 | Status | **Implemented** |
 | Topic | Dashboard |
