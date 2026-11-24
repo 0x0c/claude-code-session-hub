@@ -1,0 +1,41 @@
+# Run the gate (scripts/check.sh) on every pull request and on every push to `main`.
+#
+# The matrix covers the oldest Python that pyproject.toml admits and a recent one, plus macOS, where
+# the `Session Hub.command` launcher runs. The job needs no secret, so it also runs for a fork.
+name: "Tests"
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true   # a newer push to the same pull request replaces the run
+
+jobs:
+  check:
+    name: check (${{ matrix.os }}, Python ${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, python: '3.10' }
+          - { os: ubuntu-latest, python: '3.13' }
+          - { os: macos-latest, python: '3.13' }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Run the gate
+        run: scripts/check.sh

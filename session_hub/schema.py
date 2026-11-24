@@ -124,6 +124,15 @@ def _check_enum(value, allowed, name):
         raise SchemaError(f"invalid {name}={value!r}; choose one of: {', '.join(allowed)}")
 
 
+def _check_ts(ts) -> None:
+    try:
+        aware = parse_ts(ts).tzinfo is not None
+    except (ValueError, AttributeError, TypeError):
+        aware = False
+    if not aware:  # A time without a zone cannot be compared with the others
+        raise SchemaError(f"ts must be an ISO 8601 time with a time zone: {ts!r}")
+
+
 def normalize_event(ev: dict) -> dict:
     """Validate an event and return a new dict with text clipped to the limits."""
     ev = copy.deepcopy(ev)
@@ -136,7 +145,7 @@ def normalize_event(ev: dict) -> dict:
     _check_enum(ev["actor"], ACTORS, "actor")
     _check_enum(ev.get("state"), STATES, "state")
     _check_enum(ev.get("confidence"), CONFIDENCE, "confidence")
-    parse_ts(ev["ts"])  # Format check
+    _check_ts(ev["ts"])
     if not isinstance(ev["seq"], int) or ev["seq"] < 1:
         raise SchemaError("seq must be an integer of 1 or more")
 
@@ -145,8 +154,12 @@ def normalize_event(ev: dict) -> dict:
             ev[key] = clip(ev[key], key)
 
     if "tasks" in ev:
+        if not isinstance(ev["tasks"], list):
+            raise SchemaError("tasks must be an array")
         tasks = []
         for t in ev["tasks"]:
+            if not isinstance(t, dict) or not t.get("t"):
+                raise SchemaError("each task needs a name (t)")
             _check_enum(t.get("s", "todo"), TASK_STATES, "task.s")
             _check_enum(t.get("size", "M"), TASK_SIZES, "task.size")
             tasks.append({"t": clip(t["t"], "task"), "s": t.get("s", "todo"), "size": t.get("size", "M")})
