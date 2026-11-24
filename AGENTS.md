@@ -24,6 +24,19 @@ The parent reads a few lines from `session-hub attention` instead of reading tra
 | `docs/DESIGN.md` | The design rationale and the glossary |
 | `tests/` | The test suite (standard library `unittest`) |
 
+## Set up first
+
+Complete the setup before any other work, in every clone:
+
+```bash
+make setup
+```
+
+The command installs gitleaks and enables the Git hooks; it is safe to run again. A Claude Code session
+runs it on start through `.claude/settings.json`. Until the setup is complete, the edit tools and
+the gate refuse to run. If it fails, fix the cause or tell the user; do not work around it
+by editing through the shell.
+
 ## How we work: proposal first
 
 Every non-trivial change starts as a proposal under [`proposals/`](proposals/README.md), and the code
@@ -82,15 +95,18 @@ scripts/check.sh
 ```
 
 The script runs the test suite, the proposal format check (`scripts/proposals.py lint`), the
-bilingual-docs check (`scripts/check_docs.py`), and the acronym check (`scripts/acronyms.py`). All
-four must pass. GitHub Actions runs the same script on every pull request and on every push to `main`
-(`.github/workflows/test.yml`). For a dashboard change, also
+bilingual-docs check (`scripts/check_docs.py`), the acronym check (`scripts/acronyms.py`), and the
+secret scan (`scripts/check_secrets.sh`). All five must pass. GitHub Actions runs the same script on
+every pull request and on every push to `main` (`.github/workflows/test.yml`). For a dashboard change, also
 look at the page with demo data, as described under [Field notes](#check-the-dashboard-in-a-real-browser).
 
 ## Git
 
 - Work on a branch, never on `main`, unless the user asks you to merge. Commit with a scoped message
   such as `feat(dashboard): …`, `fix(hooks): …`, or `docs(proposal): …`.
+- The Git hooks block a commit whose change or message holds a secret. Do not bypass them with
+  `--no-verify`: remove the secret, or scope an allowlist in `.gitleaks.toml` to the false positive.
+  Assemble a fake secret in a test at run time.
 - Open a pull request only when the user asks for one.
 - Claude Code reviews a pull request when it opens (`.github/workflows/claude-review.yml`, against
   the contract in `.github/claude-review-prompt.md`). The review posts inline comments and never
