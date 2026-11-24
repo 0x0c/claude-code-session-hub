@@ -99,7 +99,7 @@ jobs:
       - name: Fail a draft or a bot's event
         if: github.event_name == 'pull_request' && (github.event.pull_request.draft || github.event.sender.type == 'Bot')
         run: |
-          echo "::error::Not reviewed: the pull request is a draft, or a bot started this run. A person marks the pull request ready for review to start one."
+          echo "::error::Not reviewed: the pull request is a draft, or a bot started this run. Re-running this job replays the same event and fails again. To start a review, a person marks the draft ready for review; if the pull request is not a draft, a person first converts it to one."
           exit 1
 
       - name: Pick the AI provider (or no-op)
