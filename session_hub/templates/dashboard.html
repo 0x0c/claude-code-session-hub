@@ -55,7 +55,7 @@ header h1 { font-size: var(--fs-title); margin: 0; }
 .kpis { display: flex; gap: var(--space-14); font-size: var(--fs-meta); color: var(--muted); margin-left: auto; flex-wrap: wrap; }
 .kpis b { color: var(--ink); font-variant-numeric: tabular-nums; }
 .iconbtn { background: none; border: 1px solid var(--line); border-radius: var(--radius-md); padding: var(--space-4) var(--space-8); cursor: pointer; font-size: var(--fs-meta); color: inherit; text-decoration: none; }
-.iconbtn[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.iconbtn[aria-pressed="true"], .iconbtn[aria-current="page"] { border-color: var(--accent); color: var(--accent); }
 .iconbtn.danger { color: var(--s-fail); border-color: var(--s-fail); margin-left: auto; font-weight: var(--fw-normal); }
 .iconbtn.danger:disabled { opacity: .5; cursor: progress; }
 main { display: grid; grid-template-columns: minmax(300px, 380px) 1fr; gap: var(--space-16); padding: var(--space-16); max-width: 1500px; margin: 0 auto; }
@@ -92,8 +92,10 @@ section.panel { background: var(--panel); border: 1px solid var(--line); border-
 .seg { white-space: nowrap; }
 #sessionsTitle { flex-wrap: wrap; }
 #tlScope { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-#closePanel { margin-left: auto; }
-.iconbtn.danger:not([hidden]) + #closePanel { margin-left: 0; }
+#fullscreenPanel { margin-left: auto; }
+.iconbtn.danger:not([hidden]) + #fullscreenPanel { margin-left: 0; }
+#fullscreenPanel svg { display: block; width: 12px; height: 12px; margin: var(--space-2) 0; fill: none; stroke: currentColor; stroke-width: 1.5; }
+#fullscreenPanel[aria-pressed="true"] .expand, #fullscreenPanel[aria-pressed="false"] .shrink { display: none; }
 /* Grid layout: the cards take the full width, and the timeline becomes a panel on the right. The open
    panel takes its width from the cards; a small window has no room for both, so the panel covers it */
 main.grid { grid-template-columns: minmax(0, 1fr); max-width: none; }
@@ -115,6 +117,20 @@ main.grid #detail.open { transform: none; visibility: visible; box-shadow: -8px 
 main.grid #detail > h2 { position: sticky; top: 0; z-index: 4; background: var(--panel); }
 main.grid .newbar { top: 48px; }
 @media (prefers-reduced-motion: reduce) { main.grid #detail.slide, main.grid #detail.slide.open { transition: none; } }
+/* The handle on the grid panel's left edge. A sibling of #detail, which would scroll a child away */
+.resizer { position: relative; width: 10px; cursor: col-resize; touch-action: none; user-select: none; -webkit-user-select: none; outline: none; }
+.resizer::before { content: ""; position: absolute; inset: 0 4px; background: transparent; transition: background-color .15s; }
+.resizer::after { content: ""; position: absolute; left: 50%; top: 50%; width: 4px; height: 36px; transform: translate(-50%, -50%);
+  border-radius: var(--radius-pill); background: var(--muted); }
+.resizer:hover::before, .resizer:focus-visible::before, .resizer.active::before,
+.resizer:hover::after, .resizer:focus-visible::after, .resizer.active::after { background: var(--accent); }
+main > #panelResize { display: none; position: fixed; z-index: 5; top: var(--header-h, 0px); bottom: 0; right: var(--detail-w); transform: translateX(50%); }
+@media (min-width: 860.02px) { main.grid.withpanel:not(.fullscreen) > #panelResize { display: block; } }
+@media (pointer: coarse) { .resizer { width: 20px; } .resizer::before { inset: 0 9px; } }
+/* Fullscreen: the open panel covers the window, header included, and the page behind it does not scroll.
+   The geometry is overridden here, so leaving the mode brings the previous width back */
+main.grid.fullscreen #detail { inset: 0; width: auto; z-index: 6; border-width: 0; box-shadow: none; }
+html:has(main.fullscreen) { overflow: hidden; }
 /* Sessions that need action: a section of its own above the other groups */
 .action-section { margin: var(--space-10); border: 1px solid var(--s-needs); border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--s-needs) 6%, var(--panel)); }
@@ -164,6 +180,11 @@ a.pr { color: var(--accent); }
 @media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 3s; } }
 .badge { font-size: var(--fs-label); font-weight: var(--fw-strong); padding: var(--space-1) var(--space-8); border-radius: var(--radius-pill); color: var(--on-fill); white-space: nowrap; }
 .badge.plain { padding-inline: 0; font-weight: var(--fw-normal); color: var(--muted); }
+/* A question mark that explains the label before it */
+.help { display: inline-flex; flex: none; align-items: center; justify-content: center; width: 14px; height: 14px; border: 1px solid var(--muted);
+  border-radius: 50%; color: var(--muted); font-size: var(--fs-label); font-weight: var(--fw-normal); line-height: 1; cursor: help; }
+.help:hover { color: var(--accent); }
+.group-badge + .help { margin-left: var(--space-6); }
 .chip { font-size: var(--fs-label); padding: 0 var(--space-6); border-radius: var(--radius-sm); border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
 .progress { height: 5px; background: var(--line); border-radius: var(--radius-xs); overflow: hidden; margin-top: var(--space-6); }
 .progress > i { display: block; height: 100%; background: var(--s-work); }
@@ -271,6 +292,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     <span><span data-i18n="kpi.tokens"></span> <b id="kIn">0</b> / <span data-i18n="kpi.out"></span> <b id="kOut">0</b></span>
     <span><span data-i18n="kpi.updated"></span> <b id="kUpdated">-</b></span>
   </div>
+  <a class="iconbtn" id="guideLink" href="guide" data-i18n="btn.guide" data-i18n-title="btn.guideTitle"></a>
   <a class="iconbtn" id="playbookLink" href="playbook" data-i18n="btn.playbook" data-i18n-title="btn.playbookTitle"></a>
   <button class="iconbtn" id="notifyBtn" aria-pressed="false" data-i18n="btn.notify" data-i18n-title="btn.notifyTitle"></button>
   <button class="iconbtn" id="langBtn" data-i18n="btn.lang" data-i18n-title="btn.langTitle"></button>
@@ -289,10 +311,13 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     <div id="sessions" class="scroll" role="region" aria-labelledby="sessionsTitle"></div>
   </section>
 
+  <div class="resizer" id="panelResize" role="separator" aria-orientation="vertical" aria-controls="detail" tabindex="0"
+    data-i18n-aria="panel.resize" data-i18n-title="panel.resizeTitle"></div>
   <section class="panel" id="detail" tabindex="-1" aria-labelledby="tlTitle">
     <h2 id="tlTitle"><span id="tlName"></span> <span class="chip" id="tlScope"></span> <a class="pr" id="tlPr" target="_blank" rel="noopener noreferrer" hidden></a>
       <a class="iconbtn" id="tlDesktop" hidden data-i18n="tl.desktop" data-i18n-title="tl.desktopTitle"></a>
       <button class="iconbtn danger" id="deleteSession" hidden data-i18n="sessions.delete" data-i18n-title="sessions.deleteTitle"></button>
+      <button class="iconbtn" id="fullscreenPanel" hidden aria-pressed="false" data-i18n-aria="panel.fullscreen" data-i18n-title="panel.fullscreenOn"><svg viewBox="0 0 12 12" aria-hidden="true"><path class="expand" d="M1 4V1H4M8 1H11V4M11 8V11H8M4 11H1V8"/><path class="shrink" d="M4 1V4H1M11 4H8V1M8 11V8H11M1 8H4V11"/></svg></button>
       <button class="iconbtn" id="closePanel" hidden data-i18n-aria="panel.close" data-i18n-title="panel.close">✕</button></h2>
     <div class="toolbar">
       <div class="tabs" role="tablist">
@@ -346,6 +371,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       "kpi.tokens": "Tokens in", "kpi.out": "out", "kpi.updated": "Updated",
       "btn.notify": "Notify", "btn.notifyTitle": "Notify me when a session needs action",
       "btn.playbook": "Playbook", "btn.playbookTitle": "See every component of this dashboard in every state",
+      "btn.guide": "Status guide", "btn.guideTitle": "Read what each status and state means",
       "btn.theme": "Theme", "btn.themeTitle": "Switch between light and dark",
       "btn.lang": "日本語", "btn.langTitle": "表示を日本語に切り替える",
       "btn.byProject": "By project", "btn.byProjectTitle": "Group sessions by repository or project; turn off to group by status",
@@ -360,6 +386,8 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       "layout.aria": "Layout of the session list", "layout.list": "List", "layout.grid": "Grid",
       "panel.openAll": "All sessions", "panel.openAllTitle": "Open the timeline of every session",
       "panel.close": "Close the panel (Esc)",
+      "panel.resize": "Width of the detail panel", "panel.resizeTitle": "Drag to change the width; double-click to reset it",
+      "panel.fullscreen": "Fullscreen", "panel.fullscreenOn": "Expand the panel to the whole window", "panel.fullscreenOff": "Leave fullscreen (Esc)",
       "tl.title": "Timeline", "tl.all": "All", "tab.feed": "Feed", "tab.lanes": "Swimlanes",
       "filter.sessionAria": "Filter by session", "filter.allSessions": "All sessions",
       "filter.searchAria": "Search", "filter.textFeed": "Search summaries, questions, and answers",
@@ -405,6 +433,30 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       "k.reported": "{s} sessions / {n} reports", "k.by": "Reported by:",
       "th.title": "Title", "th.kind": "Kind", "th.reporters": "Reported by", "th.last_ts": "Last",
       "th.first_ts": "First", "th.body": "Body", "th.count": "Count", "th.tags": "Tags",
+      "help.group.action": "These sessions stopped, or their work is ready, and you need to do something next.",
+      "help.group.active": "These sessions are at work, or wait for something other than you. You have nothing to do.",
+      "help.group.done": "The work of these sessions ended, and nothing is left to do.",
+      "help.group.archived": "These sessions were put away, by hand or in the Claude desktop app. They ask for nothing, and a label keeps showing how each one ended.",
+      "help.state.needs_human": "The session asked a question. Answer it; after a blocking question, the session does not continue until you do.",
+      "help.state.review_ready": "The pull request met every review condition. Review it.",
+      "help.state.failed": "The session reported an error that stopped its work. Read the error and decide what to do.",
+      "help.state.stale": "The session was planning or working, but nothing arrived from it for 30 minutes. Check whether it still runs.",
+      "help.state.queued": "The session is registered but has not started.",
+      "help.state.planning": "The session started and is deciding how to do the work.",
+      "help.state.working": "The session is doing the work.",
+      "help.state.waiting_ci": "The session waits for continuous integration (CI) to finish.",
+      "help.state.blocked": "Something outside the session, such as another session, keeps it from continuing.",
+      "help.state.review_pending": "The session reported that it is ready, but review conditions such as CI, self-review, or open review threads are not met. The card lists them.",
+      "help.state.in_review": "The pull request is in review.",
+      "help.state.changes_requested": "The review asked for changes, and the session is working on them.",
+      "help.state.done": "The session reported that its work is complete.",
+      "help.state.abandoned": "The session was given up before its work was complete.",
+      "help.state.archived": "The session was put away. It asks for nothing.",
+      "guide.title": "Status guide",
+      "guide.intro": "The dashboard sorts every session into one of four statuses. Each session also shows its state, which tells what it is doing or waiting for.",
+      "guide.col.state": "State",
+      "guide.col.id": "Identifier",
+      "guide.col.meaning": "Meaning",
     },
     ja: {
       "conn.title": "サブセッションからの push を受信すると即時に反映します",
@@ -414,6 +466,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       "kpi.tokens": "トークン 入力", "kpi.out": "出力", "kpi.updated": "更新",
       "btn.notify": "通知", "btn.notifyTitle": "要対応になったら通知",
       "btn.playbook": "Playbook", "btn.playbookTitle": "ダッシュボードの部品をすべての状態で一覧する",
+      "btn.guide": "ステータスの説明", "btn.guideTitle": "各ステータスと状態の意味を一覧する",
       "btn.theme": "テーマ", "btn.themeTitle": "テーマ切替",
       "btn.lang": "English", "btn.langTitle": "Switch the display to English",
       "btn.byProject": "プロジェクト別", "btn.byProjectTitle": "リポジトリやプロジェクトごとにまとめます。オフにすると状態別になります",
@@ -427,6 +480,8 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       "layout.aria": "セッション一覧の表示形式", "layout.list": "リスト", "layout.grid": "グリッド",
       "panel.openAll": "すべてのセッション", "panel.openAllTitle": "すべてのセッションのタイムラインを開く",
       "panel.close": "パネルを閉じる（Esc）",
+      "panel.resize": "詳細パネルの幅", "panel.resizeTitle": "ドラッグで幅を変更、ダブルクリックで既定の幅に戻す",
+      "panel.fullscreen": "全画面", "panel.fullscreenOn": "パネルをウィンドウ全体に広げる", "panel.fullscreenOff": "全画面を終了（Esc）",
       "tl.title": "タイムライン", "tl.all": "すべて", "tab.feed": "フィード", "tab.lanes": "スイムレーン",
       "filter.sessionAria": "セッションで絞り込み", "filter.allSessions": "すべてのセッション",
       "filter.searchAria": "検索", "filter.textFeed": "要約・質問・回答を検索",
@@ -471,6 +526,30 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       "k.reported": "{s} セッション / {n} 回報告", "k.by": "報告:",
       "th.title": "タイトル", "th.kind": "種類", "th.reporters": "報告元", "th.last_ts": "最終",
       "th.first_ts": "初出", "th.body": "本文", "th.count": "回数", "th.tags": "タグ",
+      "help.group.action": "停止しているか、確認の準備ができたセッションです。次に進むには、あなたの対応が必要です。",
+      "help.group.active": "作業しているか、あなた以外の何かを待っているセッションです。対応は不要です。",
+      "help.group.done": "作業が終わったセッションです。対応は不要です。",
+      "help.group.archived": "手動またはClaudeデスクトップアプリで片付けたセッションです。対応は不要です。どのように終わったかは、ラベルに残ります。",
+      "help.state.needs_human": "セッションが質問しています。回答してください。「停止中」と付いた質問なら、回答があるまでセッションは先に進みません。",
+      "help.state.review_ready": "プルリクエストがレビューの条件をすべて満たしました。レビューしてください。",
+      "help.state.failed": "作業を続けられないエラーが報告されました。エラーを読み、対処を決めてください。",
+      "help.state.stale": "計画中または作業中のまま、30分間何も届いていません。動いているか確認してください。",
+      "help.state.queued": "登録されましたが、まだ始まっていません。",
+      "help.state.planning": "始まったばかりで、進め方を決めています。",
+      "help.state.working": "作業を進めています。",
+      "help.state.waiting_ci": "継続的インテグレーション（CI）が終わるのを待っています。",
+      "help.state.blocked": "ほかのセッションなど、外部の要因で先に進めません。",
+      "help.state.review_pending": "準備完了と報告されましたが、CI、自己レビュー、未解決の指摘など、レビューの条件を満たしていません。満たしていない条件はカードに表示します。",
+      "help.state.in_review": "プルリクエストがレビューされています。",
+      "help.state.changes_requested": "レビューで修正を求められ、対応しています。",
+      "help.state.done": "作業の完了が報告されました。",
+      "help.state.abandoned": "作業を完了せずに取りやめました。",
+      "help.state.archived": "片付けたセッションです。対応は不要です。",
+      "guide.title": "ステータスの説明",
+      "guide.intro": "ダッシュボードは、すべてのセッションを4つのステータスに分けます。各セッションには、何をしているか、何を待っているかを示す状態も表示します。",
+      "guide.col.state": "状態",
+      "guide.col.id": "識別子",
+      "guide.col.meaning": "意味",
     },
   };
   const LANGS = Object.keys(MESSAGES);
@@ -507,6 +586,13 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     stale: "--s-stale", working: "--s-work", planning: "--s-work", waiting_ci: "--s-wait", blocked: "--s-block",
     in_review: "--s-wait", changes_requested: "--s-needs", done: "--s-done", abandoned: "--s-done",
     queued: "--s-queue", archived: "--s-queue",
+  };
+  // The states that each status (group heading) holds, in the order of the status guide
+  const STATUS_STATES = {
+    action: ["needs_human", "review_ready", "failed", "stale"],
+    active: ["queued", "planning", "working", "waiting_ci", "blocked", "review_pending", "in_review", "changes_requested"],
+    done: ["done", "abandoned"],
+    archived: ["archived"],
   };
   const TYPE_KEYS = ["start", "report", "ask", "answer", "command", "ready", "pr", "done", "fail", "finding", "archive", "unarchive", "heartbeat"];
   let STATE, TYPES;
@@ -565,6 +651,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     byProject: true, collapsed: new Set(), // keys of the collapsed groups
     lane: { span: null, end: null }, // span null: the whole period; end null: follow the present
     layout: "list", panelOpen: false, // panelOpen matters in the grid layout alone
+    fullscreen: false, // only while the grid's panel is open; applyLayout clears it otherwise
   };
   const prevStates = new Map();
   try { ui.byProject = localStorage.getItem("hub.byProject") !== "0"; } catch (_) {}
@@ -584,6 +671,13 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     if (key === "archived") return el("span", { class: "badge plain" }, label);
     return el("span", { class: "badge", style: { background: `var(${color})` } }, label);
   };
+  // The archived status is quiet, so its label has no fill
+  const statusLabel = (status, label) => (status === "archived" ? label
+    : el("span", { class: "group-badge", style: { "--group-color": `var(--g-${status})` } }, label));
+  // The explanation of a key such as "state.working"; a hub can send a state that this page does not know
+  const helpText = (key) => (MESSAGES.en["help." + key] ? t("help." + key) : null);
+  // An empty title keeps the title of the enclosing element from showing over the explanation
+  const help = (key) => helpText(key) && el("span", { class: "help", "aria-hidden": "true", title: "", "data-help": key }, "?");
   const fmtNum = (n) => (n || 0) >= 1e6 ? (n / 1e6).toFixed(1) + "M" : (n || 0) >= 1e3 ? Math.round(n / 1e3) + "k" : String(n || 0);
   const ago = (ts) => {
     if (!ts) return "-";
@@ -658,6 +752,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     return el("button", glowProps(hidden.map((s) => glowKey.session(s.session_id)), {
       class: "project" + (parent === null ? "" : " sub") + (hidden.some((s) => s.session_id === ui.session) ? " selected" : ""),
       type: "button", "aria-expanded": String(open), title: label, "data-group": key, "data-parent": parent,
+      "aria-description": status && helpText("group." + status),
       onclick: () => {
         const mark = foldMark(key);
         ui.collapsed.has(mark) ? ui.collapsed.delete(mark) : ui.collapsed.add(mark);
@@ -666,8 +761,8 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       },
     }),
       el("span", { class: "chev", "aria-hidden": "true" }, "▸"),
-      el("span", { class: "pname" }, status && status !== "archived"
-        ? el("span", { class: "group-badge", style: { "--group-color": `var(--g-${status})` } }, label) : label),
+      el("span", { class: "pname" }, status
+        ? [statusLabel(status, label), " ", help("group." + status)] : label),
       el("span", { class: "count" }, String(list.length)));
   }
 
@@ -752,6 +847,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       "aria-pressed": String(ui.session === s.session_id),
       class: "card" + (s.archived ? " archived" : "") + (ui.session === s.session_id ? " selected" : ""), tabindex: "0", role: "button", "data-sid": s.session_id,
       "aria-label": t("card.showTimeline", { name }),
+      "aria-description": helpText("state." + stateKey(s)) && `${STATE[stateKey(s)][0]}: ${helpText("state." + stateKey(s))}`,
       onclick: () => toggleCard(s.session_id),
       onkeydown: (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); card.click(); } },
     }),
@@ -762,7 +858,8 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
         el("span", { class: "title", title: s.session_id }, name),
         // An archived session keeps showing how it ended
         s.archived ? el("span", { class: "chip" }, (STATE[s.state] || [s.state])[0]) : null,
-        badge(stateKey(s))),
+        badge(stateKey(s)),
+        help("state." + stateKey(s))),
       el("div", { class: "meta" }, meta),
       s.summary ? el("div", { class: "summary" }, s.summary) : null,
       p.total && s.state !== "done" ? el("div", { class: "progress", "aria-hidden": "true" }, el("i", { style: { width: pct + "%" } })) : null,
@@ -1181,6 +1278,33 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     node.addEventListener("mouseleave", () => { tipEl.style.display = "none"; });
   }
 
+  // Help icons. The listeners sit on the document, because a render replaces the icons.
+  let helpShown = false;
+  function showHelp(icon) {
+    tipEl.textContent = helpText(icon.dataset.help);
+    tipEl.style.whiteSpace = "normal";
+    tipEl.style.display = "block";
+    tipEl.style.left = tipEl.style.top = "0"; // measure at full width
+    const at = icon.getBoundingClientRect(), box = tipEl.getBoundingClientRect();
+    tipEl.style.left = Math.max(8, Math.min(at.left, innerWidth - box.width - 8)) + "px";
+    tipEl.style.top = (at.bottom + 6 + box.height > innerHeight ? Math.max(8, at.top - 6 - box.height) : at.bottom + 6) + "px";
+    helpShown = true;
+  }
+  function hideHelp() {
+    if (helpShown) tipEl.style.display = "none";
+    helpShown = false;
+  }
+  function onHelpPointer(ev) {
+    const icon = ev.target.closest?.(".help[data-help]");
+    if (icon) showHelp(icon); else hideHelp();
+    return icon;
+  }
+  document.addEventListener("mouseover", onHelpPointer);
+  // A tap shows the explanation, and neither selects the card nor folds the group
+  document.addEventListener("click", (ev) => { if (onHelpPointer(ev)) { ev.stopPropagation(); ev.preventDefault(); } }, true);
+  document.addEventListener("scroll", hideHelp, true);
+  document.addEventListener("keydown", (ev) => { if (ev.key === "Escape") hideHelp(); });
+
   function jumpTo(e) {
     setView("feed");
     selectSession(e.session_id);
@@ -1346,6 +1470,99 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     (card || $("openPanel")).focus({ preventScroll: true });
   }
 
+  // ---- The width of the grid's detail panel ----
+  // The preferred width in pixels, or null for the default of --detail-w. A small window clamps the shown
+  // width and keeps the preference. PANEL_ROOM leaves one card column and its padding beside the panel.
+  const PANEL_MIN = 360, PANEL_ROOM = 376, PANEL_STEP = 24;
+  let panelPref = null, panelDrag = null;
+  try { const w = Number(localStorage.getItem("hub.panelWidth")); if (w > 0 && isFinite(w)) panelPref = w; } catch (_) {}
+  const panelMax = () => Math.max(PANEL_MIN, document.documentElement.clientWidth - PANEL_ROOM);
+  const panelWidth = () => Math.round(Math.min(panelMax(), Math.max(PANEL_MIN,
+    panelPref ?? Math.min(720, document.documentElement.clientWidth * 0.55)))); // Keep the default in sync with --detail-w
+
+  function applyPanelWidth() {
+    const root = document.documentElement.style, handle = $("panelResize"), width = panelWidth();
+    const value = panelPref == null ? "" : width + "px";
+    handle.setAttribute("aria-valuemin", PANEL_MIN);
+    handle.setAttribute("aria-valuemax", panelMax());
+    handle.setAttribute("aria-valuenow", width);
+    if (root.getPropertyValue("--detail-w") === value) return;
+    keepCardInPlace(ui.session, () => { value ? root.setProperty("--detail-w", value) : root.removeProperty("--detail-w"); });
+    if (ui.view === "lanes" && ui.layout === "grid" && ui.panelOpen) { // The drawing depends on the width
+      const top = $("detail").scrollTop;
+      renderLanes();
+      $("detail").scrollTop = top;
+    }
+  }
+
+  function savePanelWidth() {
+    try {
+      if (panelPref == null) localStorage.removeItem("hub.panelWidth");
+      else localStorage.setItem("hub.panelWidth", String(panelPref));
+    } catch (_) {}
+  }
+
+  function setPanelWidth(width) {
+    panelPref = width == null ? null : Math.min(panelMax(), Math.max(PANEL_MIN, Math.round(width)));
+    applyPanelWidth();
+  }
+
+  // Finish a drag: keep its width, or go back to the preference from before it
+  function endPanelDrag(keep) {
+    const drag = panelDrag;
+    if (!drag) return;
+    panelDrag = null;
+    cancelAnimationFrame(drag.frame);
+    $("panelResize").classList.remove("active");
+    if (!drag.moved) return;
+    if (keep) { setPanelWidth(drag.width); savePanelWidth(); }
+    else { panelPref = drag.pref; applyPanelWidth(); }
+  }
+
+  function bindPanelResize() {
+    const handle = $("panelResize");
+    handle.addEventListener("mousedown", (e) => e.preventDefault()); // Start no text selection
+    handle.addEventListener("pointerdown", (e) => {
+      if (panelDrag || e.button !== 0 || !e.isPrimary) return;
+      const width = panelWidth();
+      panelDrag = { id: e.pointerId, x: e.clientX, start: width, width, pref: panelPref, moved: false, frame: 0 };
+      handle.setPointerCapture(e.pointerId);
+      handle.focus({ preventScroll: true });
+      handle.classList.add("active");
+      $("detail").classList.remove("slide");
+    });
+    handle.addEventListener("pointermove", (e) => {
+      const drag = panelDrag;
+      if (!drag || e.pointerId !== drag.id) return;
+      if (!handle.getClientRects().length) return endPanelDrag(false); // The panel closed during the drag
+      const width = drag.start + drag.x - e.clientX;
+      if (!drag.moved && width === drag.start) return;
+      drag.moved = true;
+      drag.width = width;
+      cancelAnimationFrame(drag.frame);
+      drag.frame = requestAnimationFrame(() => setPanelWidth(drag.width));
+    });
+    const on = (type, keep) => handle.addEventListener(type, (e) => { if (panelDrag && e.pointerId === panelDrag.id) endPanelDrag(keep); });
+    on("pointerup", true);
+    on("pointercancel", false);
+    on("lostpointercapture", false);
+    handle.addEventListener("dblclick", () => { setPanelWidth(null); savePanelWidth(); });
+    handle.addEventListener("keydown", (e) => {
+      if (panelDrag) {
+        if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); endPanelDrag(false); }
+        return;
+      }
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const width = { ArrowLeft: panelWidth() + PANEL_STEP, ArrowRight: panelWidth() - PANEL_STEP, Home: PANEL_MIN, End: panelMax() }[e.key];
+      if (width === undefined) return;
+      e.preventDefault();
+      setPanelWidth(width);
+      savePanelWidth();
+    });
+    window.addEventListener("resize", applyPanelWidth);
+    applyPanelWidth();
+  }
+
   function applyLayout() {
     const grid = ui.layout === "grid";
     $("main").classList.toggle("grid", grid);
@@ -1357,7 +1574,40 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     $("detail").inert = grid && !ui.panelOpen;
     $("openPanel").hidden = $("closePanel").hidden = !grid;
     document.querySelectorAll("[data-layout]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.layout === ui.layout)));
+    applyFullscreen();
   }
+
+  // ---- Fullscreen (the grid's open panel covers the window) ----
+  function applyFullscreen() {
+    const button = $("fullscreenPanel"), on = ui.fullscreen && ui.layout === "grid" && ui.panelOpen;
+    ui.fullscreen = on;
+    $("main").classList.toggle("fullscreen", on);
+    // Keep the keyboard and screen readers out of what the panel covers
+    document.querySelector("header").inert = $("sessions").closest("section").inert = on;
+    button.hidden = ui.layout !== "grid";
+    button.setAttribute("aria-pressed", String(on));
+    button.dataset.i18nTitle = on ? "panel.fullscreenOff" : "panel.fullscreenOn";
+    button.title = t(button.dataset.i18nTitle);
+  }
+
+  function setFullscreen(on) {
+    const box = $("detail");
+    // The new width reflows the panel: keep the first visible row where it is, below the sticky title
+    const rows = () => [...box.querySelectorAll(".ev, .kcard, .ctable tbody tr")].filter((n) => n.getClientRects().length);
+    const below = (n) => n.getBoundingClientRect().top - $("tlTitle").getBoundingClientRect().bottom;
+    const at = box.scrollTop > 0 ? rows().findIndex((n) => below(n) + n.offsetHeight > 0) : -1;
+    const before = at >= 0 && below(rows()[at]);
+    tipEl.style.display = "none"; // what it describes moves away from the pointer
+    keepCardInPlace(ui.session, () => {
+      ui.fullscreen = on;
+      applyLayout();
+      if (ui.view === "lanes") render(); // the swimlanes are drawn to the panel's width
+    });
+    const row = at >= 0 && rows()[at];
+    if (row) box.scrollTop += below(row) - before;
+    if (!box.contains(document.activeElement)) $("fullscreenPanel").focus({ preventScroll: true }); // Safari does not focus a clicked button
+  }
+  $("fullscreenPanel").addEventListener("click", () => setFullscreen(!ui.fullscreen));
 
   function setLayout(layout) {
     ui.layout = layout;
@@ -1710,7 +1960,8 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       render();
       return;
     }
-    closePanel();
+    if (ui.fullscreen) return setFullscreen(false);
+    if (!e.repeat) closePanel(); // A held key leaves fullscreen without closing the panel as well
   });
   // The panel starts below the sticky header, whose height changes when it wraps
   const measureHeader = () => document.documentElement.style.setProperty("--header-h", document.querySelector("header").offsetHeight + "px");
@@ -1736,13 +1987,14 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
   try { const theme = localStorage.getItem("hub.theme"); if (theme) document.documentElement.dataset.theme = theme; } catch (_) {}
   window.addEventListener("resize", () => { if (ui.view === "lanes") render(); else drawLink(); });
   bindLanes();
+  bindPanelResize();
   // Refresh the "N minutes ago" labels periodically
   setInterval(() => {
     document.querySelectorAll("[data-ago]").forEach((n) => { n.textContent = ago(n.dataset.ago); });
     drawLink(); // A longer label can wrap and move the selected card
   }, 15000);
 
-  $("playbookLink").hidden = !!EMBEDDED; // an exported file has no hub to serve the playbook
+  $("guideLink").hidden = $("playbookLink").hidden = !!EMBEDDED; // an exported file has no hub to serve these pages
   if (EMBEDDED) { setConn("", "conn.static", { ts: new Date(EMBEDDED.generated_at).toLocaleString(LOCALE) }); loadSnapshot(EMBEDDED); }
   else connect();
 })();
