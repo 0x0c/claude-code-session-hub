@@ -84,5 +84,5 @@ assistive technology which session is selected.
 
 ## References
 
-- [`session_hub/templates/dashboard.html`](../session_hub/templates/dashboard.html) — the page.
-- [`docs/DESIGN.md`](../docs/DESIGN.md) — the screen layout in §5.2.
+- [`session_hub/templates/dashboard.html`](../../session_hub/templates/dashboard.html) — the page.
+- [`docs/DESIGN.md`](../../docs/DESIGN.md) — the screen layout in §5.2.

@@ -62,5 +62,5 @@
 
 ## 参考資料
 
-- [`session_hub/templates/dashboard.html`](../session_hub/templates/dashboard.html) — ページ本体。
-- [`docs/DESIGN.md`](../docs/DESIGN.ja.md) — §5.2の画面構成。
+- [`session_hub/templates/dashboard.html`](../../session_hub/templates/dashboard.html) — ページ本体。
+- [`docs/DESIGN.md`](../../docs/DESIGN.ja.md) — §5.2の画面構成。
