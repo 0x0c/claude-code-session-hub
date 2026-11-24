@@ -102,10 +102,10 @@ class KnowledgePageTest(unittest.TestCase):
             self.assertEqual(len(re.findall(rf'"{re.escape(key)}":', page)), 2, key)  # English and Japanese
 
     def test_guide_page_shows_the_link(self):
-        self.assertIn('$("knowledgeLink").hidden', template("guide.js"))
+        self.assertRegex(template("guide.js"), r'\$\("knowledgeLink"\)\.hidden = [^;\n]*= false;')
 
     def test_exported_file_hides_the_link(self):
-        self.assertIn('$("knowledgeLink").hidden', dashboard_html())
+        self.assertRegex(dashboard_html(), r'\$\("knowledgeLink"\)\.hidden = [^;\n]*= !!EMBEDDED;')
 
     def test_page_is_the_dashboard_with_the_added_script(self):
         page = knowledge_html()
@@ -117,11 +117,21 @@ class KnowledgePageTest(unittest.TestCase):
         for name in set(re.findall(r"\.([a-z][\w-]*)", style)):
             self.assertTrue(name.startswith("kn-"), name)
 
-    def test_dashboard_opens_the_tab_named_by_the_hash(self):
-        page = dashboard_html()
-        self.assertIn('location.hash.startsWith("#col:")', page)
-        # A reconnect's snapshot must not switch the reader back, so the hash is dropped once applied
-        self.assertRegex(page, r'setView\(location\.hash\.slice\(1\)\);\s*history\.replaceState\(')
+    @unittest.skipUnless(shutil.which("node"), "needs Node.js")
+    def test_dashboard_opens_the_tab_named_by_the_hash_once(self):
+        code = re.search(r"  function openHashedTab\(.*?\n  }\n", dashboard_html(), re.S)[0]
+        script = """
+          const calls = [];
+          const location = { hash: "#col:knowledge", pathname: "/", search: "?x=1" };
+          const history = { replaceState: (_s, _t, url) => { calls.push(["url", url]); location.hash = ""; } };
+          const setView = (v) => calls.push(["view", v]);
+          openHashedTab(false); openHashedTab(true); openHashedTab(true);
+          location.hash = "#other"; openHashedTab(true);
+          console.log(JSON.stringify(calls));
+        """
+        out = subprocess.run(["node", "-e", code + script], capture_output=True, text=True, check=True).stdout
+        # Only the first snapshot applies the hash, and it clears the hash so that a reconnect does not repeat it
+        self.assertEqual(json.loads(out), [["view", "col:knowledge"], ["url", "/?x=1"]])
 
 
 if __name__ == "__main__":
