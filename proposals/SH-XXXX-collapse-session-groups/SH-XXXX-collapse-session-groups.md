@@ -42,7 +42,8 @@ The change touches `session_hub/templates/dashboard.html` alone.
 - **Moves between groups.** A session that changes group follows the state of its new group. A
   collapsed group never expands by itself, because the user chose to collapse it.
 - **Focus.** Every update rebuilds the list, so the page returns the keyboard focus to the heading
-  that held it.
+  that held it. When a focused session moves into a collapsed group, the focus goes to that group's
+  heading, never to a control of another session.
 
 The header count, the tab title, and the browser notifications ignore the collapsed state. A
 session that needs action therefore stays visible in the header even when its group is collapsed.
