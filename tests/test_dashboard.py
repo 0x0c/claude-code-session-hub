@@ -58,6 +58,63 @@ class DashboardTest(unittest.TestCase):
             [["mom", [["kid", ["grandkid"]]]], "other", *tail],
             ["other", "mom", "grandkid", *tail]])  # A child whose parent is in another list stands alone
 
+    @unittest.skipUnless(shutil.which("node"), "needs node")
+    def test_fold_keys_name_everything_that_hides_a_card(self):
+        # The fold state, then the code from the session groups to the family helpers
+        code = re.search(r"  const statusOf = .*?(?=  // \[key, label, sessions\] of each non-empty group, in)", PAGE, re.S)[0]
+        script = """
+          const ui = { byProject: true, collapsed: new Set() };
+          const saved = {};
+          const localStorage = { setItem: (k, v) => { saved[k] = JSON.parse(v); } };
+          const S = (id, parent, more) => ({ session_id: id, parent_id: parent, repo: "app", state: "working", ...more });
+          const db = { sessions: [S("mom"), S("kid", "mom"), S("grandkid", "kid"), S("done", "mom", { state: "done" }),
+                                  S("under", "done"), S("l1", "l2"), S("l2", "l1"), S("tail", "l1")] };
+          const byId = sessionsById();
+          const hiders = (id) => foldKeys(byId.get(id), byId).slice(groupKeys(byId.get(id)).length);
+          const isFamily = (id) => isCollapsed(familyKey(id));
+          const out = [["mom", "kid", "grandkid", "done", "under", "tail"].map((id) => hiders(id).map((k) => JSON.parse(k).family))];
+          out.push(isFamily("mom"));
+          toggleFold(familyKey("mom"));
+          out.push(isFamily("mom"), isFamily("kid"), saved["hub.collapsed"].map((k) => JSON.parse(k)));
+          out.push(foldKeys(byId.get("grandkid"), byId).find(isCollapsed) === familyKey("mom"));
+          toggleFold(...foldKeys(byId.get("grandkid"), byId).filter(isCollapsed)); // What a link to a session does
+          out.push(isFamily("mom"), saved["hub.collapsed"]);
+          out.push(families(db.sessions, byId).slice(0, 1).map(descendants)[0].map((s) => s.session_id));
+          console.log(JSON.stringify(out));
+        """
+        out = subprocess.run(["node", "-e", code + script], capture_output=True, text=True, check=True).stdout
+        self.assertEqual(json.loads(out), [
+            # A parent in another group hides nothing; a session outside the loop sits under its member
+            [[], ["mom"], ["mom", "kid"], [], [], ["l1"]],
+            False, True, False, [{"family": "mom"}], True, False, [],
+            ["kid", "grandkid", "done", "under"]])
+
+    @unittest.skipUnless(shutil.which("node"), "needs node")
+    def test_the_toggle_of_a_family_marks_what_it_hides(self):
+        code = re.search(r"  function kidsToggle\(.*?\n  \}\n", PAGE, re.S)[0]
+        script = """
+          const ui = { session: "kid" };
+          let open = true;
+          const familyKey = (id) => "family " + id, isCollapsed = () => !open, t = (k) => k;
+          const calls = [], toggleFold = (k) => calls.push(k), renderSessions = () => calls.push("render"), drawLink = () => calls.push("link");
+          const glowKey = { session: (id) => id }, glowProps = (keys, props) => ({ ...props, keys });
+          const el = (tag, props, ...kids) => ({ tag, ...props });
+          const draw = () => kidsToggle({ session_id: "mom" }, 1, [{ session_id: "kid" }]);
+          const shape = (n) => [n.class, n["aria-expanded"], n.keys];
+          const out = [shape(draw())];
+          open = false;
+          out.push(shape(draw()));
+          const event = { key: " ", stopPropagation: () => calls.push("stop") };
+          draw().onclick(event);
+          draw().onkeydown(event);
+          draw().onkeydown({ ...event, key: "Escape" });
+          console.log(JSON.stringify([...out, calls]));
+        """
+        out = subprocess.run(["node", "-e", code + script], capture_output=True, text=True, check=True).stdout
+        self.assertEqual(json.loads(out), [
+            ["kidstoggle", "true", []], ["kidstoggle selected", "false", ["kid"]],
+            ["stop", "family mom", "render", "link", "stop"]])  # Neither the click nor the key selects the card
+
     def test_layout_toggle_offers_list_and_grid(self):
         self.assertEqual(re.findall(r'<button data-layout="(\w+)"', PAGE), ["list", "grid"])
         self.assertIn('localStorage.getItem("hub.layout")', PAGE)

@@ -463,6 +463,9 @@ label, it gives the English label and the Japanese label in parentheses.
   - A sub-session in the same group as its parent is indented under the parent's card and tied to it by
     lines. The family takes the place of its most recently updated member. In another group, the
     sub-session's card links to its parent (↳). A parent's card shows the number of its sub-sessions.
+    Clicking the number hides or shows the sub-sessions under the card; families start expanded. The
+    number of a collapsed family glows when a hidden session sends a message, and the browser remembers
+    the collapsed families.
   - A `?` icon follows each status label in a group heading and the state badge on each card. Hovering
     over the icon, or tapping it, shows what the label means.
   - Each card shows a state badge, a task progress bar (hidden in the `done` state and on archived sessions), the remaining work, the PR and CI, the
