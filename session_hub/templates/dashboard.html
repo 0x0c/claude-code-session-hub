@@ -131,7 +131,7 @@ main.grid .action-section .card:not(.selected):not(:hover) { background: var(--p
 .group-badge { padding: var(--space-1) var(--space-8); border-radius: var(--radius-sm); color: var(--on-fill); background: var(--group-color); }
 .project .chev { color: var(--muted); transition: transform .15s; }
 .project[aria-expanded="true"] .chev { transform: rotate(90deg); }
-/* The status groups inside a project */
+/* The groups inside a section: status groups in a project, project groups in Archived */
 main .project.sub { margin: 0; padding: var(--space-6) var(--space-14) var(--space-6) var(--space-24); border-width: 1px 0 0; border-radius: 0; background: none; }
 main .project.sub:hover { background: var(--hover); }
 main.grid .project.sub { border: 0; border-radius: var(--radius-lg); }
@@ -624,10 +624,14 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
   const foldMark = (key) => (key === ARCHIVED_KEY ? "open:" + key : key);
   const isCollapsed = (key) => ui.collapsed.has(foldMark(key)) !== (key === ARCHIVED_KEY);
   const inProject = (s) => ui.byProject && !s.needs_action && !s.archived;
-  // The status groups inside a project; the array form keeps a key apart from every project name
+  // A status inside a project, or a project inside Archived (the status "archived"); the array form
+  // keeps a key apart from every project name
   const subKey = (project, id) => JSON.stringify([project, id]);
   // Keys of the headings above a session's card, outermost first
-  const groupKeys = (s) => (inProject(s) ? [s.repo || "", subKey(s.repo || "", statusOf(s))] : ["status:" + statusOf(s)]);
+  const groupKeys = (s) => {
+    if (!ui.byProject || (s.needs_action && !s.archived)) return ["status:" + statusOf(s)];
+    return [s.archived ? ARCHIVED_KEY : s.repo || "", subKey(s.repo || "", statusOf(s))];
+  };
 
   // [key, label, sessions] of each non-empty group, in display order
   function sessionGroups(sessions) {
@@ -638,14 +642,20 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     return [status("action"), ...rest, status("archived")].filter(([, , list]) => list.length);
   }
 
-  // [key, label, sessions] of each non-empty status group inside a project, in display order
-  function projectStatusGroups(project, sessions) {
+  // [key, label, sessions] of each non-empty group inside a section, in display order: projects in
+  // Archived, statuses in a project. Null when the section lists its sessions directly.
+  function subGroups(section, sessions) {
+    if (section === ARCHIVED_KEY && ui.byProject) {
+      return projectGroups(sessions).map(([project, list]) => [subKey(project, "archived"), project || t("project.none"), list]);
+    }
+    if (section.startsWith("status:")) return null;
+    const project = section;
     return ["active", "done"]
       .map((id) => [subKey(project, id), t("group." + id), sessions.filter((s) => statusOf(s) === id)])
       .filter(([, , list]) => list.length);
   }
 
-  // parent is the key of the enclosing project, for a status group inside one
+  // parent is the key of the enclosing section, for a group inside one
   function groupHeader(key, label, list, parent = null) {
     const open = !isCollapsed(key);
     // A collapsed group hides its cards, so the header carries their glow and the selection mark
@@ -680,7 +690,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       if (head) head.focus({ preventScroll: true });
       return !!head;
     };
-    // A status group that emptied has no heading: focus the heading of its project
+    // A group that emptied has no heading: focus the heading of its section
     if (old && old.classList.contains("project")) {
       if (!focusGroup(old.dataset.group) && old.dataset.parent !== undefined) focusGroup(old.dataset.parent);
       return;
@@ -703,10 +713,13 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     }
     const sorted = [...db.sessions].sort(byRecent);
     const cards = (list, named) => el("div", { class: "cards" }, list.map((s) => sessionCard(s, named)));
-    const subgroups = (project, list) => projectStatusGroups(project, list).flatMap(([key, label, part]) =>
-      [groupHeader(key, label, part, project), isCollapsed(key) ? null : el("div", { class: "subcards" }, cards(part, true))]);
+    const nested = (section, groups) => groups.flatMap(([key, label, part]) =>
+      [groupHeader(key, label, part, section), isCollapsed(key) ? null : el("div", { class: "subcards" }, cards(part, true))]);
     for (const [key, label, list] of sessionGroups(sorted)) {
-      const body = () => (key.startsWith("status:") ? [cards(list, false)] : subgroups(key, list));
+      const body = () => {
+        const groups = subGroups(key, list);
+        return groups ? nested(key, groups) : [cards(list, false)];
+      };
       const parts = [groupHeader(key, label, list), ...(isCollapsed(key) ? [] : body())].filter(Boolean);
       box.append(...(key === ACTION_KEY ? [el("section", { class: "action-section", "aria-label": label }, parts)] : parts));
     }

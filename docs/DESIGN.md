@@ -448,7 +448,8 @@ label, it gives the English label and the Japanese label in parentheses.
     "working or waiting" (作業中・待機) and "done" (完了).
   - Clicking any group heading, "needs action" included, collapses or expands that group. A
     collapsed heading keeps its count, and glows when a hidden session sends a message. The browser
-    remembers the collapsed groups. The **Archived** group comes last and starts collapsed.
+    remembers the collapsed groups. The **Archived** group comes last and starts collapsed. In the
+    grouping by project, its sessions are grouped by project too.
   - Each card shows a state badge, a task progress bar (hidden in the `done` state), the remaining work, the PR and CI, the
     tokens and cost, the last update, and any unanswered question (with its options, its default,
     and the command to answer it). The PR number on the card, in the title of the selected session's
