@@ -1,4 +1,6 @@
 import re
+import shutil
+import subprocess
 import tempfile
 import threading
 import unittest
@@ -30,6 +32,12 @@ class PlaybookTest(unittest.TestCase):
             with self.subTest(point=point), mock.patch.object(playbook, "dashboard_html", lambda: page.replace(point, "")):
                 with self.assertRaises(ValueError):
                     playbook.playbook_html()
+
+    @unittest.skipUnless(shutil.which("node"), "needs Node.js")
+    def test_page_script_parses(self):
+        script = re.search(r"<script>\n(.*)</script>", playbook.playbook_html(), re.S)[1]
+        check = subprocess.run(["node", "--check", "-"], input=script, text=True, encoding="utf-8", capture_output=True)
+        self.assertEqual(check.returncode, 0, check.stderr)
 
     def test_stories_call_functions_that_the_dashboard_defines(self):
         page = playbook.dashboard_html()

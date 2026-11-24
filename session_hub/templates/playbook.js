@@ -216,6 +216,15 @@
     return [...names].filter((n) => !PB_LAYOUT.has(n) && !pbRoot.querySelector("." + n)).sort();
   }
 
+  // A story that throws shows its error in its own frame, so that the rest of the page still draws
+  function pbDraw(id, make) {
+    try { return [].concat(make()); }
+    catch (err) {
+      console.error(id, err);
+      return el("pre", { class: "pb-failed" }, `Story failed: ${err}`);
+    }
+  }
+
   function pbRender() {
     document.title = "Session Hub playbook";
     // A click in a story may have filtered or selected something; start each redraw from a clean slate
@@ -229,7 +238,7 @@
     const main = el("div", { class: "pb-main" }, PB.map(([name, stories]) => el("section", { id: name }, el("h2", {}, name),
       stories.map(([story, make, width]) => el("div", { class: "pb-story", "data-story": `${name}/${story}` },
         el("div", { class: "pb-name" }, story),
-        el("div", { class: "pb-frame" + (width ? " pb-" + width : "") }, [].concat(make())))))));
+        el("div", { class: "pb-frame" + (width ? " pb-" + width : "") }, pbDraw(`${name}/${story}`, make)))))));
     pbRoot.replaceChildren(nav, main);
     const missing = pbMissing();
     main.append(el("section", { id: "Coverage" }, el("h2", {}, "Coverage"),

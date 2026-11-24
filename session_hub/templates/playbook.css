@@ -21,3 +21,4 @@ body { height: auto !important; display: block !important; overflow: auto !impor
 .pb-box { width: 48px; height: 28px; border: 1px solid var(--ink); }
 .pb-sample { white-space: nowrap; overflow: hidden; }
 @media (max-width: 860px) { .pb-layout { grid-template-columns: minmax(0, 1fr); } .pb-nav { position: static; } }
+.pb-failed { margin: 0; color: var(--s-fail); white-space: pre-wrap; }
