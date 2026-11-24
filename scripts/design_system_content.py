@@ -42,7 +42,7 @@ USAGE = {'bg': 'ページの地。コードブロックと検索欄の地にも�
  'radius-md': 'ボタン、入力欄、質問ボックス。',
  'radius-lg': 'グリッドのカード、要対応の枠、ナレッジのカード。',
  'radius-xl': 'パネル。',
- 'radius-pill': '状態バッジ、種別フィルター、新着バー。',
+ 'radius-pill': '状態バッジ、新着バー。',
  'fs-title': '製品名。',
  'fs-body': '本文。',
  'fs-body-sm': '要約、パネル見出し。',
@@ -96,13 +96,9 @@ COMPONENTS = [('GroupHeading',
   'style="background:var(--s-work)"></span><span class="title">認証APIのレート制限</span><span class="badge" '
   'style="background:var(--s-needs)">人間待ち</span></div><div class="meta"><span>#128</span><span>1/4 残≈7</span><span><a class="pr" '
   'href="https://example.com/pull/45">PR#45</a> CI:pending</span><span>30分前</span></div><div class="summary">Redis のスライディングウィンドウ方式で実装開始</div><div '
-  'class="progress"><i style="width:25%"></i></div></div></div><div class="cardwrap deletable"><div class="card "><div class="row1"><span '
-  'class="dot" style="background:var(--s-work)"></span><span class="title">認証APIのレート制限</span><span class="badge" '
-  'style="background:var(--s-needs)">人間待ち</span></div><div class="meta"><span>#128</span><span>1/4 残≈7</span><span><a class="pr" '
-  'href="https://example.com/pull/45">PR#45</a> CI:pending</span><span>30分前</span></div><div class="summary">Redis のスライディングウィンドウ方式で実装開始</div><div '
-  'class="progress"><i style="width:25%"></i></div></div><button class="carddel" type="button" aria-label="セッションを削除">×</button></div>',
+  'class="progress"><i style="width:25%"></i></div></div></div>',
   '1つのサブセッションの現状を示すカード。利用側は名前、状態、メタ情報、要約、進捗を渡します。',
-  '名前は1行で省略します。PRのURLがあればリンクにします。削除ボタンはホバー時とキーボード操作時に出し、完了したセッションには進捗バーを出しません。'),
+  '名前は1行で省略します。PRのURLがあればリンクにします。完了したセッションには進捗バーを出しません。'),
  ('AskBox',
   'Sessions',
   140,
@@ -156,11 +152,11 @@ COMPONENTS = [('GroupHeading',
   '選択中だけ `accent` で塗ります。'),
  ('TypeFilter',
   'Controls',
-  60,
-  '<div class="types" style="border:0"><button aria-pressed="true">開始</button><button aria-pressed="true">報告</button><button '
-  'aria-pressed="false">質問</button></div>',
-  'イベント種別の絞り込み。種別名と押下状態を渡します。',
-  '複数を同時に選べます。'),
+  160,
+  '<button class="iconbtn typesbtn filtered">種別 <span class="count">2/3</span></button><div class="types" style="position:static;width:max-content;margin-top:4px"><label><input '
+  'type="checkbox" checked> 開始</label><label><input type="checkbox" checked> 報告</label><label><input type="checkbox"> 質問</label></div>',
+  'イベント種別の絞り込み。ボタンを押すとポップオーバーが開きます。種別名と選択状態を渡します。',
+  '複数を同時に選べます。隠している種別があるときは、ボタンに `filtered` を付けて色を変えます。件数は「表示数/総数」で常に示します。'),
  ('EventRow',
   'Timeline',
   110,

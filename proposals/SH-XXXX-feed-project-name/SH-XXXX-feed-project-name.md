@@ -33,7 +33,8 @@ The change touches the dashboard page, its playbook, and the design document.
 - **Source.** The name is the `repo` of the session, which the cards and the project groups already
   use. The event itself does not change.
 - **Row.** The name follows the session name in muted text. A row whose session has no project shows
-  no name, and a long name wraps. Collapsed heartbeats stay as they are.
+  no name, and a long name wraps. While a session is selected, its rows omit the project, as they omit
+  the session name. Collapsed heartbeats stay as they are.
 - **Search.** The search also matches the project name. The table of the swimlanes uses the same
   filter, so the search finds the project there too.
 

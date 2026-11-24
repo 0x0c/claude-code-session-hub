@@ -197,7 +197,7 @@ immediately**.
 - **Stopping the hub**: `session-hub stop` calls `DELETE /api/server`, which the hub accepts from the
   loopback interface alone. A hub that a hook started in the background stops the same way.
 - **Deleting a session**: the one exception to append-only writing. `session-hub delete` and the
-  dashboard's delete buttons (in the session list and the timeline header) call
+  dashboard's delete button (in the timeline header) call
   `DELETE /api/sessions/<session_id>`, which unlinks every file of that session under the files' write
   locks and pushes the removal to every browser. The operation works on whole sessions alone, so the
   folded state of every other session stays intact
@@ -207,6 +207,9 @@ immediately**.
   restores its previous status. The hub scans the Claude desktop app's session files every five
   seconds, read-only, and records the events in `events/<session_id>@desktop.jsonl`. A manual
   `session-hub archive` records the same event as `parent`; a later report of the child clears it.
+- **Opening a session in the desktop app**: the same scan reads the app's own session id. The hub adds
+  the id to the snapshot as `desktop_id` and stores no event, because the id means nothing on another
+  machine. The detail panel links to `claude://code/continue?session=<desktop_id>`.
 
 ### 3.2 Child → hub (`session-hub report` and related commands)
 
@@ -471,7 +474,9 @@ label, it gives the English label and the Japanese label in parentheses.
     "Details" (詳細) opens the raw event JSON. New events are highlighted. While the reader is
     scrolled down, a "N new" bar (新着 N 件) announces new events instead of moving the screen.
     Filters: session, event type, full-text search, heartbeat display (consecutive heartbeats
-    collapse into one row), and newest or oldest first.
+    collapse into one row), and newest or oldest first. The event types are checkboxes in a popover that
+    the **Event types** (種別) button opens; the button shows the number of shown types and the total.
+    Escape, an outside click, or a second press closes the popover.
   - **Overview**: one thin band per session over the whole history, with state colors alone: no dots,
     no zoom, no table. It shows every session's lifespan and where each waited, on one screen.
     Hovering shows the state and its period, and clicking a session's name selects it.

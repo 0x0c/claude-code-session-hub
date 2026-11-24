@@ -46,13 +46,15 @@ Session Hubは、親のClaude Codeセッションが多数のサブセッショ�
 
 ## 作業の確認
 
+テストは、コードと同じ変更で追加します。新しい機能には、追加した振る舞いごとのテストを書き、失敗時の動きも含めます。修正には、その修正がなければ失敗するテストを書きます。テストは、対象のモジュールを扱う`tests/`のファイルに入れるか、`tests/`に新しいファイルを作ります。テストを書けない変更では、その理由をプルリクエストに書きます。
+
 変更を完了とする前と、pushする前に、必ず次のゲートを実行してください。
 
 ```bash
 scripts/check.sh
 ```
 
-このスクリプトは、テスト、プロポーザルの形式チェック（`scripts/proposals.py lint`）、2言語の文書のチェック（`scripts/check_docs.py`）、略語のチェック（`scripts/acronyms.py`）を実行します。4つとも成功する必要があります。ダッシュボードを変更したときは、[開発メモ](#実際のブラウザーでダッシュボードを確認する)のとおり、デモデータで画面も確認してください。
+このスクリプトは、テスト、プロポーザルの形式チェック（`scripts/proposals.py lint`）、2言語の文書のチェック（`scripts/check_docs.py`）、略語のチェック（`scripts/acronyms.py`）を実行します。4つとも成功する必要があります。GitHub Actionsの`.github/workflows/test.yml`も、同じスクリプトを実行します。実行されるのは、プルリクエストの作成や更新と、`main`へのpushのときです。ダッシュボードを変更したときは、[開発メモ](#実際のブラウザーでダッシュボードを確認する)のとおり、デモデータで画面も確認してください。
 
 ## Git
 
@@ -85,7 +87,7 @@ scripts/check.sh
 
 - クラウドのセッションでは、`CLAUDE_CODE_REMOTE_SESSION_ID`に`cse_<id>`が入っています。セッション関連のツールは`session_<id>`を使うので、接頭辞を書き換えています。ローカルでは`CLAUDE_CODE_SESSION_ID`に汎用一意識別子（UUID）が入っており、これは`claude --resume`が受け付けるIDと同じです。
 - Agentツールで起動したサブエージェントは親と同じセッションIDを使うので、別のサブセッションとしては表示されません。サブセッションは別のClaude Codeプロセスとして動かす必要があります。
-- macOSのClaudeデスクトップアプリは、`~/Library/Application Support/Claude/claude-code-sessions/*/*/local_*.json`にセッションごとのファイルを持ちます。`cliSessionId`はローカルのハブのセッションIDと同じ値で、`isArchived`がアーカイブのフラグです。形式は文書化されていないので、防御的に読み、書き込みは決してしません。
+- macOSのClaudeデスクトップアプリは、`~/Library/Application Support/Claude/claude-code-sessions/*/*/local_*.json`にセッションごとのファイルを持ちます。`cliSessionId`はローカルのハブのセッションIDと同じ値です。`sessionId`は`claude://code/continue?session=`に渡すIDで、`isArchived`がアーカイブのフラグです。形式は文書化されていないので、防御的に読み、書き込みは決してしません。
 
 ### APM（Agent Package Manager）での配布
 
