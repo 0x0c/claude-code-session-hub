@@ -1,11 +1,11 @@
-[English](SH-XXXX-session-overview.md) · **日本語**
+[English](SH-0024-session-overview.md) · **日本語**
 
-# SH-XXXX — 全セッションの俯瞰ビュー
+# SH-0024 — 全セッションの俯瞰ビュー
 
 <!-- SH-METADATA -->
 | 項目 | 値 |
 |---|---|
-| 提案 | SH-XXXX |
+| 提案 | SH-0024 |
 | 作者 | [@0x0c](https://github.com/0x0c) |
 | 状態 | **Implemented** |
 | トピック | Dashboard |

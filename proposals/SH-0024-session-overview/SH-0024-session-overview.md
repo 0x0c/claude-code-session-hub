@@ -1,11 +1,11 @@
-**English** · [日本語](SH-XXXX-session-overview.ja.md)
+**English** · [日本語](SH-0024-session-overview.ja.md)
 
-# SH-XXXX — Overview of every session's lifespan
+# SH-0024 — Overview of every session's lifespan
 
 <!-- SH-METADATA -->
 | Field | Value |
 |---|---|
-| Proposal | SH-XXXX |
+| Proposal | SH-0024 |
 | Author | [@0x0c](https://github.com/0x0c) |
 | Status | **Implemented** |
 | Topic | Dashboard |
