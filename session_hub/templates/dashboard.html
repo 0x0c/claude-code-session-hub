@@ -296,6 +296,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
   </div>
   <a class="iconbtn" id="guideLink" href="guide" data-i18n="btn.guide" data-i18n-title="btn.guideTitle"></a>
   <a class="iconbtn" id="playbookLink" href="playbook" data-i18n="btn.playbook" data-i18n-title="btn.playbookTitle"></a>
+  <a class="iconbtn" id="designSystemLink" target="_blank" rel="noopener noreferrer" hidden data-i18n="btn.designSystem" data-i18n-title="btn.designSystemTitle"></a>
   <button class="iconbtn" id="notifyBtn" aria-pressed="false" data-i18n="btn.notify" data-i18n-title="btn.notifyTitle"></button>
   <button class="iconbtn" id="langBtn" data-i18n="btn.lang" data-i18n-title="btn.langTitle"></button>
   <button class="iconbtn" id="themeBtn" data-i18n="btn.theme" data-i18n-title="btn.themeTitle"></button>
@@ -363,6 +364,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
   "use strict";
   // `hub export` embeds the snapshot here (static mode)
   const EMBEDDED = /*__HUB_SNAPSHOT__*/null;
+  const DESIGN_SYSTEM_URL = /*__HUB_DESIGN_SYSTEM_URL__*/null;
 
   // ---- Localization ----
   // Every string the page shows comes from MESSAGES. The language is chosen from ?lang=, then the
@@ -376,6 +378,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       "kpi.tokens": "Tokens in", "kpi.out": "out", "kpi.updated": "Updated",
       "btn.notify": "Notify", "btn.notifyTitle": "Notify me when a session needs action",
       "btn.playbook": "Playbook", "btn.playbookTitle": "See every component of this dashboard in every state",
+      "btn.designSystem": "Design system", "btn.designSystemTitle": "Open the design system page in a new tab",
       "btn.guide": "Status guide", "btn.guideTitle": "Read what each status and state means",
       "btn.theme": "Theme", "btn.themeTitle": "Switch between light and dark",
       "btn.lang": "日本語", "btn.langTitle": "表示を日本語に切り替える",
@@ -468,6 +471,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       "kpi.tokens": "トークン 入力", "kpi.out": "出力", "kpi.updated": "更新",
       "btn.notify": "通知", "btn.notifyTitle": "要対応になったら通知",
       "btn.playbook": "Playbook", "btn.playbookTitle": "ダッシュボードの部品をすべての状態で一覧する",
+      "btn.designSystem": "デザインシステム", "btn.designSystemTitle": "デザインシステムのページを新しいタブで開く",
       "btn.guide": "ステータスの説明", "btn.guideTitle": "各ステータスと状態の意味を一覧する",
       "btn.theme": "テーマ", "btn.themeTitle": "テーマ切替",
       "btn.lang": "English", "btn.langTitle": "Switch the display to English",
@@ -2027,6 +2031,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
   }, 15000);
 
   $("guideLink").hidden = $("playbookLink").hidden = !!EMBEDDED; // an exported file has no hub to serve these pages
+  if (DESIGN_SYSTEM_URL) { $("designSystemLink").href = DESIGN_SYSTEM_URL; $("designSystemLink").hidden = false; }
   if (EMBEDDED) { setConn("", "conn.static", { ts: new Date(EMBEDDED.generated_at).toLocaleString(LOCALE) }); loadSnapshot(EMBEDDED); }
   else connect();
 })();

@@ -339,6 +339,7 @@ alone to the parent with `send_message`.
 | `HUB_STOP_GUARD` | `0` disables the Stop hook's prompt |
 | `HUB_AUTOSTART` | `1` starts the local hub server at session start if it is not running (only when `HUB_URL` points to 127.0.0.1 or localhost) |
 | `HUB_DESKTOP_SESSIONS` | The directory of the Claude desktop app's session files, which the hub server reads to detect archived sessions (default on macOS: `~/Library/Application Support/Claude/claude-code-sessions`); `0` turns detection off |
+| `HUB_DESIGN_SYSTEM_URL` | The address of a design system page; when set on the hub server, the header and the Playbook link to it |
 | `HUB_OUTBOX` / `HUB_STATE_DIR` | Where the outbox and local state live (default `~/.cache/...`) |
 
 ## Tests
