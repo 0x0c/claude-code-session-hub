@@ -191,6 +191,8 @@
     ["Panel", [
       ["Heading with a scope and a button", () => el("section", { class: "panel" }, el("h2", {}, t("tl.title"), " ",
         el("span", { class: "chip" }, t("tl.all")), el("button", { class: "iconbtn danger" }, t("sessions.delete"))))],
+      ["Heading with a link to the desktop app", () => el("section", { class: "panel" }, el("h2", {}, t("tl.title"), " ",
+        el("span", { class: "chip" }, t("tl.all")), el("a", { class: "iconbtn", href: "#" }, t("tl.desktop"))))],
       ["Resize handle, at rest and dragged", () => el("div", { class: "pb-row" }, ["resizer", "resizer active"].map((c) =>
         el("div", { class: c, style: { height: "72px" } })))],
       ["Fullscreen button, off and on", () => el("div", { class: "pb-row" }, ["false", "true"].map((on) => {

@@ -103,6 +103,12 @@ class DashboardTest(unittest.TestCase):
         self.assertLessEqual({"lanes.col." + c for c in re.findall(r'"(\w+)"', columns)}, messages("ja"))
         self.assertLessEqual({"dur.sec", "dur.min", "dur.hour", "dur.day"}, messages("ja"))
 
+    def test_detail_view_opens_the_desktop_app(self):
+        self.assertIn('/^local_[A-Za-z0-9-]{1,64}$/.test(s.desktop_id || "")', PAGE)
+        self.assertIn('"claude://code/continue?session=" + s.desktop_id', PAGE)
+        self.assertIn("open.hidden = !appUrl;", PAGE)
+        self.assertIn("@media (max-width: 860px) { #tlTitle { flex-wrap: wrap; } }", PAGE)
+
     def test_overview_replaces_the_all_sessions_button(self):
         self.assertIn('data-view="overview"', PAGE)
         self.assertRegex(PAGE, r'function renderOverview\(\) \{\n[^\n]*\n\s*tipEl\.style\.display = "none";')

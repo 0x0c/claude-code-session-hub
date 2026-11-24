@@ -150,7 +150,8 @@ Each note states a fact we verified, why it matters, and what to do about it.
   separate sub-sessions. A sub-session must be a separate Claude Code process.
 - The Claude desktop app on macOS keeps one file per session under
   `~/Library/Application Support/Claude/claude-code-sessions/*/*/local_*.json`. Its `cliSessionId`
-  equals the local hub session id, and `isArchived` is the archive flag. The format is undocumented,
+  equals the local hub session id, `sessionId` is the id that
+  `claude://code/continue?session=` takes, and `isArchived` is the archive flag. The format is undocumented,
   so read it defensively and never write to it.
 
 ### APM (Agent Package Manager) packaging

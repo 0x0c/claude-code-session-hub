@@ -162,6 +162,8 @@ main.grid .subcards { padding: var(--space-4) 0 var(--space-8) var(--space-24); 
 .card .title { font-weight: var(--fw-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
 .card .meta { font-size: var(--fs-meta); color: var(--muted); display: flex; gap: var(--space-10); flex-wrap: wrap; margin-top: var(--space-2); }
 a.pr { color: var(--accent); }
+#tlDesktop { flex: none; }
+@media (max-width: 860px) { #tlTitle { flex-wrap: wrap; } } /* The link and the buttons do not fit one line */
 #tlPr { flex: none; font-weight: var(--fw-normal); white-space: nowrap; }
 .card .summary { font-size: var(--fs-body-sm); margin-top: var(--space-4); overflow-wrap: anywhere; }
 .spinner { width: 14px; height: 14px; flex: none; border-radius: 50%; border: 2px solid var(--line);
@@ -331,6 +333,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     data-i18n-aria="panel.resize" data-i18n-title="panel.resizeTitle"></div>
   <section class="panel" id="detail" tabindex="-1" aria-labelledby="tlTitle">
     <h2 id="tlTitle"><span id="tlName"></span> <span class="chip" id="tlScope"></span> <a class="pr" id="tlPr" target="_blank" rel="noopener noreferrer" hidden></a>
+      <a class="iconbtn" id="tlDesktop" hidden data-i18n="tl.desktop" data-i18n-title="tl.desktopTitle"></a>
       <button class="iconbtn danger" id="deleteSession" hidden data-i18n="sessions.delete" data-i18n-title="sessions.deleteTitle"></button>
       <button class="iconbtn" id="fullscreenPanel" hidden aria-pressed="false" data-i18n-aria="panel.fullscreen" data-i18n-title="panel.fullscreenOn"><svg viewBox="0 0 12 12" aria-hidden="true"><path class="expand" d="M1 4V1H4M8 1H11V4M11 8V11H8M4 11H1V8"/><path class="shrink" d="M4 1V4H1M11 4H8V1M8 11V8H11M1 8H4V11"/></svg></button>
       <button class="iconbtn" id="closePanel" hidden data-i18n-aria="panel.close" data-i18n-title="panel.close">✕</button></h2>
@@ -398,6 +401,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       "btn.byProject": "By project", "btn.byProjectTitle": "Group sessions by repository or project; turn off to group by status",
       "project.none": "No project",
       "sessions.title": "Sessions", "sessions.clear": "Clear selection",
+      "tl.desktop": "Open in Claude", "tl.desktopTitle": "Open this session in the Claude desktop app",
       "sessions.delete": "Delete session", "sessions.deleteTitle": "Delete every stored message of this session",
       "sessions.deleteConfirm": "Delete all {n} messages of \"{name}\"? This cannot be undone.",
       "sessions.deleteConfirm_one": "Delete the 1 message of \"{name}\"? This cannot be undone.",
@@ -491,6 +495,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       "btn.byProject": "プロジェクト別", "btn.byProjectTitle": "リポジトリやプロジェクトごとにまとめます。オフにすると状態別になります",
       "project.none": "プロジェクトなし",
       "sessions.title": "セッション", "sessions.clear": "選択解除",
+      "tl.desktop": "Claudeで開く", "tl.desktopTitle": "このセッションをClaudeデスクトップアプリで開く",
       "sessions.delete": "セッションを削除", "sessions.deleteTitle": "このセッションの保存済みメッセージをすべて削除",
       "sessions.deleteConfirm": "「{name}」のメッセージ {n} 件をすべて削除しますか？この操作は取り消せません。",
       "sessions.deleteFailed": "セッションを削除できませんでした: {error}",
@@ -831,6 +836,9 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
   // Only a web address becomes a link: the URL comes from a message
   const prWebUrl = (pr) => (/^https?:\/\//i.test(pr.url || "") ? pr.url : null);
   const prName = (pr) => (pr.number ? `PR#${pr.number}` : "PR");
+  // The app's link takes its own session id; check the form, because the id comes from another app's file
+  const desktopUrl = (s) => (s && /^local_[A-Za-z0-9-]{1,64}$/.test(s.desktop_id || "")
+    ? "claude://code/continue?session=" + s.desktop_id : null);
   function prLabel(pr) {
     const prUrl = prWebUrl(pr);
     return !prUrl ? prName(pr) : el("a", {
@@ -1416,6 +1424,10 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     link.textContent = prUrl ? prName(pr) : "";
     link.title = prUrl || "";
     prUrl ? link.setAttribute("href", prUrl) : link.removeAttribute("href");
+    const appUrl = desktopUrl(shown);
+    const open = $("tlDesktop");
+    open.hidden = !appUrl;
+    appUrl ? open.setAttribute("href", appUrl) : open.removeAttribute("href");
     $("groupBtn").setAttribute("aria-pressed", String(ui.byProject));
     // In the grid layout, closing the panel clears the selection
     $("clearSel").hidden = !ui.session || ui.layout === "grid";
