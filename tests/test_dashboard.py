@@ -61,6 +61,11 @@ class DashboardTest(unittest.TestCase):
         self.assertLessEqual({"lanes.col." + c for c in re.findall(r'"(\w+)"', columns)}, messages("ja"))
         self.assertLessEqual({"dur.sec", "dur.min", "dur.hour", "dur.day"}, messages("ja"))
 
+    def test_detail_view_opens_the_desktop_app(self):
+        self.assertIn('/^local_[A-Za-z0-9-]{1,64}$/.test(s.desktop_id || "")', PAGE)
+        self.assertIn('"claude://code/continue?session=" + s.desktop_id', PAGE)
+        self.assertIn("open.hidden = !appUrl;", PAGE)
+
     def test_detail_view_links_the_pull_request(self):
         self.assertRegex(PAGE, r'<a class="pr" id="tlPr" target="_blank" rel="noopener noreferrer" hidden>')
         self.assertIn("link.hidden = !prUrl;", PAGE)

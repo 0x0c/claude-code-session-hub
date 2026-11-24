@@ -207,6 +207,9 @@ immediately**.
   restores its previous status. The hub scans the Claude desktop app's session files every five
   seconds, read-only, and records the events in `events/<session_id>@desktop.jsonl`. A manual
   `session-hub archive` records the same event as `parent`; a later report of the child clears it.
+- **Opening a session in the desktop app**: the same scan reads the app's own session id. The hub adds
+  the id to the snapshot as `desktop_id` and stores no event, because the id means nothing on another
+  machine. The detail panel links to `claude://code/continue?session=<desktop_id>`.
 
 ### 3.2 Child → hub (`session-hub report` and related commands)
 

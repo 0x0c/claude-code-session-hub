@@ -538,11 +538,11 @@ class ServerTest(TmpMixin, unittest.TestCase):
             self.assertEqual(out.getvalue().strip(), "deleted c2 (1 events)")
         self.assertEqual(self.store.session_ids(), [])
 
-    def desktop_file(self, sid, archived, name="a"):
+    def desktop_file(self, sid, archived, name="a", **fields):
         d = self.dir / "desktop" / "acct" / "org"
         d.mkdir(parents=True, exist_ok=True)
         path = d / f"local_{name}.json"
-        path.write_text(json.dumps({"cliSessionId": sid, "isArchived": archived}))
+        path.write_text(json.dumps({"cliSessionId": sid, "isArchived": archived, **fields}))
         return path
 
     def test_desktop_archive_is_mirrored(self):
@@ -586,9 +586,48 @@ class ServerTest(TmpMixin, unittest.TestCase):
         self.desktop_file("c1", True, "a")
         self.desktop_file("c1", False, "b")
         d = desktop.DesktopSessions(self.dir / "desktop")
-        self.assertEqual(d.scan(), {"c1": False})
+        self.assertFalse(d.scan()["c1"].archived)
         self.desktop_file("c1", True, "b")
-        self.assertEqual(d.scan(), {"c1": True})
+        self.assertTrue(d.scan()["c1"].archived)
+
+    def test_desktop_id_names_the_latest_open_app_session(self):
+        d = desktop.DesktopSessions(self.dir / "desktop")
+        self.desktop_file("c1", False, "a", sessionId="local_a", lastActivityAt=2)
+        self.desktop_file("c1", False, "b", sessionId="local_b", lastActivityAt=1)
+        self.desktop_file("c1", True, "c", sessionId="local_c", lastActivityAt=3)
+        self.desktop_file("c1", False, "d", lastActivityAt=4)
+        self.assertEqual(d.scan()["c1"].app_id, "local_a")
+        for bad in ("local_", "local_a&q=x", "local_a\n", "x_a", "local_" + "a" * 65, 7, None):
+            self.desktop_file("c2", False, "e", sessionId=bad)
+            self.assertIsNone(desktop.DesktopSessions(d.root).scan()["c2"].app_id, bad)
+
+    def test_desktop_id_reaches_the_snapshot_alone(self):
+        self.hub.desktop = desktop.DesktopSessions(self.dir / "desktop")
+        client.post(self.url, {"session_id": "c1", "fields": {"type": "start"}}, token="tok")
+        self.assertNotIn("desktop_id", self.hub.snap["sessions"][0])
+        self.desktop_file("c1", False, sessionId="local_a")
+        q, _ = self.hub.subscribe()
+        self.assertEqual(self.hub.sync_desktop(), 0)
+        self.assertIn('"desktop_id":"local_a"', q.get(timeout=1))
+        self.hub.sync_desktop()
+        self.assertTrue(q.empty())  # Nothing changed, so nothing is pushed
+        self.assertEqual(len(self.store.read("c1")), 1)
+        client.post(self.url, {"session_id": "c1", "fields": {"type": "done"}}, token="tok")
+        self.assertEqual(self.hub.snap["sessions"][0]["desktop_id"], "local_a")
+        self.desktop_file("c1", True, sessionId="local_a")
+        self.hub.sync_desktop()
+        self.assertNotIn("desktop_id", self.hub.snap["sessions"][0])
+
+    def test_export_drops_the_desktop_id(self):
+        self.hub.desktop = desktop.DesktopSessions(self.dir / "desktop")
+        client.post(self.url, {"session_id": "c1", "fields": {"type": "start"}}, token="tok")
+        self.desktop_file("c1", False, sessionId="local_a")
+        self.hub.sync_desktop()
+        out = self.dir / "out.html"
+        with mock.patch.dict(os.environ, {"HUB_URL": self.url, "HUB_TOKEN": "tok"}), redirect_stdout(io.StringIO()):
+            cli.main(["export", "--out", str(out)])
+        self.assertIn('"c1"', out.read_text(encoding="utf-8"))
+        self.assertNotIn("local_a", out.read_text(encoding="utf-8"))
 
     def test_run_loop_survives_a_failing_desktop_scan(self):
         self.hub.desktop = desktop.DesktopSessions(self.dir)

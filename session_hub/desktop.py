@@ -1,10 +1,12 @@
-"""Read which sessions the Claude desktop app has archived.
+"""Read which sessions the Claude desktop app holds, and which of them it has archived.
 
 The app keeps one JSON file per session, <root>/<account>/<organization>/local_<id>.json. We read
-two of its fields and never write to the directory:
+four of its fields and never write to the directory:
 
-    cliSessionId  the Claude Code session ID, which is also the hub's session ID
-    isArchived    whether the user archived the session
+    cliSessionId    the Claude Code session ID, which is also the hub's session ID
+    isArchived      whether the user archived the session
+    sessionId       the app's own ID, which its claude:// links take (optional)
+    lastActivityAt  when the session was last active (optional)
 
 The format belongs to the app and is undocumented, so anything unexpected counts as "unknown", and
 an unknown session is left as it is.
@@ -14,8 +16,19 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 from pathlib import Path
+from typing import NamedTuple
+
+APP_ID = re.compile(r"local_[A-Za-z0-9-]{1,64}")
+
+
+class AppSession(NamedTuple):
+    """What the app knows about one Claude Code session."""
+    archived: bool
+    app_id: str | None = None  # The app session to open; None when all of them are archived
+    active: float = 0
 
 
 def default_root() -> Path | None:
@@ -34,21 +47,31 @@ def default_root() -> Path | None:
 class DesktopSessions:
     def __init__(self, root: Path | str):
         self.root = Path(root)
-        self._cache: dict[Path, tuple[tuple, tuple[str, bool] | None]] = {}
+        self._cache: dict[Path, tuple[tuple, tuple[str, AppSession] | None]] = {}
 
     @staticmethod
-    def _parse(path: Path) -> tuple[str, bool] | None:
+    def _parse(path: Path) -> tuple[str, AppSession] | None:
         data = json.loads(path.read_text(encoding="utf-8"))
         if not isinstance(data, dict):
             return None
         sid, archived = data.get("cliSessionId"), data.get("isArchived")
-        return (sid, archived) if isinstance(sid, str) and isinstance(archived, bool) else None
+        if not isinstance(sid, str) or not isinstance(archived, bool):
+            return None
+        app_id, active = data.get("sessionId"), data.get("lastActivityAt")
+        linkable = not archived and isinstance(app_id, str) and APP_ID.fullmatch(app_id)
+        return sid, AppSession(archived, app_id if linkable else None,
+                               active if isinstance(active, (int, float)) else 0)
 
-    def scan(self) -> dict[str, bool]:
-        """Return {session ID: archived}. A file is parsed again only after it changes.
+    @staticmethod
+    def _merge(a: AppSession, b: AppSession) -> AppSession:
+        newest = max((x for x in (a, b) if x.app_id), key=lambda x: (x.active, x.app_id), default=a)
+        return newest._replace(archived=a.archived and b.archived)
+
+    def scan(self) -> dict[str, AppSession]:
+        """Return {session ID: AppSession}. A file is parsed again only after it changes.
 
         When several app sessions share one Claude Code session, the session counts as archived
-        only if the app archived all of them.
+        only if the app archived all of them, and app_id names the latest of the others.
         """
         cache, out = {}, {}
         for path in self.root.glob("*/*/local_*.json"):
@@ -67,7 +90,7 @@ class DesktopSessions:
                 continue
             cache[path] = entry
             if entry[1]:
-                sid, archived = entry[1]
-                out[sid] = out.get(sid, True) and archived
+                sid, found = entry[1]
+                out[sid] = self._merge(out[sid], found) if sid in out else found
         self._cache = cache
         return out

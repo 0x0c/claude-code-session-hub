@@ -85,7 +85,7 @@ scripts/check.sh
 
 - クラウドのセッションでは、`CLAUDE_CODE_REMOTE_SESSION_ID`に`cse_<id>`が入っています。セッション関連のツールは`session_<id>`を使うので、接頭辞を書き換えています。ローカルでは`CLAUDE_CODE_SESSION_ID`に汎用一意識別子（UUID）が入っており、これは`claude --resume`が受け付けるIDと同じです。
 - Agentツールで起動したサブエージェントは親と同じセッションIDを使うので、別のサブセッションとしては表示されません。サブセッションは別のClaude Codeプロセスとして動かす必要があります。
-- macOSのClaudeデスクトップアプリは、`~/Library/Application Support/Claude/claude-code-sessions/*/*/local_*.json`にセッションごとのファイルを持ちます。`cliSessionId`はローカルのハブのセッションIDと同じ値で、`isArchived`がアーカイブのフラグです。形式は文書化されていないので、防御的に読み、書き込みは決してしません。
+- macOSのClaudeデスクトップアプリは、`~/Library/Application Support/Claude/claude-code-sessions/*/*/local_*.json`にセッションごとのファイルを持ちます。`cliSessionId`はローカルのハブのセッションIDと同じ値です。`sessionId`は`claude://code/continue?session=`に渡すIDで、`isArchived`がアーカイブのフラグです。形式は文書化されていないので、防御的に読み、書き込みは決してしません。
 
 ### APM（Agent Package Manager）での配布
 

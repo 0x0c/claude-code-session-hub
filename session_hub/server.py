@@ -60,6 +60,7 @@ class Hub:
         self.ping_every = ping_every
         self.desktop = desktop.DesktopSessions(desktop_root) if desktop_root else None
         self.desktop_every = desktop_every
+        self.desktop_ids: dict[str, str] = {}  # session ID -> the desktop app's own ID, from its last scan
         self.lock = threading.Lock()        # guards the snapshot and the client set
         self.write_lock = threading.Lock()  # serializes record-then-publish one event at a time
         self.clients: set[queue.Queue] = set()
@@ -71,7 +72,11 @@ class Hub:
         self._stop = threading.Event()
 
     def _build(self) -> dict:
-        return view.snapshot(self.store.read_all(), defs=self.defs)
+        snap = view.snapshot(self.store.read_all(), defs=self.defs)
+        for s in snap["sessions"]:
+            if s["session_id"] in self.desktop_ids:
+                s["desktop_id"] = self.desktop_ids[s["session_id"]]
+        return snap
 
     def _write_sinks(self, snap: dict) -> None:
         titles = {x["session_id"]: x.get("title") or x["session_id"] for x in snap["sessions"]}
@@ -109,14 +114,19 @@ class Hub:
     def sync_desktop(self) -> int:
         """Mirror the desktop app's archive flags into the store; return how many events that took.
 
+        The app's own session IDs go to the snapshot alone: they mean nothing on another machine.
+
         We undo only what we recorded ourselves: a session archived by hand stays archived even
         though the app shows it as open.
         """
         if not self.desktop:
             return 0
-        flags = self.desktop.scan()
+        found = self.desktop.scan()
+        flags = {sid: x.archived for sid, x in found.items()}
         recorded = 0
         with self.write_lock:
+            self.desktop_ids = {sid: x.app_id for sid, x in found.items() if x.app_id}
+            relinked = any(s.get("desktop_id") != self.desktop_ids.get(s["session_id"]) for s in self.snap["sessions"])
             for s in self.snap["sessions"]:
                 sid = s["session_id"]
                 if sid not in flags or self._desktop_event(s, flags[sid]) is None:
@@ -127,8 +137,8 @@ class Hub:
                 if kind:
                     core.record(self.store, sid, {"type": kind, "actor": "script"}, writer=schema.DESKTOP_WRITER)
                     recorded += 1
-            if recorded:
-                self.publish()
+            if recorded or relinked:
+                self.publish(force=relinked)
         return recorded
 
     @staticmethod
