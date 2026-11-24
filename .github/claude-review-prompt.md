@@ -58,7 +58,8 @@ On a line whose change looks deliberate and explained, prefer silence to a resta
 
 Authors run `scripts/check.sh` before every push. It runs the standard-library `unittest` suite, the
 proposal format check (`scripts/proposals.py lint`), the bilingual-document check
-(`scripts/check_docs.py`), and the acronym check (`scripts/acronyms.py`). Do not re-flag what those
+(`scripts/check_docs.py`), the acronym check (`scripts/acronyms.py`), and the secret scan
+(`scripts/check_secrets.sh`). Do not re-flag what those
 checks report mechanically: a missing Japanese mirror, a missing language-switch link, a mismatched
 heading structure, an unexpanded acronym, or a proposal metadata format error. Spend your attention on
 what they cannot see.

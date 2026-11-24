@@ -280,4 +280,10 @@ Session Hubは、意図していくつかのトレードオフを選んでいま
 
 自明でない変更はすべて、[`proposals/`](proposals/README.ja.md)のプロポーザルから始まり、コードはプロポーザルに従います。[`AGENTS.ja.md`](AGENTS.ja.md)では、作業の取り決め、文章のルール、pushの前に通す必要があるゲート（`scripts/check.sh`）を説明しています。
 
+作業の前に、クローンをセットアップします。1コマンドで、バージョンを固定した[gitleaks](https://github.com/gitleaks/gitleaks)をインストールし、秘匿情報を含むコミットを止めるGitフックを有効にします。Claude Codeのセッションは開始時にこれを実行し、成功するまでファイルを編集できません。
+
+```bash
+make setup
+```
+
 利用者が読む文書は日英の2言語で用意します。英語のページ`<name>.md`の隣に日本語版`<name>.ja.md`を置き、変更するときは両方を更新します。

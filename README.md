@@ -383,5 +383,13 @@ Every non-trivial change starts as a design proposal under [`proposals/`](propos
 the code follows the proposal. [`AGENTS.md`](AGENTS.md) describes the working agreement, the writing
 rules, and the gate (`scripts/check.sh`) that must pass before a push.
 
+Set up each clone before you work on it. One command installs a pinned
+[gitleaks](https://github.com/gitleaks/gitleaks) and enables the Git hooks that block a commit that
+holds a secret. A Claude Code session runs it on start, and cannot edit files until it succeeds:
+
+```bash
+make setup
+```
+
 User-facing documents are bilingual: each English page `<name>.md` has a Japanese mirror
 `<name>.ja.md` next to it, and a change updates both.

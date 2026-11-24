@@ -1,0 +1,8 @@
+#!/bin/sh
+# Block a commit that stages a secret. Enable once per clone: make setup
+set -eu
+. "$(dirname "$0")/gitleaks.sh"
+
+need_gitleaks "the staged change"
+"$GITLEAKS" git --pre-commit --staged --redact --verbose --no-banner --log-level warn \
+  --config .gitleaks.toml || blocked "the staged change"
