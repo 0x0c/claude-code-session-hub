@@ -12,6 +12,8 @@ Flow:
   resends the state every 30 seconds.
 - Auxiliary options: `--watch-files` (detect direct writes to the store) and `--pull-every`
   (pull a Git store).
+- The server also looks at the Claude desktop app's session files every few seconds (a local,
+  read-only check) and records an archive or unarchive event when the user archives a session there.
 
 Endpoints:
     GET  /              dashboard (HTML)
@@ -33,7 +35,7 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import resources
 
-from . import collections, core, schema, view
+from . import collections, core, desktop, schema, view
 from .store import EventStore
 
 MAX_BODY = 64 * 1024
@@ -47,12 +49,15 @@ class Hub:
     """Receive and record events, and deliver them to SSE clients."""
 
     def __init__(self, store: EventStore, watch_files: bool = False, pull_every: float = 0,
-                 refresh_every: float = 30.0, ping_every: float = 15.0):
+                 refresh_every: float = 30.0, ping_every: float = 15.0,
+                 desktop_root=None, desktop_every: float = 5.0):
         self.store = store
         self.watch_files = watch_files
         self.pull_every = pull_every
         self.refresh_every = refresh_every
         self.ping_every = ping_every
+        self.desktop = desktop.DesktopSessions(desktop_root) if desktop_root else None
+        self.desktop_every = desktop_every
         self.lock = threading.Lock()        # guards the snapshot and the client set
         self.write_lock = threading.Lock()  # serializes record-then-publish one event at a time
         self.clients: set[queue.Queue] = set()
@@ -98,6 +103,40 @@ class Hub:
             if deleted:
                 self.publish()
         return deleted
+
+    def sync_desktop(self) -> int:
+        """Mirror the desktop app's archive flags into the store; return how many events that took.
+
+        We undo only what we recorded ourselves: a session archived by hand stays archived even
+        though the app shows it as open.
+        """
+        if not self.desktop:
+            return 0
+        flags = self.desktop.scan()
+        recorded = 0
+        with self.write_lock:
+            for s in self.snap["sessions"]:
+                sid = s["session_id"]
+                if sid not in flags or self._desktop_event(s, flags[sid]) is None:
+                    continue
+                # Decide again from the store, which another process may have written to or deleted from
+                events = self.store.read(sid)
+                kind = self._desktop_event(schema.fold(events), flags[sid]) if events else None
+                if kind:
+                    core.record(self.store, sid, {"type": kind, "actor": "script"}, writer=schema.DESKTOP_WRITER)
+                    recorded += 1
+            if recorded:
+                self.publish()
+        return recorded
+
+    @staticmethod
+    def _desktop_event(status: dict, archived: bool) -> str | None:
+        current = status["archived"]
+        if archived and not current:
+            return "archive"
+        if not archived and current and current["by"] == schema.DESKTOP_WRITER:
+            return "unarchive"
+        return None
 
     # ---- Client management ----
     def subscribe(self) -> tuple[queue.Queue, dict]:
@@ -150,9 +189,18 @@ class Hub:
     def run(self) -> None:
         """Run periodic work: keepalive, time-based rechecks, and (auxiliary) file watching and Git pull."""
         last_refresh = last_ping = last_pull = time.monotonic()
+        last_desktop = float("-inf")
         tick = 1.0 if (self.watch_files or self.pull_every) else min(self.ping_every, self.refresh_every)
+        if self.desktop:
+            tick = min(tick, self.desktop_every)
         while not self._stop.wait(tick):
             t = time.monotonic()
+            if self.desktop and t - last_desktop >= self.desktop_every:
+                last_desktop = t
+                try:
+                    self.sync_desktop()
+                except Exception as exc:  # The files belong to another app: never let them stop the hub
+                    print(f"hub: reading the desktop app's sessions failed: {exc}", flush=True)
             try:
                 if self.pull_every and self.store.is_git() and t - last_pull >= self.pull_every:
                     self.store.pull()
@@ -305,10 +353,10 @@ def make_handler(hub: Hub, token: str | None):
 
 
 def make_server(store: EventStore, host: str = "127.0.0.1", port: int = 8765, token: str | None = None,
-                watch_files: bool = False, pull_every: float = 0) -> tuple[ThreadingHTTPServer, Hub]:
+                watch_files: bool = False, pull_every: float = 0, desktop_root=None) -> tuple[ThreadingHTTPServer, Hub]:
     if host not in ("127.0.0.1", "localhost", "::1") and not token:
         raise SystemExit("session-hub: set HUB_TOKEN to listen on an address other than localhost")
-    hub = Hub(store, watch_files=watch_files, pull_every=pull_every)
+    hub = Hub(store, watch_files=watch_files, pull_every=pull_every, desktop_root=desktop_root)
     httpd = ThreadingHTTPServer((host, port), make_handler(hub, token))
     httpd.daemon_threads = True
     return httpd, hub
@@ -316,7 +364,8 @@ def make_server(store: EventStore, host: str = "127.0.0.1", port: int = 8765, to
 
 def serve(store: EventStore, host: str = "127.0.0.1", port: int = 8765, token: str | None = None,
           watch_files: bool = False, pull_every: float = 0) -> None:
-    httpd, hub = make_server(store, host, port, token, watch_files, pull_every)
+    httpd, hub = make_server(store, host, port, token, watch_files, pull_every,
+                             desktop_root=desktop.default_root())
     threading.Thread(target=hub.run, daemon=True).start()
     print(f"hub server: http://{host}:{httpd.server_address[1]}/  (store: {store.root}, "
           f"auth: {'on' if token else 'off'})", flush=True)

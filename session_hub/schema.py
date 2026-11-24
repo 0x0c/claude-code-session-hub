@@ -32,7 +32,13 @@ EVENT_TYPES = (
     "done",
     "fail",
     "finding",    # insight, caveat, or similar learned during work (aggregated into collections)
+    "archive",    # the session was archived (by the desktop app or by hand)
+    "unarchive",  # the session came back from the archive
 )
+
+ARCHIVE_TYPES = ("archive", "unarchive")
+# The writer name of the archive events that mirror the Claude desktop app
+DESKTOP_WRITER = "desktop"
 
 ACTORS = ("child", "parent", "hook", "human", "script")
 ATTENTION_KINDS = ("decision", "clarification", "credential", "permission", "review", "external")
@@ -194,7 +200,7 @@ def empty_status(session_id: str) -> dict:
         "title": None, "session_name": None, "parent_id": None, "task_ref": None, "repo": None, "branch": None,
         "state": "queued", "phase": None, "summary": None, "next": None, "confidence": None,
         "tasks": [], "attention": None, "pr": {}, "pr_link": None, "ready": {}, "usage": {},
-        "last_error": None, "started_at": None, "updated_at": None, "heartbeat": None,
+        "last_error": None, "archived": None, "started_at": None, "updated_at": None, "heartbeat": None,
         "event_count": 0,
     }
 
@@ -203,6 +209,19 @@ def apply_event(status: dict, ev: dict) -> dict:
     """Return a new status dict advanced by one event."""
     st = copy.deepcopy(status)
     st["event_count"] += 1
+    if ev["type"] in ARCHIVE_TYPES:
+        # Archiving is bookkeeping about the session, not activity of it: the state, an open
+        # question, and the liveness times all stay, so that unarchiving restores them.
+        if ev["type"] == "unarchive":
+            st["archived"] = None
+        elif not st["archived"]:
+            st["archived"] = {"since": ev["ts"], "by": ev.get("writer") or ev["actor"]}
+        return st
+    if (st["archived"] and st["archived"]["by"] != DESKTOP_WRITER
+            and ev["actor"] in ("child", "script") and not ev.get("writer") and ev["type"] != "heartbeat"):
+        # A session archived by hand that reports again is back at work; hiding it would lose a
+        # question. For a session the app archived, the app alone decides when it comes back.
+        st["archived"] = None
     st["heartbeat"] = ev["ts"]
     if ev["type"] != "heartbeat":
         st["updated_at"] = ev["ts"]
@@ -269,7 +288,7 @@ def fold(events: list[dict]) -> dict:
 def diff_status(before: dict, after: dict) -> dict:
     """Return the diff that shows, in the timeline view, what this event changed."""
     keys = ("state", "phase", "summary", "next", "confidence", "attention",
-            "pr", "ready", "last_error", "progress")
+            "pr", "ready", "last_error", "progress", "archived")
     out = {}
     for k in keys:
         b, a = before.get(k), after.get(k)
