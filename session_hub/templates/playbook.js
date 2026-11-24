@@ -125,6 +125,7 @@
         state: { from: "working", to: "review_ready" }, phase: { from: "implement", to: "test" },
         progress: { from: { done: 1, total: 4 }, to: { done: 2, total: 4 } }, attention: { from: { qid: 4 }, to: null },
         ready: true, confidence: { from: "low", to: "high" } } })))],
+      ["Project name", () => pbWith({ sessions: [pbSession("working", { repo: "acme/web-api" })] }, () => eventRow(pbEvent("report", { id: "pb-project" })))],
       ["Phase chip", () => pbWith({ sessions: pbKnown() }, () => eventRow(pbEvent("report", { id: "pb-phase", phase: "implement" })))],
     ]],
     ["Feed", [

@@ -466,8 +466,8 @@ label, it gives the English label and the Japanese label in parentheses.
 - **Connector line**: in the same layout, a line joins the selected session's card to the detail
   panel. The line turns dashed while the card is scrolled out of the list.
 - **Timeline** (right): traces the reports from children in time order, in three forms.
-  - **Feed**: events grouped by date. Each row shows the time, the session, the type, the text, and
-    what the event changed (state A→B, phase, task count, a resolved question).
+  - **Feed**: events grouped by date. Each row shows the time, the session, its project, the type, the
+    text, and what the event changed (state A→B, phase, task count, a resolved question).
     "Details" (詳細) opens the raw event JSON. New events are highlighted. While the reader is
     scrolled down, a "N new" bar (新着 N 件) announces new events instead of moving the screen.
     Filters: session, event type, full-text search, heartbeat display (consecutive heartbeats

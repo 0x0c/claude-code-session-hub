@@ -233,6 +233,7 @@ a.pr { color: var(--accent); }
 .ev .body { min-width: 0; }
 .ev .head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-6); }
 .ev .who { font-size: var(--fs-meta); font-weight: var(--fw-strong); cursor: pointer; }
+.ev .evproject { font-size: var(--fs-label); color: var(--muted); overflow-wrap: anywhere; }
 .ev .type { font-size: var(--fs-label); color: var(--muted); }
 .ev .text { font-size: var(--fs-body-sm); overflow-wrap: anywhere; margin-top: var(--space-1); }
 .ev .changes { display: flex; flex-wrap: wrap; gap: var(--space-4); margin-top: var(--space-4); }
@@ -703,6 +704,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     const s = db.sessions.find((x) => x.session_id === sid);
     return (s && s.title) || sid;
   };
+  const sessionProject = (sid) => (db.sessions.find((x) => x.session_id === sid) || {}).repo || "";
   // A stable hue per session
   const hue = (sid) => { let h = 0; for (const c of sid) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h % 360; };
   const laneColor = (sid) => `hsl(${hue(sid)} 55% 50%)`;
@@ -897,7 +899,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     for (const e of db.events.values()) {
       if (ui.session && e.session_id !== ui.session) continue;
       if (e.type === "heartbeat" ? !ui.heartbeat : !ui.types.has(e.type)) continue;
-      if (q && !eventText(e).toLowerCase().includes(q) && !sessionName(e.session_id).toLowerCase().includes(q)) continue;
+      if (q && !eventText(e).toLowerCase().includes(q) && !sessionName(e.session_id).toLowerCase().includes(q) && !sessionProject(e.session_id).toLowerCase().includes(q)) continue;
       out.push(e);
     }
     out.sort((a, b) => (a.ts < b.ts ? -1 : a.ts > b.ts ? 1 : a.id < b.id ? -1 : 1));
@@ -980,6 +982,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     const body = eventBody(e);
     const color = e.state_after ? `var(${(STATE[e.state_after] || [0, "--s-queue"])[1]})` : "var(--s-queue)";
     const who = e.writer ? `${e.writer} → ` : "";
+    const project = sessionProject(e.session_id);
     const row = el("div", glowProps([glowKey.event(e.id)], { class: "ev", id: "ev-" + e.id }),
       el("time", { datetime: e.ts, title: e.ts }, hhmm(e.ts)),
       el("span", { class: "mark", style: { background: color } }),
@@ -987,6 +990,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
         el("div", { class: "head" },
           el("span", { class: "who", style: { color: laneColor(e.session_id) }, title: e.session_id,
                        onclick: () => selectSession(e.session_id) }, who + sessionName(e.session_id)),
+          project ? el("span", { class: "evproject" }, project) : null,
           el("span", { class: "type" }, TYPES[e.type] || e.type),
           e.phase && !(e.diff || {}).phase ? el("span", { class: "chip" }, e.phase) : null),
         body ? el("div", { class: "text" }, body) : null,
