@@ -1,11 +1,11 @@
-[English](SH-XXXX-collapse-session-groups.md) · **日本語**
+[English](SH-0009-collapse-session-groups.md) · **日本語**
 
-# SH-XXXX — セッション一覧をステータスごとに折りたたむ
+# SH-0009 — セッション一覧をステータスごとに折りたたむ
 
 <!-- SH-METADATA -->
 | 項目 | 値 |
 |---|---|
-| 提案 | SH-XXXX |
+| 提案 | SH-0009 |
 | 作者 | [@0x0c](https://github.com/0x0c) |
 | 状態 | **Implemented** |
 | トピック | Dashboard |
