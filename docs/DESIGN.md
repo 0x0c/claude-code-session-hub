@@ -425,6 +425,7 @@ label, it gives the English label and the Japanese label in parentheses.
 |---|---|
 | The dashboard of `session-hub serve` | For humans. Reflects each push as it arrives (SSE) |
 | `session-hub export --out dashboard.html` | A standalone HyperText Markup Language (HTML) file with an embedded snapshot (for sharing and archiving; does not update) |
+| `GET /guide` (the **Status guide** link in the header) | What each status and state means |
 | `GET /playbook` (the **Playbook** link in the header) | Every dashboard component in every state, drawn from sample data |
 | `GET /api/snapshot` | JSON for machines |
 | `session-hub attention` | For the parent LLM. Sessions that need action alone, one line each |
@@ -449,6 +450,8 @@ label, it gives the English label and the Japanese label in parentheses.
   - Clicking any group heading, "needs action" included, collapses or expands that group. A
     collapsed heading keeps its count, and glows when a hidden session sends a message. The browser
     remembers the collapsed groups. The **Archived** group comes last and starts collapsed.
+  - A `?` icon follows each status label in a group heading and the state badge on each card. Hovering
+    over the icon, or tapping it, shows what the label means.
   - Each card shows a state badge, a task progress bar (hidden in the `done` state), the remaining work, the PR and CI, the
     tokens and cost, the last update, and any unanswered question (with its options, its default,
     and the command to answer it). The PR number on the card, in the title of the selected session's
@@ -484,9 +487,13 @@ label, it gives the English label and the Japanese label in parentheses.
   - Clicking a card slides a detail panel in from the right. The panel is the timeline with its tabs
     and filters, limited to that session. **All sessions** (すべてのセッション) opens the panel without
     the limit.
-  - The open panel takes at most 720px, and at most 55% of the window. The grid narrows beside it, so
-    the panel covers no card. In a window at most 860px wide, the panel covers the whole grid.
+  - The open panel takes at most 720px by default, and at most 55% of the window. The grid narrows
+    beside it, so the panel covers no card. Dragging the panel's left edge, or the arrow keys on that
+    handle, change the width. A double-click on the handle restores the default, and the browser
+    remembers the width (`hub.panelWidth`). In a window at most 860px wide, the panel covers the whole grid.
   - Clicking the same card, the close button, or Escape closes the panel and clears the selection.
+  - The fullscreen button beside the close button expands the panel over the whole window, page header
+    included. The button or Escape brings the previous width back; a second Escape closes the panel.
 - **Collection tabs** (right panel): each defined collection adds a tab automatically, for example
   "Knowledge (6)" (ナレッジ (6)).
   - A `cards` view shows one card per item, grouped (knowledge is grouped by kind). Each card shows
@@ -557,11 +564,13 @@ claude-code-session-hub/
     local_state.py        The child's local state (last reported state, task ID mapping, transcript path)
     usage.py              Token totals from the transcript
     playbook.py           The playbook page
+    guide.py              The status guide page
     session_name.py       The session's name from the transcript
     pr_link.py            The session's linked PR from the transcript
     cli.py                The session-hub command
     templates/dashboard.html
     templates/playbook.{js,css}
+    templates/guide.{js,css}
   bin/session-hub         Wrapper that needs no installation
   .claude-plugin/         Claude Code plugin definition (plugin.json, marketplace.json)
   apm.yml                 APM metadata alone (no .apm/ or dependencies, so APM distributes the plugin layout as is)

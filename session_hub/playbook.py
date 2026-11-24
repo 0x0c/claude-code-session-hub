@@ -25,8 +25,13 @@ def _replace_once(text: str, old: str, new: str) -> str:
     return text.replace(old, new)
 
 
-def playbook_html() -> str:
+def build_page(script: str, style: str) -> str:
+    """The dashboard in static mode, with the named template script and style added."""
     # An embedded snapshot puts the page in static mode, so it never opens a stream to the hub
     html = _replace_once(dashboard_html(), SNAPSHOT, EMPTY)
-    html = _replace_once(html, END, template("playbook.js") + END)
-    return _replace_once(html, "</head>", f"<style>\n{template('playbook.css')}</style>\n</head>")
+    html = _replace_once(html, END, template(script) + END)
+    return _replace_once(html, "</head>", f"<style>\n{template(style)}</style>\n</head>")
+
+
+def playbook_html() -> str:
+    return build_page("playbook.js", "playbook.css")
