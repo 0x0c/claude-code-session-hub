@@ -459,8 +459,8 @@ label, it gives the English label and the Japanese label in parentheses.
   - the swimlane band
   - the collection item the message landed in
 
-  The halo pulses three times and then fades. A queued or done session, whose state color is grey,
-  glows in the accent color.
+  The halo pulses three times and then fades. A queued, done, or abandoned session, whose state color
+  is grey, glows in the accent color.
 
   A glow survives a redraw and continues where it left off. When messages arrive back to back, the
   latest one restarts the glow. Heartbeats (the hooks' automatic sends) do not glow. With the
