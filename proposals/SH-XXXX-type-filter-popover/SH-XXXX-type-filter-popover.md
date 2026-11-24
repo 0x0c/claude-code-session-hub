@@ -28,11 +28,11 @@ sees **Event types 9/12** on the button without opening the popover.
 
 ## Detailed design
 
-- **Button.** The toolbar holds the button before the heartbeat checkbox. The label reads "Event types"
-  (種別), followed by the number of shown types and the total, such as 12/12. When at least one type is
-  hidden, the button takes the accent color. The count keeps its width, so ticking a box never wraps
-  the toolbar and moves the popover. As the former row did, the button appears in the feed and the swimlanes, and it is hidden in a
-  collection tab.
+- **Button.** The toolbar holds the button before the heartbeat checkbox. The label reads "Event
+  types" (種別), followed by the number of shown types and the total, such as 12/12. When at least one
+  type is hidden, the button takes the accent color. The count keeps its width, so ticking a box
+  never wraps the toolbar and moves the popover. As the former row did, the button appears in the
+  feed and the swimlanes, and it is hidden in a collection tab.
 - **Popover.** A click on the button opens the popover; hovering does not. Each event type except the
   heartbeat is a checkbox, and every change applies at once. The heartbeat and oldest-first checkboxes
   stay in the toolbar.
