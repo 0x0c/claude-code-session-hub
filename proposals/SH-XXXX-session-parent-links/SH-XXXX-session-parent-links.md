@@ -7,9 +7,9 @@
 |---|---|
 | Proposal | SH-XXXX |
 | Author | [@0x0c](https://github.com/0x0c) |
-| Status | **In progress** |
+| Status | **Implemented** |
 | Topic | Dashboard |
-| Implementing PR | — |
+| Implementing PR | [#39](https://github.com/0x0c/claude-code-session-hub/pull/39) |
 | Related | — |
 <!-- /SH-METADATA -->
 
@@ -88,8 +88,8 @@ The hub takes the parent from three sources, the strongest first:
 ## Progress
 
 - [x] Design approved
-- [ ] Implementation with tests
-- [ ] Documentation updated (README.md, docs/DESIGN.md, skills)
+- [x] Implementation with tests
+- [x] Documentation updated (README.md, docs/DESIGN.md, skills)
 
 ## References
 
