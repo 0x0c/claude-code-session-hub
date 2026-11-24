@@ -41,7 +41,9 @@ commands work as before.
   parses the unread body as a request.
 
 A reverse proxy or a custom host name in front of a hub without a token stops working. Its user sets
-`HUB_TOKEN`.
+`HUB_TOKEN`. Until then, the client treats `403` on a push like an unreachable hub, so each message
+goes to the shared store or the outbox and none is lost. `session-hub doctor` reports such a hub as
+not responding.
 
 A cross-origin page that posts straight to `http://127.0.0.1:8765/api/events` sends a loopback `Host`.
 That request is not DNS rebinding, and this proposal does not cover it.

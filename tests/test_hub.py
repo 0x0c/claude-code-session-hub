@@ -8,6 +8,7 @@ import subprocess
 import tempfile
 import threading
 import unittest
+import urllib.error
 import urllib.parse
 import urllib.request
 from contextlib import redirect_stdout
@@ -608,6 +609,17 @@ class HostCheckTest(TmpMixin, unittest.TestCase):
                 with self.subTest(host=host, method=method, path=path):
                     self.assertEqual(self.request(port, host, method, path, data), 403)
         self.assertEqual(list(self.store.read_all()), ["c1"])
+
+    def test_a_refused_push_is_kept_in_the_outbox(self):
+        err = urllib.error.HTTPError("http://hub.example", 403, "Forbidden", {}, io.BytesIO(b"{}"))
+        outbox = self.dir / "outbox.jsonl"
+        queued = {"session_id": "c1", "fields": {"type": "start", "title": "old"}}
+        with mock.patch.dict(os.environ, {"HUB_OUTBOX": str(outbox)}), \
+                mock.patch("urllib.request.urlopen", side_effect=err):
+            client.spool(queued)
+            self.assertIsNone(client.push("http://hub.example", {**queued, "session_id": "c2"}))
+        kept = [json.loads(line)["session_id"] for line in outbox.read_text().splitlines()]
+        self.assertEqual(kept, ["c1", "c2"])
 
     def test_local_hosts_are_served(self):
         port = self.serve()
