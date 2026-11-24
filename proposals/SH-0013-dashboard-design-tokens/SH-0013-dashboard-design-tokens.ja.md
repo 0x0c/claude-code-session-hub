@@ -1,11 +1,11 @@
-[English](SH-XXXX-dashboard-design-tokens.md) · **日本語**
+[English](SH-0013-dashboard-design-tokens.md) · **日本語**
 
-# SH-XXXX — ダッシュボードのデザイントークン
+# SH-0013 — ダッシュボードのデザイントークン
 
 <!-- SH-METADATA -->
 | 項目 | 値 |
 |---|---|
-| 提案 | SH-XXXX |
+| 提案 | SH-0013 |
 | 作者 | [@0x0c](https://github.com/0x0c) |
 | 状態 | **Implemented** |
 | トピック | Dashboard |
