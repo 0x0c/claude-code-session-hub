@@ -84,7 +84,8 @@ def plain_color(value: str) -> str:
 def build() -> dict[str, str]:
     """Every generated file, by its path in the artifact. The index is not among them."""
     light, dark, rules = stylesheet()
-    tokens = {n: v for n, v in light.items() if n != "font-sans"}
+    # The font family has a section of its own, and a layout size is not a design token
+    tokens = {n: v for n, v in light.items() if n not in ("font-sans", "detail-w")}
     if set(tokens) != set(content.USAGE):
         raise SyncError("scripts/design_system_content.py must describe exactly the stylesheet's tokens; "
                         f"without a description: {sorted(set(tokens) - set(content.USAGE))}; "
