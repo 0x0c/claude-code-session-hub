@@ -354,6 +354,7 @@ push型では、子が報告するまでダッシュボードは古いままで�
 |---|---|
 | `session-hub serve`のダッシュボード | 人間向け。pushを受けるたびに反映します（SSE） |
 | `session-hub export --out dashboard.html` | スナップショットを埋め込んだ単体のHyperText Markup Language（HTML）ファイル（共有と保管用。更新はしません） |
+| `GET /playbook`（ヘッダーの **Playbook** リンク） | ダッシュボードのすべての部品を、サンプルデータで状態ごとに一覧 |
 | `GET /api/snapshot` | 機械向けのJSON |
 | `session-hub attention` | 親のLLM向け。要対応のセッションだけを1件1行で出します |
 | `session-hub log [<session_id>]` | ターミナルでタイムラインを追います |
@@ -436,10 +437,12 @@ claude-code-session-hub/
     hooks.py              Claude Codeのhook処理（session-start / stop / todo）
     local_state.py        子のローカル状態（最後に報告した状態、タスクIDの対応、トランスクリプトのパス）
     usage.py              トランスクリプトからのトークン集計
+    playbook.py           Playbookのページ
     session_name.py       トランスクリプトからのセッション名の読み取り
     pr_link.py            トランスクリプトからのPRの読み取り
     cli.py                session-hubコマンド
     templates/dashboard.html
+    templates/playbook.{js,css}
   bin/session-hub         インストール不要のラッパー
   .claude-plugin/         Claude Codeのプラグイン定義（plugin.json, marketplace.json）
   apm.yml                 APM用のメタデータのみ（.apm/も依存も置かないので、APMはプラグインの構成をそのまま配布する）

@@ -110,6 +110,7 @@ scripts/check.sh
 - 要素の`hidden`属性は、CSSの`display`の指定に負けます。スタイルシートに`[hidden] { display: none !important; }`を入れています。
 - `Object.assign`で`element.style`にカスタムプロパティを設定しても反映されません。`style.setProperty("--name", value)`を使ってください。
 - 表示していないタブには古いDOMが残ります。タブを切り替えるときに中身を消さないと、期限切れのグローのような古い状態が残ります。
+- ダッシュボードの見た目は、`:root`ブロックのデザイントークンで組みます。トークンは、色・文字（`--fs-*`、`--fw-*`）・余白（`--space-*`）・角丸（`--radius-*`）です。これらのプロパティの直書きは、テスト（`tests/test_dashboard.py`）が拒否します。配置の寸法は直書きのままにします。
 
 ### 実際のブラウザーでダッシュボードを確認する
 
@@ -124,6 +125,8 @@ scripts/check.sh
   そのうえで`python3 scripts/demo.py --push http://127.0.0.1:8765`を実行するか、`HUB_URL`を設定して`session-hub`コマンドを実行すると、更新がリアルタイムに届きます。
 - ダッシュボードの見た目を変えたら、`node scripts/screenshots.js`でREADMEのスクリーンショット（`docs/images/`、日英両方）を作り直してください。デモデータの言語は`scripts/demo.py --lang en|ja`、ページの言語は`?lang=en|ja`で選べます。
 - サーバーのプロセスは`python3 -m session_hub serve`として動きます。止めるときは`pkill -f "session_hub serve"`を使ってください。`session-hub serve`というパターンでは一致しません。
+- Playbookは、すべての部品をすべての状態で一覧します。動いているハブの`/playbook`を開くか、`python3 scripts/playbook.py`を実行して`playbook.html`を開いてください。部品を足すときは`session_hub/templates/playbook.js`にストーリーを足します。Coverageの節は、どのストーリーにも現れないダッシュボードのクラスを挙げます。
+- 公開しているデザインシステムのページは、`scripts/design_system.py`で同期します。アーティファクトの`project/`のファイルをフォルダーに読み込み、`plan`を実行して、`publish.json`の内容を公開します。その後ページを読み直し、`record`を実行します。2回目の`plan`は、公開するものがないと報告するはずです。
 
 ### リポジトリの管理
 
