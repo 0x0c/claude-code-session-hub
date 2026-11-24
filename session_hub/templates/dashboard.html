@@ -92,8 +92,10 @@ section.panel { background: var(--panel); border: 1px solid var(--line); border-
 .seg { white-space: nowrap; }
 #sessionsTitle { flex-wrap: wrap; }
 #tlScope { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-#closePanel { margin-left: auto; }
-.iconbtn.danger:not([hidden]) + #closePanel { margin-left: 0; }
+#fullscreenPanel { margin-left: auto; }
+.iconbtn.danger:not([hidden]) + #fullscreenPanel { margin-left: 0; }
+#fullscreenPanel svg { display: block; width: 12px; height: 12px; margin: var(--space-2) 0; fill: none; stroke: currentColor; stroke-width: 1.5; }
+#fullscreenPanel[aria-pressed="true"] .expand, #fullscreenPanel[aria-pressed="false"] .shrink { display: none; }
 /* Grid layout: the cards take the full width, and the timeline becomes a panel on the right. The open
    panel takes its width from the cards; a small window has no room for both, so the panel covers it */
 main.grid { grid-template-columns: minmax(0, 1fr); max-width: none; }
@@ -115,6 +117,20 @@ main.grid #detail.open { transform: none; visibility: visible; box-shadow: -8px 
 main.grid #detail > h2 { position: sticky; top: 0; z-index: 4; background: var(--panel); }
 main.grid .newbar { top: 48px; }
 @media (prefers-reduced-motion: reduce) { main.grid #detail.slide, main.grid #detail.slide.open { transition: none; } }
+/* The handle on the grid panel's left edge. A sibling of #detail, which would scroll a child away */
+.resizer { position: relative; width: 10px; cursor: col-resize; touch-action: none; user-select: none; -webkit-user-select: none; outline: none; }
+.resizer::before { content: ""; position: absolute; inset: 0 4px; background: transparent; transition: background-color .15s; }
+.resizer::after { content: ""; position: absolute; left: 50%; top: 50%; width: 4px; height: 36px; transform: translate(-50%, -50%);
+  border-radius: var(--radius-pill); background: var(--muted); }
+.resizer:hover::before, .resizer:focus-visible::before, .resizer.active::before,
+.resizer:hover::after, .resizer:focus-visible::after, .resizer.active::after { background: var(--accent); }
+main > #panelResize { display: none; position: fixed; z-index: 5; top: var(--header-h, 0px); bottom: 0; right: var(--detail-w); transform: translateX(50%); }
+@media (min-width: 860.02px) { main.grid.withpanel:not(.fullscreen) > #panelResize { display: block; } }
+@media (pointer: coarse) { .resizer { width: 20px; } .resizer::before { inset: 0 9px; } }
+/* Fullscreen: the open panel covers the window, header included, and the page behind it does not scroll.
+   The geometry is overridden here, so leaving the mode brings the previous width back */
+main.grid.fullscreen #detail { inset: 0; width: auto; z-index: 6; border-width: 0; box-shadow: none; }
+html:has(main.fullscreen) { overflow: hidden; }
 /* Sessions that need action: a section of its own above the other groups */
 .action-section { margin: var(--space-10); border: 1px solid var(--s-needs); border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--s-needs) 6%, var(--panel)); }
@@ -288,9 +304,12 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     <div id="sessions" class="scroll" role="region" aria-labelledby="sessionsTitle"></div>
   </section>
 
+  <div class="resizer" id="panelResize" role="separator" aria-orientation="vertical" aria-controls="detail" tabindex="0"
+    data-i18n-aria="panel.resize" data-i18n-title="panel.resizeTitle"></div>
   <section class="panel" id="detail" tabindex="-1" aria-labelledby="tlTitle">
     <h2 id="tlTitle"><span id="tlName"></span> <span class="chip" id="tlScope"></span> <a class="pr" id="tlPr" target="_blank" rel="noopener noreferrer" hidden></a>
       <button class="iconbtn danger" id="deleteSession" hidden data-i18n="sessions.delete" data-i18n-title="sessions.deleteTitle"></button>
+      <button class="iconbtn" id="fullscreenPanel" hidden aria-pressed="false" data-i18n-aria="panel.fullscreen" data-i18n-title="panel.fullscreenOn"><svg viewBox="0 0 12 12" aria-hidden="true"><path class="expand" d="M1 4V1H4M8 1H11V4M11 8V11H8M4 11H1V8"/><path class="shrink" d="M4 1V4H1M11 4H8V1M8 11V8H11M1 8H4V11"/></svg></button>
       <button class="iconbtn" id="closePanel" hidden data-i18n-aria="panel.close" data-i18n-title="panel.close">✕</button></h2>
     <div class="toolbar">
       <div class="tabs" role="tablist">
@@ -357,6 +376,8 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       "layout.aria": "Layout of the session list", "layout.list": "List", "layout.grid": "Grid",
       "panel.openAll": "All sessions", "panel.openAllTitle": "Open the timeline of every session",
       "panel.close": "Close the panel (Esc)",
+      "panel.resize": "Width of the detail panel", "panel.resizeTitle": "Drag to change the width; double-click to reset it",
+      "panel.fullscreen": "Fullscreen", "panel.fullscreenOn": "Expand the panel to the whole window", "panel.fullscreenOff": "Leave fullscreen (Esc)",
       "tl.title": "Timeline", "tl.all": "All", "tab.feed": "Feed", "tab.lanes": "Swimlanes",
       "filter.sessionAria": "Filter by session", "filter.allSessions": "All sessions",
       "filter.searchAria": "Search", "filter.textFeed": "Search summaries, questions, and answers",
@@ -423,6 +444,8 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       "layout.aria": "セッション一覧の表示形式", "layout.list": "リスト", "layout.grid": "グリッド",
       "panel.openAll": "すべてのセッション", "panel.openAllTitle": "すべてのセッションのタイムラインを開く",
       "panel.close": "パネルを閉じる（Esc）",
+      "panel.resize": "詳細パネルの幅", "panel.resizeTitle": "ドラッグで幅を変更、ダブルクリックで既定の幅に戻す",
+      "panel.fullscreen": "全画面", "panel.fullscreenOn": "パネルをウィンドウ全体に広げる", "panel.fullscreenOff": "全画面を終了（Esc）",
       "tl.title": "タイムライン", "tl.all": "すべて", "tab.feed": "フィード", "tab.lanes": "スイムレーン",
       "filter.sessionAria": "セッションで絞り込み", "filter.allSessions": "すべてのセッション",
       "filter.searchAria": "検索", "filter.textFeed": "要約・質問・回答を検索",
@@ -561,6 +584,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     byProject: true, collapsed: new Set(), // keys of the collapsed groups
     lane: { span: null, end: null }, // span null: the whole period; end null: follow the present
     layout: "list", panelOpen: false, // panelOpen matters in the grid layout alone
+    fullscreen: false, // only while the grid's panel is open; applyLayout clears it otherwise
   };
   const prevStates = new Map();
   try { ui.byProject = localStorage.getItem("hub.byProject") !== "0"; } catch (_) {}
@@ -1335,6 +1359,99 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     (card || $("openPanel")).focus({ preventScroll: true });
   }
 
+  // ---- The width of the grid's detail panel ----
+  // The preferred width in pixels, or null for the default of --detail-w. A small window clamps the shown
+  // width and keeps the preference. PANEL_ROOM leaves one card column and its padding beside the panel.
+  const PANEL_MIN = 360, PANEL_ROOM = 376, PANEL_STEP = 24;
+  let panelPref = null, panelDrag = null;
+  try { const w = Number(localStorage.getItem("hub.panelWidth")); if (w > 0 && isFinite(w)) panelPref = w; } catch (_) {}
+  const panelMax = () => Math.max(PANEL_MIN, document.documentElement.clientWidth - PANEL_ROOM);
+  const panelWidth = () => Math.round(Math.min(panelMax(), Math.max(PANEL_MIN,
+    panelPref ?? Math.min(720, document.documentElement.clientWidth * 0.55)))); // Keep the default in sync with --detail-w
+
+  function applyPanelWidth() {
+    const root = document.documentElement.style, handle = $("panelResize"), width = panelWidth();
+    const value = panelPref == null ? "" : width + "px";
+    handle.setAttribute("aria-valuemin", PANEL_MIN);
+    handle.setAttribute("aria-valuemax", panelMax());
+    handle.setAttribute("aria-valuenow", width);
+    if (root.getPropertyValue("--detail-w") === value) return;
+    keepCardInPlace(ui.session, () => { value ? root.setProperty("--detail-w", value) : root.removeProperty("--detail-w"); });
+    if (ui.view === "lanes" && ui.layout === "grid" && ui.panelOpen) { // The drawing depends on the width
+      const top = $("detail").scrollTop;
+      renderLanes();
+      $("detail").scrollTop = top;
+    }
+  }
+
+  function savePanelWidth() {
+    try {
+      if (panelPref == null) localStorage.removeItem("hub.panelWidth");
+      else localStorage.setItem("hub.panelWidth", String(panelPref));
+    } catch (_) {}
+  }
+
+  function setPanelWidth(width) {
+    panelPref = width == null ? null : Math.min(panelMax(), Math.max(PANEL_MIN, Math.round(width)));
+    applyPanelWidth();
+  }
+
+  // Finish a drag: keep its width, or go back to the preference from before it
+  function endPanelDrag(keep) {
+    const drag = panelDrag;
+    if (!drag) return;
+    panelDrag = null;
+    cancelAnimationFrame(drag.frame);
+    $("panelResize").classList.remove("active");
+    if (!drag.moved) return;
+    if (keep) { setPanelWidth(drag.width); savePanelWidth(); }
+    else { panelPref = drag.pref; applyPanelWidth(); }
+  }
+
+  function bindPanelResize() {
+    const handle = $("panelResize");
+    handle.addEventListener("mousedown", (e) => e.preventDefault()); // Start no text selection
+    handle.addEventListener("pointerdown", (e) => {
+      if (panelDrag || e.button !== 0 || !e.isPrimary) return;
+      const width = panelWidth();
+      panelDrag = { id: e.pointerId, x: e.clientX, start: width, width, pref: panelPref, moved: false, frame: 0 };
+      handle.setPointerCapture(e.pointerId);
+      handle.focus({ preventScroll: true });
+      handle.classList.add("active");
+      $("detail").classList.remove("slide");
+    });
+    handle.addEventListener("pointermove", (e) => {
+      const drag = panelDrag;
+      if (!drag || e.pointerId !== drag.id) return;
+      if (!handle.getClientRects().length) return endPanelDrag(false); // The panel closed during the drag
+      const width = drag.start + drag.x - e.clientX;
+      if (!drag.moved && width === drag.start) return;
+      drag.moved = true;
+      drag.width = width;
+      cancelAnimationFrame(drag.frame);
+      drag.frame = requestAnimationFrame(() => setPanelWidth(drag.width));
+    });
+    const on = (type, keep) => handle.addEventListener(type, (e) => { if (panelDrag && e.pointerId === panelDrag.id) endPanelDrag(keep); });
+    on("pointerup", true);
+    on("pointercancel", false);
+    on("lostpointercapture", false);
+    handle.addEventListener("dblclick", () => { setPanelWidth(null); savePanelWidth(); });
+    handle.addEventListener("keydown", (e) => {
+      if (panelDrag) {
+        if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); endPanelDrag(false); }
+        return;
+      }
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const width = { ArrowLeft: panelWidth() + PANEL_STEP, ArrowRight: panelWidth() - PANEL_STEP, Home: PANEL_MIN, End: panelMax() }[e.key];
+      if (width === undefined) return;
+      e.preventDefault();
+      setPanelWidth(width);
+      savePanelWidth();
+    });
+    window.addEventListener("resize", applyPanelWidth);
+    applyPanelWidth();
+  }
+
   function applyLayout() {
     const grid = ui.layout === "grid";
     $("main").classList.toggle("grid", grid);
@@ -1346,7 +1463,40 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     $("detail").inert = grid && !ui.panelOpen;
     $("openPanel").hidden = $("closePanel").hidden = !grid;
     document.querySelectorAll("[data-layout]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.layout === ui.layout)));
+    applyFullscreen();
   }
+
+  // ---- Fullscreen (the grid's open panel covers the window) ----
+  function applyFullscreen() {
+    const button = $("fullscreenPanel"), on = ui.fullscreen && ui.layout === "grid" && ui.panelOpen;
+    ui.fullscreen = on;
+    $("main").classList.toggle("fullscreen", on);
+    // Keep the keyboard and screen readers out of what the panel covers
+    document.querySelector("header").inert = $("sessions").closest("section").inert = on;
+    button.hidden = ui.layout !== "grid";
+    button.setAttribute("aria-pressed", String(on));
+    button.dataset.i18nTitle = on ? "panel.fullscreenOff" : "panel.fullscreenOn";
+    button.title = t(button.dataset.i18nTitle);
+  }
+
+  function setFullscreen(on) {
+    const box = $("detail");
+    // The new width reflows the panel: keep the first visible row where it is, below the sticky title
+    const rows = () => [...box.querySelectorAll(".ev, .kcard, .ctable tbody tr")].filter((n) => n.getClientRects().length);
+    const below = (n) => n.getBoundingClientRect().top - $("tlTitle").getBoundingClientRect().bottom;
+    const at = box.scrollTop > 0 ? rows().findIndex((n) => below(n) + n.offsetHeight > 0) : -1;
+    const before = at >= 0 && below(rows()[at]);
+    tipEl.style.display = "none"; // what it describes moves away from the pointer
+    keepCardInPlace(ui.session, () => {
+      ui.fullscreen = on;
+      applyLayout();
+      if (ui.view === "lanes") render(); // the swimlanes are drawn to the panel's width
+    });
+    const row = at >= 0 && rows()[at];
+    if (row) box.scrollTop += below(row) - before;
+    if (!box.contains(document.activeElement)) $("fullscreenPanel").focus({ preventScroll: true }); // Safari does not focus a clicked button
+  }
+  $("fullscreenPanel").addEventListener("click", () => setFullscreen(!ui.fullscreen));
 
   function setLayout(layout) {
     ui.layout = layout;
@@ -1699,7 +1849,8 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       render();
       return;
     }
-    closePanel();
+    if (ui.fullscreen) return setFullscreen(false);
+    if (!e.repeat) closePanel(); // A held key leaves fullscreen without closing the panel as well
   });
   // The panel starts below the sticky header, whose height changes when it wraps
   const measureHeader = () => document.documentElement.style.setProperty("--header-h", document.querySelector("header").offsetHeight + "px");
@@ -1725,6 +1876,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
   try { const theme = localStorage.getItem("hub.theme"); if (theme) document.documentElement.dataset.theme = theme; } catch (_) {}
   window.addEventListener("resize", () => { if (ui.view === "lanes") render(); else drawLink(); });
   bindLanes();
+  bindPanelResize();
   // Refresh the "N minutes ago" labels periodically
   setInterval(() => {
     document.querySelectorAll("[data-ago]").forEach((n) => { n.textContent = ago(n.dataset.ago); });
