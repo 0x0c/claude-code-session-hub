@@ -106,7 +106,7 @@ main.grid .project { margin: var(--space-12) 0; border: 1px solid var(--line); b
 main.grid .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); gap: var(--space-12); }
 main.grid .cardwrap { min-width: 0; }
 main.grid .card { border: 1px solid var(--line); border-left-width: 3px; border-radius: var(--radius-lg); height: 100%; }
-main.grid .card.selected { border-color: var(--accent); }
+main.grid .card.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), 0 2px 10px var(--shade); }
 main.grid #detail { position: fixed; top: var(--header-h, 0px); right: 0; bottom: 0; z-index: 4; width: var(--detail-w);
   overflow-y: auto; overscroll-behavior: contain; border-width: 0 0 0 1px; border-radius: 0; outline: none;
   transform: translateX(100%); visibility: hidden; }
@@ -157,7 +157,7 @@ main.grid .subcards { padding: var(--space-4) 0 var(--space-8) var(--space-24); 
 .project .count { color: var(--muted); font-weight: var(--fw-normal); font-variant-numeric: tabular-nums; }
 .card { padding: var(--space-10) var(--space-14); border-top: 1px solid var(--line); cursor: pointer; border-left: 3px solid transparent; }
 .cardwrap:hover .card { background: var(--hover); }
-.card.selected { background: var(--hover); border-left-color: var(--accent); }
+.card.selected { background: color-mix(in srgb, var(--accent) 14%, var(--panel)); border-left-color: var(--accent); border-left-width: 5px; }
 .cardwrap { position: relative; }
 .parentlink { max-width: 100%; padding: 0; border: 0; overflow: hidden; background: none; color: var(--accent); font-size: var(--fs-meta);
   text-align: left; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
