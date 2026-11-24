@@ -1,11 +1,11 @@
-**English** · [日本語](SH-XXXX-dashboard-playbook.ja.md)
+**English** · [日本語](SH-0014-dashboard-playbook.ja.md)
 
-# SH-XXXX — A playbook of the dashboard's components
+# SH-0014 — A playbook of the dashboard's components
 
 <!-- SH-METADATA -->
 | Field | Value |
 |---|---|
-| Proposal | SH-XXXX |
+| Proposal | SH-0014 |
 | Author | [@0x0c](https://github.com/0x0c) |
 | Status | **Implemented** |
 | Topic | Developer workflow |
