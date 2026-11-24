@@ -33,6 +33,9 @@ class PlaybookTest(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     playbook.playbook_html()
 
+    def test_stories_do_not_change_the_saved_fold_state(self):
+        self.assertIn('e.target.closest(".project, .kidstoggle")', playbook.template("playbook.js"))
+
     @unittest.skipUnless(shutil.which("node"), "needs Node.js")
     def test_page_script_parses(self):
         script = re.search(r"<script>\n(.*)</script>", playbook.playbook_html(), re.S)[1]

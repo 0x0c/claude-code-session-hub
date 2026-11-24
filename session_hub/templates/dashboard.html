@@ -869,6 +869,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       onclick: () => {
         toggleFold(key);
         renderSessions();
+        drawLink(); // The selected card can move or disappear
       },
     }),
       el("span", { class: "chev", "aria-hidden": "true" }, "▸"),
@@ -996,7 +997,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     return el("button", glowProps(hidden.map((k) => glowKey.session(k.session_id)), {
       class: "kidstoggle" + (hidden.some((k) => k.session_id === ui.session) ? " selected" : ""),
       type: "button", "aria-expanded": String(open), "data-group": key, title: t("card.childrenOf", { name: s.title || s.session_id }),
-      onclick: (e) => { e.stopPropagation(); toggleFold(key); renderSessions(); },
+      onclick: (e) => { e.stopPropagation(); toggleFold(key); renderSessions(); drawLink(); },
       onkeydown: (e) => { if (e.key === "Enter" || e.key === " ") e.stopPropagation(); }, // The card would take the key
     }),
       el("span", { class: "chev", "aria-hidden": "true" }, "▸"), t("card.children", { n: children }));

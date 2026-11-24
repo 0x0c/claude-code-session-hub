@@ -279,8 +279,8 @@
   const pbPage = el("div", { hidden: true });
   pbPage.append(...[...document.body.children].filter((n) => n.tagName !== "SCRIPT" && n.id !== "tip"));
   const pbRoot = el("div", { class: "pb-layout" });
-  // A story's group heading would toggle and persist the dashboard's own collapsed groups (hub.collapsed)
-  pbRoot.addEventListener("click", (e) => { if (e.target.closest(".project")) e.stopPropagation(); }, true);
+  // A story's group heading or family toggle would change and persist the dashboard's own collapsed groups and families (hub.collapsed)
+  pbRoot.addEventListener("click", (e) => { if (e.target.closest(".project, .kidstoggle")) e.stopPropagation(); }, true);
   document.body.prepend(pbPage, pbRoot);
 
   // Page layout, not components: the window-high split, its connector, and the grid's fixed detail panel

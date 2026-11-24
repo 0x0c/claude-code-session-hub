@@ -96,7 +96,7 @@ class DashboardTest(unittest.TestCase):
           const ui = { session: "kid" };
           let open = true;
           const familyKey = (id) => "family " + id, isCollapsed = () => !open, t = (k) => k;
-          const calls = [], toggleFold = (k) => calls.push(k), renderSessions = () => calls.push("render");
+          const calls = [], toggleFold = (k) => calls.push(k), renderSessions = () => calls.push("render"), drawLink = () => calls.push("link");
           const glowKey = { session: (id) => id }, glowProps = (keys, props) => ({ ...props, keys });
           const el = (tag, props, ...kids) => ({ tag, ...props });
           const draw = () => kidsToggle({ session_id: "mom" }, 1, [{ session_id: "kid" }]);
@@ -113,7 +113,7 @@ class DashboardTest(unittest.TestCase):
         out = subprocess.run(["node", "-e", code + script], capture_output=True, text=True, check=True).stdout
         self.assertEqual(json.loads(out), [
             ["kidstoggle", "true", []], ["kidstoggle selected", "false", ["kid"]],
-            ["stop", "family mom", "render", "stop"]])  # Neither the click nor the key selects the card
+            ["stop", "family mom", "render", "link", "stop"]])  # Neither the click nor the key selects the card
 
     def test_layout_toggle_offers_list_and_grid(self):
         self.assertEqual(re.findall(r'<button data-layout="(\w+)"', PAGE), ["list", "grid"])
