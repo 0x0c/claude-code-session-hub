@@ -1859,12 +1859,15 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
   function renderColTabs() {
     const box = $("colTabs");
     const names = Object.keys(db.collections);
-    if (box.dataset.sig !== LANG + names.join(",") + "|" + names.map((n) => db.collections[n].active).join(",")) {
-      box.dataset.sig = LANG + names.join(",") + "|" + names.map((n) => db.collections[n].active).join(",");
-      box.replaceChildren(...names.map((n) => {
+    // The count is what the list shows: the session filter, the search text, and the obsolete toggle apply
+    const counts = names.map((n) => collectionItems(db.collections[n]).length);
+    const sig = LANG + names.join(",") + "|" + counts.join(",");
+    if (box.dataset.sig !== sig) {
+      box.dataset.sig = sig;
+      box.replaceChildren(...names.map((n, i) => {
         const c = db.collections[n];
         return el("button", { role: "tab", "data-view": "col:" + n, title: L(c.description) || L(c.label),
-          onclick: () => setView("col:" + n) }, `${L(c.label)} (${c.active})`);
+          onclick: () => setView("col:" + n) }, `${L(c.label)} (${counts[i]})`);
       }));
     }
     document.querySelectorAll(".tabs button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.view === ui.view)));
