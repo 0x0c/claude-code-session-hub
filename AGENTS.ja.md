@@ -15,7 +15,7 @@ Session Hubは、親のClaude Codeセッションが多数のサブセッショ�
 | `bin/session-hub` | インストール方法を問わずパッケージを見つけて実行するラッパー |
 | `skills/`、`hooks/`、`prompts/` | 利用者のセッションへ配布するもの（Claude CodeプラグインとAgent Package Manager（APM）パッケージ） |
 | `.claude/skills/` | このリポジトリを開発するためのスキル。配布しません |
-| `proposals/` | 設計のプロポーザル。変更ごとに1組のファイル（`SH-NNNN-<slug>.md`と`.ja.md`） |
+| `proposals/` | 設計のプロポーザル。変更ごとに1つのフォルダー（`SH-NNNN-<slug>/`に`SH-NNNN-<slug>.md`と`.ja.md`を置く） |
 | `docs/DESIGN.md` | 設計の根拠と用語集 |
 | `tests/` | テスト（標準ライブラリの`unittest`） |
 
@@ -77,6 +77,7 @@ scripts/check.sh
 - **Stop** hookは、`{"decision": "block", "reason": "..."}`を出力するとターンの終了を止めます。次の呼び出しでは`stop_hook_active: true`が渡されるので、そのときは何も返さないでください。返すとセッションが同じ処理を繰り返します。
 - matcherを`TodoWrite|TaskCreate|TaskUpdate`にした**PostToolUse** hookは、`tool_input`からタスク一覧を読めます。そのため、モデルのトークンを使わずに進捗を送れます。`TaskUpdate`にはタスク識別子（ID）しかないので、`TaskCreate`の時点でIDと名前の対応を記録しています。
 - hookに渡される情報には`transcript_path`が含まれます。トークン使用量は、アシスタントの各エントリの`message.usage`を`message.id`で重複を除いて合計して求めます。1つの応答が複数行にまたがることがあるためです。
+- トランスクリプトにはセッション名も含まれます。最後の`custom-title`レコード（人間またはデスクトップアプリが付けた名前）を使い、なければ最後の`ai-title`レコードを使います。セッションは送信のたびに名前を添え、ハブはその名前をタイトルとして表示します。名前はSessionStartの後に付くことがあるため、送信のたびにトランスクリプトを読み直します。
 - hookは`HUB_URL`も`HUB_STORE`も設定されていなければ何もしません。そのため、プラグインを常に有効にしても安全です。
 
 ### セッションのID

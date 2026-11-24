@@ -1,11 +1,13 @@
+"""Static checks of the dashboard page. The suite has no browser, so these cover its wiring."""
+
 import re
 import unittest
 from pathlib import Path
 
-PAGE = Path(__file__).resolve().parent.parent / "session_hub" / "templates" / "dashboard.html"
+PAGE = (Path(__file__).resolve().parent.parent / "session_hub/templates/dashboard.html").read_text(encoding="utf-8")
 
 # Custom properties that the script sets on an element at run time
-SET_BY_SCRIPT = {"glow", "glow-ms", "kc", "group-color"}
+SET_BY_SCRIPT = {"glow", "glow-ms", "kc", "group-color", "header-h"}
 SIZED = re.compile(r"(?<![\w-])(font|font-size|border(?:-\w+)*-radius|(?:row-|column-)?gap|(?:padding|margin)(?:-\w+)*):\s*([^;}]+)")
 WEIGHT = re.compile(r"font-weight:(?!\s*(?:var\(|inherit))[^;}]+")
 COLOR = re.compile(r"#[0-9a-fA-F]{3,8}\b|\b(?:rgb|hsl)a?\(")
@@ -18,9 +20,35 @@ def tokens(block):
     return dict(re.findall(r"--([\w-]+):\s*([^;]+);", block))
 
 
+def messages(lang: str) -> set[str]:
+    block = re.search(rf"^    {lang}: \{{\n(.*?)^    \}},$", PAGE, re.M | re.S).group(1)
+    return set(re.findall(r'"([a-z]\w*\.?[\w.]*)": "', block))
+
+
+class DashboardTest(unittest.TestCase):
+    def test_every_label_exists_in_both_languages(self):
+        singular = {k for k in messages("en") if k.endswith("_one")}  # Japanese has no singular form
+        self.assertEqual(messages("en") - singular, messages("ja"))
+
+    def test_static_labels_are_defined(self):
+        used = set(re.findall(r'data-i18n(?:-title|-aria)?="([^"]+)"', PAGE))
+        self.assertLessEqual(used, messages("en"))
+
+    def test_script_ids_exist_in_the_page(self):
+        used = set(re.findall(r'\$\("(\w+)"\)', PAGE))
+        self.assertLessEqual(used, set(re.findall(r'\bid="(\w+)"', PAGE)))
+
+    def test_layout_toggle_offers_list_and_grid(self):
+        self.assertEqual(re.findall(r'<button data-layout="(\w+)"', PAGE), ["list", "grid"])
+        self.assertIn('localStorage.getItem("hub.layout")', PAGE)
+
+    def test_closed_grid_panel_is_inert(self):
+        self.assertRegex(PAGE, r'\$\("detail"\)\.inert\s*=\s*grid\s*&&\s*!ui\.panelOpen\b')
+
+
 class DesignTokenTest(unittest.TestCase):
     def setUp(self):
-        style = re.search(r"<style>(.*?)</style>", PAGE.read_text(encoding="utf-8"), re.S)[1]
+        style = re.search(r"<style>(.*?)</style>", PAGE, re.S)[1]
         style = re.sub(r"/\*.*?\*/", "", style, flags=re.S)
         token_blocks, marker, rules = style.partition("* { box-sizing")
         self.assertTrue(marker)

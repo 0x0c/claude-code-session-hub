@@ -5,7 +5,7 @@ description: Turn a rough Session Hub feature idea into a proposal under proposa
 
 # Ideation
 
-A sounding board for shaping a Session Hub idea into a proposal (`proposals/SH-NNNN-<slug>.md`).
+A sounding board for shaping a Session Hub idea into a proposal (`proposals/SH-NNNN-<slug>/SH-NNNN-<slug>.md`).
 You are the author and the thinking partner, not the judge. Converse in the user's language; write
 the proposal in English.
 

@@ -20,7 +20,7 @@ The parent reads a few lines from `session-hub attention` instead of reading tra
 | `bin/session-hub` | The wrapper that finds the package however it was installed |
 | `skills/`, `hooks/`, `prompts/` | What we ship to users' sessions (Claude Code plugin and Agent Package Manager (APM) package) |
 | `.claude/skills/` | Skills for developing this repository; not shipped |
-| `proposals/` | Design proposals, one pair of files per change (`SH-NNNN-<slug>.md` and `.ja.md`) |
+| `proposals/` | Design proposals, one folder per change (`SH-NNNN-<slug>/`, holding `SH-NNNN-<slug>.md` and `.ja.md`) |
 | `docs/DESIGN.md` | The design rationale and the glossary |
 | `tests/` | The test suite (standard library `unittest`) |
 
@@ -126,6 +126,10 @@ Each note states a fact we verified, why it matters, and what to do about it.
   id, so we record the id-to-name mapping when `TaskCreate` runs.
 - The hook payload includes `transcript_path`. Token usage comes from summing `message.usage` over
   the assistant entries, deduplicated by `message.id`: one response can span several lines.
+- The transcript also holds the session's name: the last `custom-title` record (a name that a person
+  or the desktop app set), or else the last `ai-title` record. Every send by the session attaches the
+  name, and the hub shows it as the title. The name may appear after SessionStart, so we read the
+  transcript again on each send.
 - Hooks are no-ops unless `HUB_URL` or `HUB_STORE` is set, so the plugin is safe to enable globally.
 
 ### Session identity
