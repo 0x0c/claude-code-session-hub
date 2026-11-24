@@ -37,6 +37,11 @@ class DashboardTest(unittest.TestCase):
         used = set(re.findall(r'data-i18n(?:-title|-aria)?="([^"]+)"', PAGE))
         self.assertLessEqual(used, messages("en"))
 
+    def test_panel_titles_stay_below_the_sticky_header_when_the_page_scrolls(self):
+        rule = re.search(r"^\.panel > h2 \{(.*?)\}\n", PAGE, re.M | re.S).group(1)
+        self.assertIn("position: sticky", rule)
+        self.assertIn("top: var(--header-h", rule)
+
     def test_script_ids_exist_in_the_page(self):
         used = set(re.findall(r'\$\("(\w+)"\)', PAGE))
         self.assertLessEqual(used, set(re.findall(r'\bid="(\w+)"', PAGE)))
