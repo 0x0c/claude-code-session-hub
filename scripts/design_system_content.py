@@ -96,13 +96,9 @@ COMPONENTS = [('GroupHeading',
   'style="background:var(--s-work)"></span><span class="title">認証APIのレート制限</span><span class="badge" '
   'style="background:var(--s-needs)">人間待ち</span></div><div class="meta"><span>#128</span><span>1/4 残≈7</span><span><a class="pr" '
   'href="https://example.com/pull/45">PR#45</a> CI:pending</span><span>30分前</span></div><div class="summary">Redis のスライディングウィンドウ方式で実装開始</div><div '
-  'class="progress"><i style="width:25%"></i></div></div></div><div class="cardwrap deletable"><div class="card "><div class="row1"><span '
-  'class="dot" style="background:var(--s-work)"></span><span class="title">認証APIのレート制限</span><span class="badge" '
-  'style="background:var(--s-needs)">人間待ち</span></div><div class="meta"><span>#128</span><span>1/4 残≈7</span><span><a class="pr" '
-  'href="https://example.com/pull/45">PR#45</a> CI:pending</span><span>30分前</span></div><div class="summary">Redis のスライディングウィンドウ方式で実装開始</div><div '
-  'class="progress"><i style="width:25%"></i></div></div><button class="carddel" type="button" aria-label="セッションを削除">×</button></div>',
+  'class="progress"><i style="width:25%"></i></div></div></div>',
   '1つのサブセッションの現状を示すカード。利用側は名前、状態、メタ情報、要約、進捗を渡します。',
-  '名前は1行で省略します。PRのURLがあればリンクにします。削除ボタンはホバー時とキーボード操作時に出し、完了したセッションには進捗バーを出しません。'),
+  '名前は1行で省略します。PRのURLがあればリンクにします。完了したセッションには進捗バーを出しません。'),
  ('AskBox',
   'Sessions',
   140,
