@@ -7,7 +7,7 @@
 |---|---|
 | Proposal | SH-XXXX |
 | Author | [@0x0c](https://github.com/0x0c) |
-| Status | **Implemented** |
+| Status | **In progress** |
 | Topic | Developer workflow |
 | Implementing PR | [#48](https://github.com/0x0c/claude-code-session-hub/pull/48) |
 | Related | — |
@@ -74,6 +74,7 @@ head commit, and the review covers the finished work.
 - [x] Design approved
 - [x] Implementation with tests
 - [x] Documentation updated (AGENTS.md, the review contract, the proposal skills)
+- [ ] Required check added to the ruleset (after a draft PR confirms the replacement)
 
 ## References
 

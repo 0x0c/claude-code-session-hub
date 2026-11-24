@@ -7,7 +7,7 @@
 |---|---|
 | 提案 | SH-XXXX |
 | 作者 | [@0x0c](https://github.com/0x0c) |
-| 状態 | **Implemented** |
+| 状態 | **In progress** |
 | トピック | Developer workflow |
 | 実装PR | [#48](https://github.com/0x0c/claude-code-session-hub/pull/48) |
 | 関連 | — |
@@ -51,6 +51,7 @@ Claude Codeは、プルリクエスト（PR）のドラフトが解除された�
 - [x] 設計の承認
 - [x] テストを含む実装
 - [x] ドキュメントの更新（AGENTS.md、レビューの規約、提案用のスキル）
+- [ ] 必須チェックへの追加（ドラフトのPRで置き換えを確認した後）
 
 ## 参考資料
 
