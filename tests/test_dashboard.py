@@ -186,6 +186,12 @@ class DashboardTest(unittest.TestCase):
         self.assertIn("open.hidden = !appUrl;", PAGE)
         self.assertIn("@media (max-width: 860px) { #tlTitle { flex-wrap: wrap; } }", PAGE)
 
+    def test_card_has_an_icon_only_open_in_claude_link(self):
+        self.assertIn("openAppLink(s, name),", PAGE)
+        self.assertIn('class: "openapp"', PAGE)
+        self.assertIn('"card.openApp"', PAGE)
+        self.assertLessEqual({"card.openApp"}, messages("ja"))
+
     def test_overview_replaces_the_all_sessions_button(self):
         self.assertIn('data-view="overview"', PAGE)
         self.assertRegex(PAGE, r'function renderOverview\(\) \{\n[^\n]*\n\s*tipEl\.style\.display = "none";')
