@@ -35,6 +35,7 @@ The `:root` block holds every token:
 | `--s-*` | The state of a session |
 | `--g-action`, `--g-active`, `--g-done`, `--g-archived` | Fill of a group heading, the same in both themes |
 | `--on-fill` | Text on a fill |
+| `--shade` | The shadow that the grid's detail panel casts |
 | `--font-sans`, `--fs-*` | Font family, and five sizes: 11, 12, 13, 14, and 16px |
 | `--fw-normal`, `--fw-strong` | Weights 400 and 600 |
 | `--space-*` | 1, 2, 4, 6, 8, 10, 12, 14, 16, and 24px |
