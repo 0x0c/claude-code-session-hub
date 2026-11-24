@@ -212,6 +212,9 @@ We verified these facts with APM 0.35.1 by installing this repository into a scr
 - The playbook shows every component in every state: open `/playbook` on a running hub, or run
   `python3 scripts/playbook.py` and open `playbook.html`. When you add a component, add a story to
   `session_hub/templates/playbook.js`; the Coverage section names each dashboard class that no story shows.
+- Sync the published design system page with `scripts/design_system.py`. Read the artifact's
+  `project/` files into a folder, run `plan`, publish what `publish.json` lists, read the page again,
+  and run `record`. A second `plan` must report that nothing is left to publish.
 
 ### Repository hygiene
 
