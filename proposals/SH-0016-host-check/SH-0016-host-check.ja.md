@@ -1,11 +1,11 @@
-[English](SH-XXXX-host-check.md) · **日本語**
+[English](SH-0016-host-check.md) · **日本語**
 
-# SH-XXXX — 外部のホスト名宛てのリクエストの拒否
+# SH-0016 — 外部のホスト名宛てのリクエストの拒否
 
 <!-- SH-METADATA -->
 | 項目 | 値 |
 |---|---|
-| 提案 | SH-XXXX |
+| 提案 | SH-0016 |
 | 作者 | [@0x0c](https://github.com/0x0c) |
 | 状態 | **Implemented** |
 | トピック | Hub server |

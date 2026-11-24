@@ -1,11 +1,11 @@
-**English** · [日本語](SH-XXXX-host-check.ja.md)
+**English** · [日本語](SH-0016-host-check.ja.md)
 
-# SH-XXXX — Refuse hub requests for a foreign host name
+# SH-0016 — Refuse hub requests for a foreign host name
 
 <!-- SH-METADATA -->
 | Field | Value |
 |---|---|
-| Proposal | SH-XXXX |
+| Proposal | SH-0016 |
 | Author | [@0x0c](https://github.com/0x0c) |
 | Status | **Implemented** |
 | Topic | Hub server |
