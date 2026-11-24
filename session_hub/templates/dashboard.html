@@ -133,7 +133,8 @@ main.grid .action-section .card:not(.selected):not(:hover) { background: var(--p
 .card .row1 { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .card .title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
 .card .meta { font-size: 12px; color: var(--muted); display: flex; gap: 10px; flex-wrap: wrap; margin-top: 2px; }
-.card .meta a.pr { color: var(--accent); }
+a.pr { color: var(--accent); }
+#tlPr { flex: none; font-weight: 400; white-space: nowrap; }
 .card .summary { font-size: 13px; margin-top: 4px; overflow-wrap: anywhere; }
 .spinner { width: 14px; height: 14px; flex: none; border-radius: 50%; border: 2px solid var(--line);
   border-top-color: var(--s-work); animation: spin .9s linear infinite; }
@@ -255,7 +256,7 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
   </section>
 
   <section class="panel" id="detail" tabindex="-1" aria-labelledby="tlTitle">
-    <h2 id="tlTitle"><span id="tlName"></span> <span class="chip" id="tlScope"></span>
+    <h2 id="tlTitle"><span id="tlName"></span> <span class="chip" id="tlScope"></span> <a class="pr" id="tlPr" target="_blank" rel="noopener noreferrer" hidden></a>
       <button class="iconbtn danger" id="deleteSession" hidden data-i18n="sessions.delete" data-i18n-title="sessions.deleteTitle"></button>
       <button class="iconbtn" id="closePanel" hidden data-i18n-aria="panel.close" data-i18n-title="panel.close">✕</button></h2>
     <div class="toolbar">
@@ -626,24 +627,29 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     }
   }
 
+  // Only a web address becomes a link: the URL comes from a message
+  const prWebUrl = (pr) => (/^https?:\/\//i.test(pr.url || "") ? pr.url : null);
+  const prName = (pr) => (pr.number ? `PR#${pr.number}` : "PR");
+  function prLabel(pr) {
+    const prUrl = prWebUrl(pr);
+    return !prUrl ? prName(pr) : el("a", {
+      class: "pr", href: prUrl, target: "_blank", rel: "noopener noreferrer", title: prUrl,
+      onclick: (e) => e.stopPropagation(), // Opening the pull request does not select the card
+      onkeydown: (e) => { if (e.key === "Enter" || e.key === " ") e.stopPropagation(); }, // Escape still closes the panel
+    }, prName(pr));
+  }
+
   function sessionCard(s, inProject) {
     const p = s.progress || { done: 0, total: 0, remaining: 0 };
     const pct = p.total ? Math.round((p.done / p.total) * 100) : 0;
     const pr = s.pr || {};
-    // Only a web address becomes a link: the URL comes from a message
-    const prUrl = /^https?:\/\//i.test(pr.url || "") ? pr.url : null;
-    const prName = pr.number ? `PR#${pr.number}` : "PR";
-    const prLabel = !prUrl ? prName : el("a", {
-      class: "pr", href: prUrl, target: "_blank", rel: "noopener noreferrer", title: prUrl,
-      onclick: (e) => e.stopPropagation(), // Opening the pull request does not select the card
-      onkeydown: (e) => e.stopPropagation(),
-    }, prName);
+    const prUrl = prWebUrl(pr);
     const u = s.usage || {};
     const meta = [
       !inProject && s.repo && el("span", {}, s.repo),
       s.task_ref && el("span", {}, s.task_ref),
       p.total ? el("span", {}, t("card.progress", { done: p.done, total: p.total, rem: p.remaining })) : null,
-      pr.number || prUrl ? el("span", {}, prLabel, (pr.ci ? ` CI:${pr.ci}` : "") + (pr.unresolved_threads != null ? t("card.threads", { n: pr.unresolved_threads }) : "")) : null,
+      pr.number || prUrl ? el("span", {}, prLabel(pr), (pr.ci ? ` CI:${pr.ci}` : "") + (pr.unresolved_threads != null ? t("card.threads", { n: pr.unresolved_threads }) : "")) : null,
       s.phase && el("span", {}, s.phase),
       (u.input || u.output) ? el("span", {}, `${fmtNum(u.input)}/${fmtNum(u.output)} tok`) : null,
       u.cost_usd != null ? el("span", {}, `$${Number(u.cost_usd).toFixed(2)}`) : null,
@@ -722,6 +728,19 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     return [e.summary, e.next && t("ev.next", { v: e.next }), e.note].filter(Boolean).join(" / ");
   }
 
+  // A PR/CI event links its number, with the session's URL when the event names the same pull request
+  function eventBody(e) {
+    const text = eventText(e);
+    if (e.type !== "pr") return text;
+    const p = e.pr || {};
+    const s = db.sessions.find((x) => x.session_id === e.session_id);
+    const known = (s && s.pr) || {};
+    const pr = { number: p.number, url: p.url || (p.number && p.number === known.number ? known.url : null) };
+    if (!prWebUrl(pr)) return text;
+    const name = prName(pr);
+    return [prLabel(pr), p.number ? text.slice(name.length) : text && ` ${text}`];
+  }
+
   function changeChips(e) {
     const d = e.diff || {};
     const chips = [];
@@ -762,6 +781,7 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
   }
 
   function eventRow(e) {
+    const body = eventBody(e);
     const color = e.state_after ? `var(${(STATE[e.state_after] || [0, "--s-queue"])[1]})` : "var(--s-queue)";
     const who = e.writer ? `${e.writer} → ` : "";
     const row = el("div", glowProps([glowKey.event(e.id)], { class: "ev", id: "ev-" + e.id }),
@@ -773,7 +793,7 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
                        onclick: () => selectSession(e.session_id) }, who + sessionName(e.session_id)),
           el("span", { class: "type" }, TYPES[e.type] || e.type),
           e.phase && !(e.diff || {}).phase ? el("span", { class: "chip" }, e.phase) : null),
-        eventText(e) ? el("div", { class: "text" }, eventText(e)) : null,
+        body ? el("div", { class: "text" }, body) : null,
         e.type === "ask" && e.attention && e.attention.options && e.attention.options.length
           ? el("div", { class: "changes" }, e.attention.options.map((o) => el("span", { class: "chip" }, o + (o === e.attention.default ? t("opt.default") : ""))))
           : null,
@@ -898,6 +918,14 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
         : db.sessions.map(sessionOption)));
     sel.value = cur;
     $("tlScope").textContent = ui.session ? sessionName(ui.session) : t("tl.all");
+    const shown = db.sessions.find((s) => s.session_id === ui.session);
+    const pr = (shown && shown.pr) || {};
+    const prUrl = prWebUrl(pr);
+    const link = $("tlPr");
+    link.hidden = !prUrl;
+    link.textContent = prUrl ? prName(pr) : "";
+    link.title = prUrl || "";
+    prUrl ? link.setAttribute("href", prUrl) : link.removeAttribute("href");
     $("groupBtn").setAttribute("aria-pressed", String(ui.byProject));
     // In the grid layout, closing the panel clears the selection
     $("clearSel").hidden = !ui.session || ui.layout === "grid";
