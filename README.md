@@ -10,9 +10,12 @@ them on a browser dashboard.
 
 - **Push, not polling.** Each sub-session runs the `session-hub` command whenever its state changes.
   The hub streams that update to the browser dashboard at once over Server-Sent Events (SSE).
-- **Attention first.** The dashboard lists the sessions that need attention at the top: waiting for a
-  human, failed, ready for review, or stalled. A spinner marks a session that is working. A
+- **Attention first.** The dashboard puts the projects and sessions that need attention first: waiting
+  for a human, failed, ready for review, or stalled. A spinner marks a session that is working. A
   **timeline** (a feed or swimlanes) replays every report in order.
+- **Grouped by project.** The session list gathers the sessions of each repository or project. The
+  name comes from the Git remote or the folder; `session-hub start --repo <name>` overrides it. The
+  **By project** button switches to grouping by status.
 - **A few lines for the parent.** The parent session reads no transcripts. It decides from the few
   lines that `session-hub attention` prints.
 - **One place for what sub-sessions learn.** A sub-session records findings, caveats, and decisions
