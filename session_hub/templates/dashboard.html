@@ -47,7 +47,27 @@ header h1 { font-size: 16px; margin: 0; }
 .iconbtn.danger { color: var(--s-fail); border-color: var(--s-fail); margin-left: auto; font-weight: 400; }
 .iconbtn.danger:disabled { opacity: .5; cursor: progress; }
 main { display: grid; grid-template-columns: minmax(300px, 380px) 1fr; gap: 16px; padding: 16px; max-width: 1500px; margin: 0 auto; }
+main { position: relative; }
 @media (max-width: 860px) { main { grid-template-columns: 1fr; padding: 12px 16px; } }
+/* Split layout (list layout alone): the page fills the window and each panel scrolls on its own. Keep the query in sync with SPLIT in the JS */
+@media screen and (min-width: 860.02px) and (min-height: 480px) {
+  body:not(.gridlayout) { height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
+  body:not(.gridlayout) header { flex: none; }
+  body:not(.gridlayout) main { flex: 1; min-height: 0; width: 100%; grid-template-rows: minmax(0, 1fr); column-gap: 28px; }
+  body:not(.gridlayout) main > section.panel { display: flex; flex-direction: column; min-height: 0; }
+  body:not(.gridlayout) main > section.panel > * { flex: none; }
+  body:not(.gridlayout) main > section.panel > .scroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+    border-radius: 0 0 9px 9px; }
+  body:not(.gridlayout) #detailScroll { scrollbar-gutter: stable; }
+  body:not(.gridlayout) #detailScroll .newbar { top: 8px; }
+}
+.scroll:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+/* The connector from the selected card to the detail panel */
+.linked { border-color: var(--accent) !important; }
+#link { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 4; pointer-events: none; overflow: visible; }
+#link path { fill: none; stroke: var(--accent); stroke-width: 2; }
+#link circle { fill: var(--accent); stroke: var(--panel); stroke-width: 1.5; }
+#link.off path { stroke-dasharray: 4 4; }
 section.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; min-width: 0; }
 .panel > h2 { font-size: 13px; margin: 0; padding: 10px 14px; border-bottom: 1px solid var(--line);
   display: flex; align-items: center; gap: 8px; }
@@ -65,7 +85,6 @@ section.panel { background: var(--panel); border: 1px solid var(--line); border-
 /* Grid layout: the cards take the full width, and the timeline becomes a panel on the right */
 main.grid { grid-template-columns: minmax(0, 1fr); max-width: none; }
 main.grid #sessions { padding: 0 14px 14px; }
-main.grid .group-title { padding-left: 0; }
 main.grid .project { margin: 12px 0; border: 1px solid var(--line); border-radius: 8px; }
 main.grid .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); gap: 12px; }
 main.grid .cardwrap { min-width: 0; }
@@ -81,10 +100,18 @@ main.grid #detail.open { transform: none; visibility: visible; box-shadow: -8px 
 main.grid #detail > h2 { position: sticky; top: 0; z-index: 4; background: var(--panel); }
 main.grid .newbar { top: 48px; }
 @media (prefers-reduced-motion: reduce) { main.grid #detail.slide, main.grid #detail.slide.open { transition: none; } }
-.group-title { font-size: 11px; font-weight: 600; letter-spacing: .04em; color: var(--muted); padding: 10px 14px 4px; }
+/* Sessions that need action: a section of its own above the other groups */
+.action-section { margin: 10px; border: 1px solid var(--s-needs); border-radius: 8px;
+  background: color-mix(in srgb, var(--s-needs) 6%, var(--panel)); }
+.action-section .project:not(:hover) { background: none; }
+main .action-section .project { margin: 0; border: 0; border-radius: 7px; color: var(--s-needs); }
+main:not(.grid) .action-section .cardwrap:last-child .card { border-radius: 0 0 7px 7px; }
+main.grid .action-section { margin: 14px 0 4px; padding: 0 12px 12px; }
+main.grid .action-section .card:not(.selected):not(:hover) { background: var(--panel); }
 .project { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 14px; border: 0; text-align: left;
   border-top: 1px solid var(--line); background: var(--bg); cursor: pointer; font-size: 12px; font-weight: 600; }
 .project:hover { background: var(--hover); }
+.project.selected { box-shadow: inset 3px 0 var(--accent); }
 .project .pname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .project .chev { color: var(--muted); transition: transform .15s; }
 .project[aria-expanded="true"] .chev { transform: rotate(90deg); }
@@ -222,7 +249,7 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
         <button data-layout="list" data-i18n="layout.list"></button>
         <button data-layout="grid" data-i18n="layout.grid"></button>
       </span></h2>
-    <div id="sessions"></div>
+    <div id="sessions" class="scroll" role="region" aria-labelledby="sessionsTitle"></div>
   </section>
 
   <section class="panel" id="detail" tabindex="-1" aria-labelledby="tlTitle">
@@ -241,6 +268,7 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
       <label><input type="checkbox" id="fOrder"> <span data-i18n="filter.oldest"></span></label>
     </div>
     <div class="types" id="fTypes"></div>
+    <div id="detailScroll" class="scroll" role="region" aria-labelledby="tlTitle">
     <button class="newbar" id="newbar"><span id="newbarText"></span> ↑</button>
     <div id="feedView" class="feed" aria-live="polite"></div>
     <div id="colView" hidden></div>
@@ -248,7 +276,9 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
       <div class="lanes" id="lanes"></div>
       <div class="legend" id="legend"></div>
     </div>
+    </div>
   </section>
+  <svg id="link" aria-hidden="true" hidden><path/><circle class="from" r="4"/><circle class="to" r="4"/></svg>
 </main>
 <div class="tip" id="tip"></div>
 
@@ -272,7 +302,7 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
       "btn.theme": "Theme", "btn.themeTitle": "Switch between light and dark",
       "btn.lang": "日本語", "btn.langTitle": "表示を日本語に切り替える",
       "btn.byProject": "By project", "btn.byProjectTitle": "Group sessions by repository or project; turn off to group by status",
-      "project.none": "No project", "project.action": "{n} need action", "project.action_one": "1 needs action",
+      "project.none": "No project",
       "sessions.title": "Sessions", "sessions.clear": "Clear selection",
       "sessions.delete": "Delete session", "sessions.deleteTitle": "Delete every stored message of this session",
       "sessions.deleteOne": "Delete {name}",
@@ -329,7 +359,7 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
       "btn.theme": "テーマ", "btn.themeTitle": "テーマ切替",
       "btn.lang": "English", "btn.langTitle": "Switch the display to English",
       "btn.byProject": "プロジェクト別", "btn.byProjectTitle": "リポジトリやプロジェクトごとにまとめます。オフにすると状態別になります",
-      "project.none": "プロジェクトなし", "project.action": "要対応 {n}",
+      "project.none": "プロジェクトなし",
       "sessions.title": "セッション", "sessions.clear": "選択解除",
       "sessions.delete": "セッションを削除", "sessions.deleteTitle": "このセッションの保存済みメッセージをすべて削除",
       "sessions.deleteOne": "{name} を削除",
@@ -464,7 +494,7 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     types: new Set(Object.keys(TYPES).filter((t) => t !== "heartbeat")),
     fresh: new Set(), unseen: 0, notify: false,
     colGroups: {}, showObsolete: false,
-    byProject: true, collapsed: new Set(),
+    byProject: true, collapsed: new Set(), // keys of the collapsed groups
     layout: "list", panelOpen: false, // panelOpen matters in the grid layout alone
   };
   const prevStates = new Map();
@@ -503,11 +533,14 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
   const laneColor = (sid) => `hsl(${hue(sid)} 55% 50%)`;
 
   // ---- Session list ----
-  // Sessions by project. The server sorts sessions by urgency, so the first appearance of a project
-  // puts the project with the most urgent session on top; sessions without a project come last.
-  function projectGroups() {
+  // Most recently updated first, by the same timestamp that the card shows
+  const byRecent = (a, b) => (a.heartbeat > b.heartbeat ? -1 : a.heartbeat < b.heartbeat ? 1 : 0);
+
+  // Sessions by project, in the order of each project's first session in the given list; sessions
+  // without a project come last.
+  function projectGroups(sessions) {
     const groups = new Map();
-    for (const s of db.sessions) {
+    for (const s of sessions) {
       const key = s.repo || "";
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key).push(s);
@@ -515,12 +548,28 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     return [...groups].sort(([a], [b]) => (a === "") - (b === ""));
   }
 
-  function projectHeader(key, list) {
+  const statusOf = (s) => (s.needs_action ? "action" : ["done", "abandoned"].includes(s.state) ? "done" : "active");
+  // The prefix keeps a status key apart from a project of the same name
+  const ACTION_KEY = "status:action";
+  // Sessions that need action form a group of their own in both groupings
+  const groupKey = (s) => (ui.byProject && !s.needs_action ? s.repo || "" : "status:" + statusOf(s));
+
+  // [key, label, sessions] of each non-empty group, in display order
+  function sessionGroups(sessions) {
+    const status = (id) => ["status:" + id, t("group." + id), sessions.filter((s) => statusOf(s) === id)];
+    const rest = ui.byProject
+      ? projectGroups(sessions.filter((s) => !s.needs_action)).map(([key, list]) => [key, key || t("project.none"), list])
+      : [status("active"), status("done")];
+    return [status("action"), ...rest].filter(([, , list]) => list.length);
+  }
+
+  function groupHeader(key, label, list) {
     const open = !ui.collapsed.has(key);
-    const action = list.filter((s) => s.needs_action).length;
-    // A collapsed project hides its cards, so the header carries their glow
-    return el("button", glowProps(open ? [] : list.map((s) => glowKey.session(s.session_id)), {
-      class: "project", type: "button", "aria-expanded": String(open), title: key,
+    // A collapsed group hides its cards, so the header carries their glow and the selection mark
+    const hidden = open ? [] : list;
+    return el("button", glowProps(hidden.map((s) => glowKey.session(s.session_id)), {
+      class: "project" + (hidden.some((s) => s.session_id === ui.session) ? " selected" : ""),
+      type: "button", "aria-expanded": String(open), title: label, "data-group": key,
       onclick: () => {
         open ? ui.collapsed.add(key) : ui.collapsed.delete(key);
         try { localStorage.setItem("hub.collapsed", JSON.stringify([...ui.collapsed])); } catch (_) {}
@@ -528,8 +577,7 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
       },
     }),
       el("span", { class: "chev", "aria-hidden": "true" }, "▸"),
-      el("span", { class: "pname" }, key || t("project.none")),
-      action ? el("span", { class: "badge", style: { background: "var(--s-needs)" } }, t("project.action", { n: action })) : null,
+      el("span", { class: "pname" }, label),
       el("span", { class: "count" }, String(list.length)));
   }
 
@@ -541,11 +589,15 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     const wrap = old && old.closest(".cardwrap");
     const at = wrap ? [...box.querySelectorAll(".cardwrap")].indexOf(wrap) : -1;
     rebuildSessions(box);
-    if (old && old.classList.contains("project")) {
-      const head = [...box.querySelectorAll(".project")].find((n) => n.title === old.title);
+    const focusGroup = (key) => {
+      const head = [...box.querySelectorAll(".project")].find((n) => n.dataset.group === key);
       if (head) head.focus({ preventScroll: true });
-    }
+    };
+    if (old && old.classList.contains("project")) return focusGroup(old.dataset.group);
     if (!wrap) return;
+    // A session that moved into a collapsed group has no card: focus its heading, never another session's control
+    const moved = db.sessions.find((s) => s.session_id === wrap.dataset.sid);
+    if (moved && ui.collapsed.has(groupKey(moved))) return focusGroup(groupKey(moved));
     const wraps = [...box.querySelectorAll(".cardwrap")];
     const next = wraps.find((w) => w.dataset.sid === wrap.dataset.sid) || wraps[Math.min(at, wraps.length - 1)];
     if (next) next.querySelector(old.classList.contains("carddel") ? ".carddel" : ".card").focus({ preventScroll: true });
@@ -557,31 +609,21 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
       box.append(el("div", { class: "empty" }, t("sessions.empty")));
       return;
     }
-    if (ui.byProject) {
-      for (const [key, list] of projectGroups()) {
-        box.append(projectHeader(key, list));
-        if (!ui.collapsed.has(key)) box.append(el("div", { class: "cards" }, list.map(sessionCard)));
-      }
-      return;
-    }
-    const groups = [[t("group.action"), (s) => s.needs_action],
-                    [t("group.active"), (s) => !s.needs_action && !["done", "abandoned"].includes(s.state)],
-                    [t("group.done"), (s) => ["done", "abandoned"].includes(s.state)]];
-    for (const [title, pred] of groups) {
-      const list = db.sessions.filter(pred);
-      if (!list.length) continue;
-      box.append(el("div", { class: "group-title" }, `${title} (${list.length})`));
-      box.append(el("div", { class: "cards" }, list.map(sessionCard)));
+    const sorted = [...db.sessions].sort(byRecent);
+    const cards = (list, inProject) => el("div", { class: "cards" }, list.map((s) => sessionCard(s, inProject)));
+    for (const [key, label, list] of sessionGroups(sorted)) {
+      const parts = [groupHeader(key, label, list), ui.collapsed.has(key) ? null : cards(list, !key.startsWith("status:"))].filter(Boolean);
+      box.append(...(key === ACTION_KEY ? [el("section", { class: "action-section", "aria-label": label }, parts)] : parts));
     }
   }
 
-  function sessionCard(s) {
+  function sessionCard(s, inProject) {
     const p = s.progress || { done: 0, total: 0, remaining: 0 };
     const pct = p.total ? Math.round((p.done / p.total) * 100) : 0;
     const pr = s.pr || {};
     const u = s.usage || {};
     const meta = [
-      !ui.byProject && s.repo && el("span", {}, s.repo),
+      !inProject && s.repo && el("span", {}, s.repo),
       s.task_ref && el("span", {}, s.task_ref),
       p.total ? el("span", {}, t("card.progress", { done: p.done, total: p.total, rem: p.remaining })) : null,
       pr.number ? el("span", {}, `PR#${pr.number}` + (pr.ci ? ` CI:${pr.ci}` : "") + (pr.unresolved_threads != null ? t("card.threads", { n: pr.unresolved_threads }) : "")) : null,
@@ -592,6 +634,7 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     ];
     const name = s.title || s.session_id;
     const card = el("div", glowProps([glowKey.session(s.session_id)], {
+      "aria-pressed": String(ui.session === s.session_id),
       class: "card" + (ui.session === s.session_id ? " selected" : ""), tabindex: "0", role: "button", "data-sid": s.session_id,
       "aria-label": t("card.showTimeline", { name }),
       onclick: () => toggleCard(s.session_id),
@@ -831,7 +874,7 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     const cur = sel.value;
     sel.replaceChildren(el("option", { value: "" }, t("filter.allSessions")),
       ...(ui.byProject
-        ? projectGroups().map(([key, list]) => el("optgroup", { label: key || t("project.none") }, list.map(sessionOption)))
+        ? projectGroups(db.sessions).map(([key, list]) => el("optgroup", { label: key || t("project.none") }, list.map(sessionOption)))
         : db.sessions.map(sessionOption)));
     sel.value = cur;
     $("tlScope").textContent = ui.session ? sessionName(ui.session) : t("tl.all");
@@ -843,7 +886,63 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     $("deleteSession").disabled = deleting.has(ui.session);
   }
 
+  // ---- Scrolling and the connector line ----
+  // In the split layout (a large window in the list layout) each panel scrolls on its own. In the grid
+  // layout the detail panel scrolls as a whole; otherwise the page scrolls.
+  const SPLIT = matchMedia("screen and (min-width: 860.02px) and (min-height: 480px)");
+  const isSplit = () => SPLIT.matches && ui.layout !== "grid";
+  const detailScroller = () => (ui.layout === "grid" ? $("detail") : isSplit() ? $("detailScroll") : window);
+  const scrollPos = () => { const n = detailScroller(); return n === window ? window.scrollY : n.scrollTop; };
+
+  // Draw a line from the selected card to the detail panel's title. When the card is scrolled out of
+  // the list, the line starts at the nearest edge of the list and turns dashed.
+  function drawLink() {
+    const svg = $("link");
+    const card = isSplit() && ui.session ? $("sessions").querySelector(".card.selected") : null;
+    svg.toggleAttribute("hidden", !card);
+    $("detail").classList.toggle("linked", !!card);
+    if (!card) return;
+    const base = document.querySelector("main").getBoundingClientRect();
+    const list = $("sessions").getBoundingClientRect();
+    const c = card.getBoundingClientRect();
+    const h = $("tlTitle").getBoundingClientRect();
+    const mid = c.top + c.height / 2;
+    // Keep the start on the visible part of the card, or on the list's edge when none is visible
+    const top = Math.max(c.top, list.top), bottom = Math.min(c.bottom, list.bottom);
+    const off = bottom - top < 8;
+    const y = off ? (mid < list.top + list.height / 2 ? list.top + 6 : list.bottom - 6) : Math.min(Math.max(mid, top + 4), bottom - 4);
+    const x0 = c.right - base.left, y0 = y - base.top;
+    const x1 = h.left - base.left, y1 = h.top + h.height / 2 - base.top;
+    const xm = (list.right - base.left + x1) / 2;
+    const dy = y1 - y0, dir = Math.sign(dy), rad = Math.min(8, Math.abs(dy) / 2);
+    svg.classList.toggle("off", off);
+    svg.querySelector("path").setAttribute("d", `M${x0} ${y0}H${xm - rad}Q${xm} ${y0} ${xm} ${y0 + dir * rad}`
+      + `V${y1 - dir * rad}Q${xm} ${y1} ${xm + rad} ${y1}H${x1}`);
+    for (const [cls, x, cy] of [["from", x0, y0], ["to", x1, y1]]) {
+      const dot = svg.querySelector("." + cls);
+      dot.setAttribute("cx", x); dot.setAttribute("cy", cy);
+    }
+  }
+
+  // Scroll the list, and only the list, until the selected card is visible
+  function revealSelectedCard() {
+    const box = $("sessions"), card = box.querySelector(".card.selected");
+    if (!isSplit() || !card) return;
+    const b = box.getBoundingClientRect(), c = card.getBoundingClientRect();
+    if (c.top < b.top || c.height > b.height) box.scrollTop -= b.top - c.top;
+    else if (c.bottom > b.bottom) box.scrollTop += c.bottom - b.bottom;
+    drawLink();
+  }
+
+  // Rebuilding the DOM can clamp a panel's scroll position, so put both positions back afterwards.
   function render() {
+    const panes = [$("sessions"), $("detail"), $("detailScroll")].map((n) => [n, n.scrollTop]);
+    renderContent();
+    for (const [n, top] of panes) n.scrollTop = top;
+    drawLink();
+  }
+
+  function renderContent() {
     renderHeader();
     renderSessions();
     renderColTabs();
@@ -853,9 +952,14 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
   }
 
   function selectSession(sid) {
+    const changed = ui.session !== sid;
     ui.session = sid;
     $("fSession").value = sid;
     render();
+    if (changed) {
+      if (isSplit()) $("detailScroll").scrollTop = 0;
+      revealSelectedCard();
+    }
   }
 
   // ---- Layout (list or grid) and the detail panel of the grid ----
@@ -890,6 +994,9 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
   function applyLayout() {
     const grid = ui.layout === "grid";
     $("main").classList.toggle("grid", grid);
+    document.body.classList.toggle("gridlayout", grid);
+    // Only a panel that scrolls on its own takes keyboard focus
+    for (const id of ["sessions", "detailScroll"]) isSplit() ? ($(id).tabIndex = 0) : $(id).removeAttribute("tabindex");
     $("detail").classList.toggle("open", grid && ui.panelOpen);
     $("detail").inert = grid && !ui.panelOpen;
     $("openPanel").hidden = $("closePanel").hidden = !grid;
@@ -906,13 +1013,12 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     render();
   }
 
-  // The panel scrolls on its own in the grid layout; the window scrolls in the list layout.
-  const scrollPos = () => (ui.layout === "grid" ? $("detail").scrollTop : window.scrollY);
   const timelineShown = () => ui.layout !== "grid" || ui.panelOpen;
   function clearUnseen() { ui.unseen = 0; $("newbar").classList.remove("show"); }
 
   function setView(v) {
     if (v.startsWith("col:") && !db.collections[v.slice(4)]) v = "feed";
+    const changed = ui.view !== v;
     ui.view = v;
     const isCol = v.startsWith("col:");
     $("feedView").hidden = v !== "feed";
@@ -925,6 +1031,7 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     $("fOrder").parentElement.hidden = isCol;
     updateViewText();
     render();
+    if (changed && isSplit()) $("detailScroll").scrollTop = 0;
   }
 
   // ---- Collections (knowledge and other stores of accumulated updates) ----
@@ -1225,10 +1332,15 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
   renderTypeFilters();
   $("newbar").addEventListener("click", () => {
     clearUnseen();
-    (ui.layout === "grid" ? $("detail") : window).scrollTo({ top: 0, behavior: "smooth" });
+    detailScroller().scrollTo({ top: 0, behavior: "smooth" });
   });
-  for (const target of [window, $("detail")]) {
-    target.addEventListener("scroll", () => { if (scrollPos() < 100 && ui.unseen) clearUnseen(); });
+  function clearUnseenAtTop() { if (scrollPos() < 100 && ui.unseen) clearUnseen(); }
+  for (const target of [window, $("detail"), $("detailScroll")]) target.addEventListener("scroll", clearUnseenAtTop);
+  $("sessions").addEventListener("scroll", drawLink);
+  SPLIT.addEventListener("change", () => { applyLayout(); drawLink(); clearUnseenAtTop(); });
+  if ("ResizeObserver" in window) {
+    const ro = new ResizeObserver(drawLink);
+    for (const n of [$("sessions"), $("detail"), $("tlTitle")]) ro.observe(n);
   }
   document.querySelectorAll("[data-layout]").forEach((b) => b.addEventListener("click", () => setLayout(b.dataset.layout)));
   $("openPanel").addEventListener("click", () => openPanel(""));
@@ -1263,13 +1375,14 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     const dark = root.dataset.theme ? root.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
     root.dataset.theme = dark ? "light" : "dark";
     try { localStorage.setItem("hub.theme", root.dataset.theme); } catch (_) {}
-    if (ui.view === "lanes") renderLanes();
+    if (ui.view === "lanes") render();
   });
   try { const theme = localStorage.getItem("hub.theme"); if (theme) document.documentElement.dataset.theme = theme; } catch (_) {}
-  window.addEventListener("resize", () => { if (ui.view === "lanes") renderLanes(); });
+  window.addEventListener("resize", () => { if (ui.view === "lanes") render(); else drawLink(); });
   // Refresh the "N minutes ago" labels periodically
   setInterval(() => {
     document.querySelectorAll("[data-ago]").forEach((n) => { n.textContent = ago(n.dataset.ago); });
+    drawLink(); // A longer label can wrap and move the selected card
   }, 15000);
 
   if (EMBEDDED) { setConn("", "conn.static", { ts: new Date(EMBEDDED.generated_at).toLocaleString(LOCALE) }); loadSnapshot(EMBEDDED); }

@@ -398,9 +398,12 @@ the first condition that failed.
 | `usage.cost_usd` exceeds the budget, or is too high for the progress | Efficiency is shown as `cost_usd / tasks.done` |
 | The remaining `tasks` do not shrink for a long time | Possibly looping or lost |
 
-### 4.3 Priority (the dashboard's sort order)
+### 4.3 Priority (the order of `session-hub attention`)
 
 `needs_human(blocking)` > `failed` > `review_ready` > `stale?` > `needs_human(non-blocking)` > `changes_requested` > `blocked` > `working` > `waiting_ci` > `done`
+
+The priority also decides which sessions count as "needs action", and it orders the swimlanes and
+the session filter. The dashboard's session list orders by last update instead (§5.2).
 
 ---
 
@@ -427,11 +430,16 @@ label, it gives the English label and the Japanese label in parentheses.
   - The tab title also shows the "needs action" count, as in `(3) Session Hub`.
   - Optional browser notifications announce transitions to waiting for a human, ready for review,
     failed, done, and stale.
-- **Session list** (left): one collapsible section per project (`repo`), sorted by the priority in
-  §4.3. The section that holds the most urgent session comes first, and its header counts the
-  sessions that need action. Sessions without a project come last.
-  - The **By project** button switches to grouping by status: "needs action" (要対応), "working or
-    waiting" (作業中・待機), and "done" (完了), each sorted by the same priority.
+- **Session list** (left): a framed "needs action" (要対応) section at the top when a session needs
+  action, then one collapsible section per project (`repo`) for the other sessions.
+  - Every section sorts by last update, the newest first. The last update is the time on the card,
+    and a heartbeat counts. The project with the newest update comes first, and sessions without a
+    project come last.
+  - The **By project** button switches the sessions below "needs action" to grouping by status:
+    "working or waiting" (作業中・待機) and "done" (完了).
+  - Clicking any group heading, "needs action" included, collapses or expands that group. A
+    collapsed heading keeps its count, and glows when a hidden session sends a message. The browser
+    remembers the collapsed groups.
   - Each card shows a state badge, a task progress bar (hidden in the `done` state), the remaining work, the PR and CI, the
     tokens and cost, the last update, and any unanswered question (with its options, its default,
     and the command to answer it).
@@ -440,6 +448,10 @@ label, it gives the English label and the Japanese label in parentheses.
     neither does a session suspected stale.
   - A "ready for review" claim that rests on the self-report alone, without passing the gate (§4.1),
     shows as "Not yet reviewable" (レビュー条件未達) together with the unmet reason.
+- **Independent scrolling**: in the list layout, in a window wider than 860px and at least 480px tall, the session list
+  and the detail panel on the right scroll separately. A smaller window scrolls as one page.
+- **Connector line**: in the same layout, a line joins the selected session's card to the detail
+  panel. The line turns dashed while the card is scrolled out of the list.
 - **Timeline** (right): traces the reports from children in time order, in two forms.
   - **Feed**: events grouped by date. Each row shows the time, the session, the type, the text, and
     what the event changed (state A→B, phase, task count, a resolved question).
@@ -633,7 +645,7 @@ claude-code-session-hub/
 | Review conditions not met | The child claimed "ready for review", but the gate did not pass. The dashboard shows the unmet reason |
 | Self-report / self-check | What a child declares with `session-hub ready`: the self-review, added tests, and the PR description are done |
 | Stale | A session that should be working but has not reported for a set time (default 30 minutes). It may have crashed |
-| Priority | The dashboard's sort order (§4.3). A human wait that blocks the child ranks highest |
+| Priority | The order of `session-hub attention` (§4.3). A human wait that blocks the child ranks highest |
 | Spinner | The rotating icon that marks a child as active (planning, working, or addressing changes) |
 | Feed | One form of the timeline: events listed in time order |
 | Swimlanes | One form of the timeline: one horizontal band per session, with state changes shown in color |
