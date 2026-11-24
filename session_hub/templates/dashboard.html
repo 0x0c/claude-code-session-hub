@@ -120,7 +120,9 @@ main.grid .newbar { top: 48px; }
   background: color-mix(in srgb, var(--s-needs) 6%, var(--panel)); }
 .action-section .project:not(:hover) { background: none; }
 main .action-section .project { margin: 0; border: 0; border-radius: calc(var(--radius-lg) - 1px); }
-main:not(.grid) .action-section .cardwrap:last-child .card { border-radius: 0 0 calc(var(--radius-lg) - 1px) calc(var(--radius-lg) - 1px); }
+main:not(.grid) .action-section .cards > .cardwrap:last-child .card { border-radius: 0 0 calc(var(--radius-lg) - 1px) calc(var(--radius-lg) - 1px); }
+main:not(.grid) .action-section .cards > .family:last-child > .kids > .kid:last-child > .cardwrap:last-child .card,
+main:not(.grid) .action-section .cards > .family:last-child > .kids > .kid:last-child > .kids > .kid:last-child > .cardwrap:last-child .card { border-bottom-right-radius: calc(var(--radius-lg) - 1px); }
 main.grid .action-section { margin: var(--space-14) 0 var(--space-4); padding: 0 var(--space-12) var(--space-12); }
 main.grid .action-section .card:not(.selected):not(:hover) { background: var(--panel); }
 .project { display: flex; align-items: center; gap: var(--space-8); width: 100%; padding: var(--space-8) var(--space-14); border: 0; text-align: left;
@@ -141,6 +143,22 @@ main.grid .subcards { padding: var(--space-4) 0 var(--space-8) var(--space-24); 
 .cardwrap:hover .card { background: var(--hover); }
 .card.selected { background: var(--hover); border-left-color: var(--accent); }
 .cardwrap { position: relative; }
+.parentlink { max-width: 100%; padding: 0; border: 0; overflow: hidden; background: none; color: var(--accent); font-size: var(--fs-meta);
+  text-align: left; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.parentlink:hover { text-decoration: underline; }
+/* Sub-sessions under their parent's card: indented, and tied to it by lines */
+.kids { padding-left: var(--space-24); }
+.kid { position: relative; }
+.kid::before { content: ""; position: absolute; z-index: 1; left: -10px; top: 0; bottom: 0; border-left: 1.5px solid var(--muted); pointer-events: none; }
+.kid:last-child::before { bottom: auto; height: 20px; }
+.kid::after { content: ""; position: absolute; z-index: 1; left: -10px; top: 20px; width: 10px; border-top: 1.5px solid var(--muted); pointer-events: none; }
+main.grid .family { min-width: 0; }
+main.grid .family .card { height: auto; }
+main.grid .kid { padding-top: var(--space-8); }
+main.grid .kid:last-child::before { height: calc(20px + var(--space-8)); }
+main.grid .kid::after { top: calc(20px + var(--space-8)); }
+/* A family is taller than a card, and stretching its neighbors to match would leave them mostly empty */
+main.grid .cards:has(> .family) { align-items: start; }
 .cardwrap.deletable .row1 { padding-right: calc(26px + var(--space-2)); }
 /* A sibling of the card, not a child: the card is itself a button. Above a glowing card (z-index 1) */
 .carddel { position: absolute; z-index: 2; top: 9px; right: 8px; width: 26px; height: 26px; padding: 0; border: 0;
@@ -370,11 +388,13 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       "type.start": "Start", "type.report": "Report", "type.ask": "Question", "type.answer": "Answer",
       "type.command": "Command", "type.ready": "Ready", "type.pr": "PR/CI", "type.done": "Done",
       "type.fail": "Failure", "type.finding": "Finding", "type.heartbeat": "heartbeat",
-      "type.archive": "Archived", "type.unarchive": "Unarchived",
+      "type.archive": "Archived", "type.unarchive": "Unarchived", "type.parent": "Parent found",
       "ago.now": "just now", "ago.min": "{n} min ago", "ago.hour": "{n} h ago", "ago.day": "{n} d ago",
       "sessions.empty": "No reports yet. They appear here when a sub-session runs `session-hub start`.",
       "group.action": "Needs action", "group.active": "Working and waiting", "group.done": "Done", "group.archived": "Archived",
       "card.progress": "{done}/{total} · ≈{rem} left", "card.threads": " · {n} open threads",
+      "card.children": "{n} sub-sessions", "card.children_one": "1 sub-session", "card.childrenOf": "Sub-sessions of {name}",
+      "card.showParent": "Show the parent session {name}",
       "card.showTimeline": "Show the timeline of {name}", "card.working": "Working",
       "ask.blocking": " (blocked)", "ask.nonblocking": " (continuing with the default)",
       "ask.answer": "Answer: session-hub answer {sid} --qid {q} --value <value>", "gate.prefix": "Missing: ",
@@ -436,11 +456,13 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       "type.start": "開始", "type.report": "報告", "type.ask": "質問", "type.answer": "回答",
       "type.command": "指示", "type.ready": "準備完了", "type.pr": "PR/CI", "type.done": "完了",
       "type.fail": "失敗", "type.finding": "知見", "type.heartbeat": "heartbeat",
-      "type.archive": "アーカイブ", "type.unarchive": "アーカイブ解除",
+      "type.archive": "アーカイブ", "type.unarchive": "アーカイブ解除", "type.parent": "親の検出",
       "ago.now": "たった今", "ago.min": "{n}分前", "ago.hour": "{n}時間前", "ago.day": "{n}日前",
       "sessions.empty": "まだ報告がありません。子セッションで `session-hub start` を実行すると表示されます。",
       "group.action": "要対応", "group.active": "作業中・待機", "group.done": "完了", "group.archived": "アーカイブ済み",
       "card.progress": "{done}/{total} 残≈{rem}", "card.threads": " 指摘{n}",
+      "card.children": "子 {n}", "card.childrenOf": "{name} の子セッション",
+      "card.showParent": "親セッション {name} を表示",
       "card.showTimeline": "{name} のタイムラインを表示", "card.working": "作業中",
       "ask.blocking": "（停止中）", "ask.nonblocking": "（既定値で継続中）",
       "ask.answer": "回答: session-hub answer {sid} --qid {q} --value <値>", "gate.prefix": "未達: ",
@@ -504,7 +526,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     in_review: "--s-wait", changes_requested: "--s-needs", done: "--s-done", abandoned: "--s-done",
     queued: "--s-queue", archived: "--s-queue",
   };
-  const TYPE_KEYS = ["start", "report", "ask", "answer", "command", "ready", "pr", "done", "fail", "finding", "archive", "unarchive", "heartbeat"];
+  const TYPE_KEYS = ["start", "report", "ask", "answer", "command", "ready", "pr", "done", "fail", "finding", "archive", "unarchive", "parent", "heartbeat"];
   let STATE, TYPES;
   function buildLabels() {
     STATE = Object.fromEntries(Object.entries(STATE_COLORS).map(([k, c]) => [k, [t("state." + k), c]]));
@@ -629,6 +651,33 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
   // Keys of the headings above a session's card, outermost first
   const groupKeys = (s) => (inProject(s) ? [s.repo || "", subKey(s.repo || "", statusOf(s))] : ["status:" + statusOf(s)]);
 
+  // The parent of a session, when the hub knows it and the links form no loop
+  function parentOf(s, byId) {
+    const parent = byId.get(s.parent_id);
+    const seen = new Set();
+    for (let p = parent; p && !seen.has(p); p = byId.get(p.parent_id)) {
+      if (p === s) return null; // A session is no ancestor of itself
+      seen.add(p);
+    }
+    return parent || null;
+  }
+  const sessionsById = () => new Map(db.sessions.map((s) => [s.session_id, s]));
+
+  // The sessions of one card list as a forest of {s, kids}. A session goes under its parent when both are
+  // in the list; a family takes the place of its most recently updated member.
+  function families(list, byId) {
+    const nodes = new Map(list.map((s) => [s, { s, kids: [] }]));
+    const up = new Map(list.map((s) => [s, nodes.get(parentOf(s, byId))]));
+    const roots = new Set();
+    for (const s of list) {
+      let top = s;
+      while (up.get(top)) top = up.get(top).s;
+      roots.add(nodes.get(top));
+      if (up.get(s)) up.get(s).kids.push(nodes.get(s));
+    }
+    return [...roots];
+  }
+
   // [key, label, sessions] of each non-empty group, in display order
   function sessionGroups(sessions) {
     const status = (id) => ["status:" + id, t("group." + id), sessions.filter((s) => statusOf(s) === id)];
@@ -692,7 +741,9 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     if (closed !== undefined) return focusGroup(closed);
     const wraps = [...box.querySelectorAll(".cardwrap")];
     const next = wraps.find((w) => w.dataset.sid === wrap.dataset.sid) || wraps[Math.min(at, wraps.length - 1)];
-    if (next) next.querySelector(old.classList.contains("carddel") ? ".carddel" : ".card").focus({ preventScroll: true });
+    if (!next) return;
+    const control = ["carddel", "parentlink"].find((c) => old.classList.contains(c));
+    ((control && next.querySelector("." + control)) || next.querySelector(".card")).focus({ preventScroll: true });
   }
 
   function rebuildSessions(box) {
@@ -702,7 +753,24 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       return;
     }
     const sorted = [...db.sessions].sort(byRecent);
-    const cards = (list, named) => el("div", { class: "cards" }, list.map((s) => sessionCard(s, named)));
+    const byId = sessionsById();
+    const counts = new Map();
+    for (const s of db.sessions) {
+      const parent = parentOf(s, byId);
+      if (parent) counts.set(parent, (counts.get(parent) || 0) + 1);
+    }
+    // A card under its parent needs no link to it
+    const family = (node, named, nested) => {
+      const card = sessionCard(node.s, named, { parent: nested ? null : parentOf(node.s, byId), children: counts.get(node.s) });
+      if (!node.kids.length) return [card];
+      const name = node.s.title || node.s.session_id;
+      return [card, el("div", { class: "kids", role: "group", "aria-label": t("card.childrenOf", { name }) },
+        node.kids.map((kid) => el("div", { class: "kid" }, family(kid, named, true))))];
+    };
+    const cards = (list, named) => el("div", { class: "cards" }, families(list, byId).map((node) => {
+      const parts = family(node, named, false);
+      return parts.length > 1 ? el("div", { class: "family" }, parts) : parts[0];
+    }));
     const subgroups = (project, list) => projectStatusGroups(project, list).flatMap(([key, label, part]) =>
       [groupHeader(key, label, part, project), isCollapsed(key) ? null : el("div", { class: "subcards" }, cards(part, true))]);
     for (const [key, label, list] of sessionGroups(sorted)) {
@@ -724,13 +792,46 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     }, prName(pr));
   }
 
-  function sessionCard(s, inProject) {
+  // Show a session from a link to it: open the groups that hide its card, then select it
+  function showSession(sid) {
+    const s = db.sessions.find((x) => x.session_id === sid);
+    if (!s) return;
+    const closed = groupKeys(s).filter(isCollapsed);
+    for (const mark of closed.map(foldMark)) ui.collapsed.has(mark) ? ui.collapsed.delete(mark) : ui.collapsed.add(mark);
+    if (closed.length) try { localStorage.setItem("hub.collapsed", JSON.stringify([...ui.collapsed])); } catch (_) {}
+    selectSession(sid);
+    const opens = ui.layout === "grid" && !ui.panelOpen;
+    if (opens) openPanel(sid);
+    const card = [...document.querySelectorAll("#sessions .card")].find((c) => c.dataset.sid === sid);
+    if (!card) return;
+    if (isSplit()) revealSelectedCard();
+    else {
+      card.scrollIntoView({ block: "nearest" });
+      // The header is sticky, so it can cover the top of the card
+      const covered = document.querySelector("header").getBoundingClientRect().bottom - card.getBoundingClientRect().top;
+      if (covered > 0) window.scrollBy({ top: -covered, behavior: "instant" });
+    }
+    if (!opens) card.focus({ preventScroll: true }); // An opened panel took the focus
+  }
+
+  function parentLink(parent) {
+    const name = parent.title || parent.session_id;
+    const label = t("card.showParent", { name });
+    return el("button", { class: "parentlink", type: "button", title: label, "aria-label": label,
+      onclick: (e) => { e.stopPropagation(); showSession(parent.session_id); },
+      onkeydown: (e) => { if (e.key === "Enter" || e.key === " ") e.stopPropagation(); }, // The card would take the key
+    }, "↳ " + name);
+  }
+
+  function sessionCard(s, inProject, { parent = null, children = 0 } = {}) {
     const p = s.progress || { done: 0, total: 0, remaining: 0 };
     const pct = p.total ? Math.round((p.done / p.total) * 100) : 0;
     const pr = s.pr || {};
     const prUrl = prWebUrl(pr);
     const u = s.usage || {};
     const meta = [
+      parent && parentLink(parent),
+      children ? el("span", {}, t("card.children", { n: children })) : null,
       !inProject && s.repo && el("span", {}, s.repo),
       s.task_ref && el("span", {}, s.task_ref),
       p.total ? el("span", {}, t("card.progress", { done: p.done, total: p.total, rem: p.remaining })) : null,
@@ -797,6 +898,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
   function eventText(e) {
     if (e.type === "ask") return (e.attention && e.attention.question) || "";
     if (e.type === "answer") return `Q${e.qid} → ${e.value}`;
+    if (e.type === "parent") return e.parent_hint ? "↳ " + sessionName(e.parent_hint) : "";
     if (e.type === "fail") return e.last_error || e.summary || "";
     if (e.type === "pr") {
       const p = e.pr || {};

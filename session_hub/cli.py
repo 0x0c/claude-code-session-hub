@@ -64,6 +64,8 @@ def cmd_start(a):
         a.repo = project.for_session(sid)
     f = {"type": "start", "state": a.state, "title": a.title, "task_ref": a.task_ref,
          "parent_id": a.parent, "repo": a.repo, "branch": a.branch, "summary": a.summary}
+    if sid == current_session_id():  # Our environment says nothing about another session's parent
+        f["parent_hint"] = os.environ.get("HUB_PARENT_SESSION_ID") or None
     if a.task:
         f["task_updates"] = a.task
     _record(a, {k: v for k, v in f.items() if v is not None})
@@ -352,7 +354,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub = p.add_subparsers(dest="cmd", required=True)
 
     s = sub.add_parser("start", help="record the start of a session")
-    s.add_argument("--title", help="shown until the session has a name in Claude Code"); s.add_argument("--task-ref"); s.add_argument("--parent")
+    s.add_argument("--title", help="shown until the session has a name in Claude Code"); s.add_argument("--task-ref"); s.add_argument("--parent", help="session ID of the parent (default: HUB_PARENT_SESSION_ID)")
     s.add_argument("--repo", help="project to group by (default: the Git remote or the folder name)")
     s.add_argument("--branch"); s.add_argument("--summary")
     s.add_argument("--state", default="planning", choices=schema.STATES)

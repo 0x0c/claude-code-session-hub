@@ -93,7 +93,7 @@ def seed(store: EventStore, lang: str = "ja") -> None:
     t = lambda m: iso(now - timedelta(minutes=m))  # noqa: E731
     A, B, C, D, E, F = ("session_01RateLimit", "session_02LogFormat", "session_03SearchIdx",
                         "session_04DepsBump", "session_05ImgResize", "session_06Timeout")
-    P = "session_00Parent"
+    P = "session_00Parent"  # Outside the hub, so the sessions that name it show no parent
 
     def add(sid, minutes_ago, writer=None, **f):
         store.append(sid, {"ts": t(minutes_ago), **f}, writer=writer)
@@ -123,7 +123,7 @@ def seed(store: EventStore, lang: str = "ja") -> None:
 
     # C: working
     plan = [("t.schema", "S"), ("t.batch", "L"), ("t.incr", "M"), ("t.api", "M"), ("t.tests", "M")]
-    add(C, 130, type="start", repo="acme/search", title=x["c.title"], task_ref="#140", parent_id=P, state="planning",
+    add(C, 130, type="start", repo="acme/search", title=x["c.title"], task_ref="#140", parent_id=B, state="planning",
         tasks=tasks(*[(k, "todo", s) for k, s in plan]))
     for i, (m, summ) in enumerate([(110, "c.s1"), (70, "c.s2"), (25, "c.s3")]):
         progress = [(k, "done" if j < i else "doing" if j == i else "todo", s) for j, (k, s) in enumerate(plan)]
@@ -131,7 +131,7 @@ def seed(store: EventStore, lang: str = "ja") -> None:
     add(C, 2, type="heartbeat", actor="hook", usage={"input": 410000, "output": 38000, "cost_usd": 3.1, "context_pct": 62})
 
     # D: failed
-    add(D, 100, type="start", repo="acme/web-api", title=x["d.title"], parent_id=P, state="working", summary=x["d.s1"])
+    add(D, 100, type="start", repo="acme/web-api", title=x["d.title"], parent_id=B, state="working", summary=x["d.s1"])
     add(D, 55, type="fail", last_error=x["d.err"])
 
     # E: stalled (stale heartbeat)

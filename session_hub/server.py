@@ -13,7 +13,8 @@ Flow:
 - Auxiliary options: `--watch-files` (detect direct writes to the store) and `--pull-every`
   (pull a Git store).
 - The server also looks at the Claude desktop app's session files every few seconds (a local,
-  read-only check) and records an archive or unarchive event when the user archives a session there.
+  read-only check) and records an archive or unarchive event when the user archives a session there,
+  and a parent event when the app started the session from another session of the hub.
 
 Endpoints:
     GET  /              dashboard (HTML)
@@ -107,7 +108,7 @@ class Hub:
         return deleted
 
     def sync_desktop(self) -> int:
-        """Mirror the desktop app's archive flags into the store; return how many events that took.
+        """Mirror the desktop app's archive flags and parents into the store; return how many events that took.
 
         We undo only what we recorded ourselves: a session archived by hand stays archived even
         though the app shows it as open.
@@ -117,28 +118,34 @@ class Hub:
         flags = self.desktop.scan()
         recorded = 0
         with self.write_lock:
+            known = {s["session_id"] for s in self.snap["sessions"]}
             for s in self.snap["sessions"]:
                 sid = s["session_id"]
-                if sid not in flags or self._desktop_event(s, flags[sid]) is None:
+                # An unknown parent waits: the app may still give the parent another session ID
+                parent = self.desktop.parents.get(sid)
+                parent = parent if parent in known else None
+                if sid not in flags or not self._desktop_events(s, flags[sid], parent):
                     continue
                 # Decide again from the store, which another process may have written to or deleted from
                 events = self.store.read(sid)
-                kind = self._desktop_event(schema.fold(events), flags[sid]) if events else None
-                if kind:
-                    core.record(self.store, sid, {"type": kind, "actor": "script"}, writer=schema.DESKTOP_WRITER)
+                for fields in self._desktop_events(schema.fold(events), flags[sid], parent) if events else []:
+                    core.record(self.store, sid, {**fields, "actor": "script"}, writer=schema.DESKTOP_WRITER)
                     recorded += 1
             if recorded:
                 self.publish()
         return recorded
 
     @staticmethod
-    def _desktop_event(status: dict, archived: bool) -> str | None:
+    def _desktop_events(status: dict, archived: bool, parent: str | None) -> list[dict]:
+        out = []
+        if parent and not status["parent_id"]:
+            out.append({"type": "parent", "parent_hint": parent})
         current = status["archived"]
         if archived and not current:
-            return "archive"
-        if not archived and current and current["by"] == schema.DESKTOP_WRITER:
-            return "unarchive"
-        return None
+            out.append({"type": "archive"})
+        elif not archived and current and current["by"] == schema.DESKTOP_WRITER:
+            out.append({"type": "unarchive"})
+        return out
 
     # ---- Client management ----
     def subscribe(self) -> tuple[queue.Queue, dict]:

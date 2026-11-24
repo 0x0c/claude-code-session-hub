@@ -34,10 +34,15 @@ EVENT_TYPES = (
     "finding",    # insight, caveat, or similar learned during work (aggregated into collections)
     "archive",    # the session was archived (by the desktop app or by hand)
     "unarchive",  # the session came back from the archive
+    "parent",     # the hub detected which session started this one (the desktop app's record)
 )
 
 ARCHIVE_TYPES = ("archive", "unarchive")
-# The writer name of the archive events that mirror the Claude desktop app
+# Records about a session that are not activity of it
+BOOKKEEPING_TYPES = (*ARCHIVE_TYPES, "parent")
+# Where a session's parent came from, weakest first
+PARENT_SOURCES = ("desktop", "environment", "reported")
+# The writer name of the events that mirror the Claude desktop app
 DESKTOP_WRITER = "desktop"
 
 ACTORS = ("child", "parent", "hook", "human", "script")
@@ -52,7 +57,7 @@ FINDING_STATUS = ("active", "obsolete")
 LIMITS = {
     "summary": 80, "next": 80, "note": 200, "question": 200, "last_error": 120,
     "title": 80, "session_name": 200, "task": 40, "option": 40, "value": 200,
-    "body": 600, "tag": 30, "scope": 120, "key": 80, "repo": 120, "repo_hint": 120, "pr_url": 500,
+    "body": 600, "tag": 30, "scope": 120, "key": 80, "repo": 120, "repo_hint": 120, "pr_url": 500, "parent_hint": 128,
 }
 
 
@@ -101,6 +106,18 @@ def _normalize_pr_link(link) -> dict | None:
     if len(url) > LIMITS["pr_url"] or not re.match(r"https?://[^\s/]", url):
         return None
     return {"number": number, "url": url}
+
+
+def _apply_parent(st: dict, ev: dict) -> None:
+    """Fold the reported or detected parent into st["parent_id"]; a weaker source never replaces a stronger one."""
+    value, source = ev.get("parent_id"), "reported"
+    if not value:
+        value, source = ev.get("parent_hint"), "desktop" if ev["type"] == "parent" else "environment"
+    if not value or value == st["session_id"]:
+        return
+    known = st["parent_source"]
+    if known is None or PARENT_SOURCES.index(source) >= PARENT_SOURCES.index(known):
+        st["parent_id"], st["parent_source"] = value, source
 
 
 def _apply_pr(st: dict, ev: dict) -> None:
@@ -158,6 +175,14 @@ def normalize_event(ev: dict) -> dict:
         if ev["pr_link"] is None:
             del ev["pr_link"]
 
+    # Likewise for the parent that a hook or the command found by itself
+    if "parent_hint" in ev:
+        hint = ev["parent_hint"]
+        if not isinstance(hint, str) or not hint.strip() or len(hint) > LIMITS["parent_hint"]:
+            del ev["parent_hint"]
+        else:
+            ev["parent_hint"] = hint.strip()
+
     att = ev.get("attention")
     if att:
         _check_enum(att.get("kind"), ATTENTION_KINDS, "attention.kind")
@@ -197,7 +222,7 @@ def normalize_event(ev: dict) -> dict:
 def empty_status(session_id: str) -> dict:
     return {
         "v": SCHEMA_VERSION, "session_id": session_id,
-        "title": None, "session_name": None, "parent_id": None, "task_ref": None, "repo": None, "branch": None,
+        "title": None, "session_name": None, "parent_id": None, "parent_source": None, "task_ref": None, "repo": None, "branch": None,
         "state": "queued", "phase": None, "summary": None, "next": None, "confidence": None,
         "tasks": [], "attention": None, "pr": {}, "pr_link": None, "ready": {}, "usage": {},
         "last_error": None, "archived": None, "started_at": None, "updated_at": None, "heartbeat": None,
@@ -209,6 +234,9 @@ def apply_event(status: dict, ev: dict) -> dict:
     """Return a new status dict advanced by one event."""
     st = copy.deepcopy(status)
     st["event_count"] += 1
+    if ev["type"] == "parent":
+        _apply_parent(st, ev)
+        return st
     if ev["type"] in ARCHIVE_TYPES:
         # Archiving is bookkeeping about the session, not activity of it: the state, an open
         # question, and the liveness times all stay, so that unarchiving restores them.
@@ -228,10 +256,11 @@ def apply_event(status: dict, ev: dict) -> dict:
     if st["started_at"] is None:
         st["started_at"] = ev["ts"]
 
-    for key in ("title", "session_name", "parent_id", "task_ref", "repo", "branch", "phase",
+    for key in ("title", "session_name", "task_ref", "repo", "branch", "phase",
                 "summary", "next", "confidence", "last_error"):
         if ev.get(key) is not None:
             st[key] = ev[key]
+    _apply_parent(st, ev)
     if not st["repo"] and ev.get("repo_hint"):  # A detected project fills a gap alone
         st["repo"] = ev["repo_hint"]
     if st["session_name"]:  # The name Claude Code shows wins over the reported title

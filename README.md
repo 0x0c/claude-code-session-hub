@@ -17,6 +17,10 @@ them on a browser dashboard.
   recently updated first, and splits each project into "Working and waiting" and "Done". The
   name comes from the Git remote or the folder; `session-hub start --repo <name>` overrides it. The
   **By project** button switches to grouping by status.
+- **Families at a glance.** A sub-session sits under its parent's card, tied to it by lines, or links to
+  its parent when the two are in different groups. The hub finds the parent of a session that the Claude
+  desktop app on macOS started from another session; elsewhere, `session-hub start --parent <id>` or
+  `HUB_PARENT_SESSION_ID` names it.
 - **A few lines for the parent.** The parent session reads no transcripts. It decides from the few
   lines that `session-hub attention` prints.
 - **One place for what sub-sessions learn.** A sub-session records findings, caveats, and decisions
@@ -333,10 +337,10 @@ alone to the parent with `send_message`.
 | `HUB_TOKEN` | The hub's authentication token (shared by server and clients) |
 | `HUB_STORE` | The store directory (for the server, or when running without a server) |
 | `HUB_SESSION_ID` | This session's ID (read from Claude Code's environment variables when unset) |
-| `HUB_PARENT_SESSION_ID` | The parent's session ID (where a child sends `[HUB/1]` lines) |
+| `HUB_PARENT_SESSION_ID` | The parent's session ID (where a child sends `[HUB/1]` lines, and the parent the dashboard shows when `start` has no `--parent`) |
 | `HUB_STOP_GUARD` | `0` disables the Stop hook's prompt |
 | `HUB_AUTOSTART` | `1` starts the local hub server at session start if it is not running (only when `HUB_URL` points to 127.0.0.1 or localhost) |
-| `HUB_DESKTOP_SESSIONS` | The directory of the Claude desktop app's session files, which the hub server reads to detect archived sessions (default on macOS: `~/Library/Application Support/Claude/claude-code-sessions`); `0` turns detection off |
+| `HUB_DESKTOP_SESSIONS` | The directory of the Claude desktop app's session files, which the hub server reads to detect archived sessions and parents (default on macOS: `~/Library/Application Support/Claude/claude-code-sessions`); `0` turns detection off |
 | `HUB_OUTBOX` / `HUB_STATE_DIR` | Where the outbox and local state live (default `~/.cache/...`) |
 
 ## Tests

@@ -48,6 +48,40 @@ class SchemaTest(TmpMixin, unittest.TestCase):
         self.assertEqual(res["status"]["state"], "working")
         self.assertIsNone(res["escalate"])  # The parent's own write does not notify
 
+    def test_parent_sources(self):
+        def fold(*events):
+            return schema.fold([schema.normalize_event({"session_id": "c", "seq": i + 1, "ts": schema.now_iso(), **e})
+                                for i, e in enumerate(events)])
+        desktop_hint = {"type": "parent", "actor": "script", "parent_hint": "D"}
+        env_hint = {"type": "start", "parent_hint": "E"}
+        reported = {"type": "start", "parent_id": "R"}
+        for events, want in (
+                ([env_hint], ("E", "environment")), ([desktop_hint], ("D", "desktop")),
+                ([desktop_hint, env_hint], ("E", "environment")), ([env_hint, desktop_hint], ("E", "environment")),
+                ([reported, env_hint, desktop_hint], ("R", "reported")), ([env_hint, reported], ("R", "reported")),
+                ([{"type": "start", "parent_id": "c"}], (None, None)),
+                ([{"type": "start", "parent_hint": ["x"]}], (None, None)),
+                ([{"type": "start", "parent_hint": "x" * 200}], (None, None))):
+            st = fold(*events)
+            self.assertEqual((st["parent_id"], st["parent_source"]), want)
+        # Detecting the parent is not activity of the session, and makes no session by itself
+        st = fold(env_hint, {"type": "done"})
+        after = schema.apply_event(st, {**desktop_hint, "ts": "2999-01-01T00:00:00Z"})
+        self.assertEqual(after["heartbeat"], st["heartbeat"])
+        self.store.append("c", desktop_hint, writer="desktop")
+        self.assertEqual(view.snapshot(self.store.read_all())["sessions"], [])
+
+    def test_cli_start_takes_the_parent_from_the_environment(self):
+        env = {"HUB_STORE": str(self.store.root), "HUB_SESSION_ID": "kid", "HUB_PARENT_SESSION_ID": "mom",
+               "HUB_STATE_DIR": str(self.dir / "state")}
+        with mock.patch.dict(os.environ, env), redirect_stdout(io.StringIO()):
+            os.environ.pop("HUB_URL", None)
+            cli.main(["start", "--title", "x"])
+            self.assertEqual(schema.fold(self.store.read("kid"))["parent_id"], "mom")
+            cli.main(["start", "--title", "x", "--parent", "dad"])
+            cli.main(["start", "--title", "x"])
+        self.assertEqual(schema.fold(self.store.read("kid"))["parent_id"], "dad")
+
     def test_validation_and_clipping(self):
         with self.assertRaises(schema.SchemaError):
             core.record(self.store, "s1", {"type": "nope"})
@@ -538,11 +572,12 @@ class ServerTest(TmpMixin, unittest.TestCase):
             self.assertEqual(out.getvalue().strip(), "deleted c2 (1 events)")
         self.assertEqual(self.store.session_ids(), [])
 
-    def desktop_file(self, sid, archived, name="a"):
+    def desktop_file(self, sid, archived, name="a", parent=None):
         d = self.dir / "desktop" / "acct" / "org"
         d.mkdir(parents=True, exist_ok=True)
         path = d / f"local_{name}.json"
-        path.write_text(json.dumps({"cliSessionId": sid, "isArchived": archived}))
+        path.write_text(json.dumps({"cliSessionId": sid, "isArchived": archived, "sessionId": f"local_{name}",
+                                    **({"spawnedFrom": {"sessionId": f"local_{parent}"}} if parent else {})}))
         return path
 
     def test_desktop_archive_is_mirrored(self):
@@ -581,6 +616,35 @@ class ServerTest(TmpMixin, unittest.TestCase):
         self.store.delete_session("c1")  # Behind the hub's back: the event must not bring it back
         self.assertEqual(self.hub.sync_desktop(), 0)
         self.assertEqual(self.store.session_ids(), [])
+
+    def test_desktop_parent_is_recorded_once_the_hub_knows_it(self):
+        self.hub.desktop = desktop.DesktopSessions(self.dir / "desktop")
+        self.desktop_file("p1", False, "p")
+        self.desktop_file("c1", False, "c", parent="p")
+        client.post(self.url, {"session_id": "c1", "fields": {"type": "start"}}, token="tok")
+        self.assertEqual(self.hub.sync_desktop(), 0)
+        client.post(self.url, {"session_id": "p1", "fields": {"type": "start"}}, token="tok")
+        self.assertEqual(self.hub.sync_desktop(), 1)
+        self.assertEqual(self.hub.sync_desktop(), 0)
+        st = schema.fold(self.store.read("c1"))
+        self.assertEqual((st["parent_id"], st["parent_source"]), ("p1", "desktop"))
+        # A session that reported its parent keeps it
+        self.desktop_file("c2", False, "c2", parent="p")
+        client.post(self.url, {"session_id": "c2", "fields": {"type": "start", "parent_id": "c1"}}, token="tok")
+        self.assertEqual(self.hub.sync_desktop(), 0)
+
+    def test_desktop_parent_that_is_odd_or_ambiguous_is_ignored(self):
+        d = desktop.DesktopSessions(self.dir / "desktop")
+        self.desktop_file("p1", False, "p")
+        self.desktop_file("p2", False, "q")
+        self.desktop_file("self", False, "s", parent="s")
+        self.desktop_file("gone", False, "g", parent="deleted")
+        self.desktop_file("two", False, "t1", parent="p")
+        self.desktop_file("two", False, "t2", parent="q")
+        odd = self.desktop_file("odd", False, "o")
+        odd.write_text(json.dumps({"cliSessionId": "odd", "isArchived": False, "spawnedFrom": {"sessionId": ["x"]}}))
+        self.assertEqual(d.scan()["odd"], False)
+        self.assertEqual(d.parents, {})
 
     def test_desktop_session_shared_by_two_app_sessions(self):
         self.desktop_file("c1", True, "a")
@@ -772,6 +836,11 @@ class HooksTest(TmpMixin, unittest.TestCase):
         self.run_hook("stop", {"transcript_path": str(t), "stop_hook_active": True})
         st = schema.fold(self.store.read("kid"))
         self.assertEqual((st["usage"]["input"], st["usage"]["output"]), (15, 2))
+
+    def test_stop_sends_the_parent_of_the_environment(self):
+        with mock.patch.dict(os.environ, {"HUB_PARENT_SESSION_ID": "mom"}):
+            self.run_hook("stop", {"stop_hook_active": True})
+        self.assertEqual(schema.fold(self.store.read("kid"))["parent_id"], "mom")
 
     def test_session_name_becomes_the_title(self):
         t = self.dir / "t.jsonl"
