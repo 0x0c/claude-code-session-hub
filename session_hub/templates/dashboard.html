@@ -81,6 +81,13 @@ main.grid #detail.open { transform: none; visibility: visible; box-shadow: -8px 
 main.grid #detail > h2 { position: sticky; top: 0; z-index: 4; background: var(--panel); }
 main.grid .newbar { top: 48px; }
 @media (prefers-reduced-motion: reduce) { main.grid #detail.slide, main.grid #detail.slide.open { transition: none; } }
+/* Sessions that need action: a section of its own above the other groups */
+.action-section { margin: 10px; border: 1px solid var(--s-needs); border-radius: 8px;
+  background: color-mix(in srgb, var(--s-needs) 6%, var(--panel)); }
+.action-section .group-title { color: var(--s-needs); }
+main:not(.grid) .action-section .cardwrap:last-child .card { border-radius: 0 0 7px 7px; }
+main.grid .action-section { margin: 14px 0 4px; padding: 0 12px 12px; }
+main.grid .action-section .card:not(.selected):not(:hover) { background: var(--panel); }
 .group-title { font-size: 11px; font-weight: 600; letter-spacing: .04em; color: var(--muted); padding: 10px 14px 4px; }
 .project { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 14px; border: 0; text-align: left;
   border-top: 1px solid var(--line); background: var(--bg); cursor: pointer; font-size: 12px; font-weight: 600; }
@@ -272,7 +279,7 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
       "btn.theme": "Theme", "btn.themeTitle": "Switch between light and dark",
       "btn.lang": "日本語", "btn.langTitle": "表示を日本語に切り替える",
       "btn.byProject": "By project", "btn.byProjectTitle": "Group sessions by repository or project; turn off to group by status",
-      "project.none": "No project", "project.action": "{n} need action", "project.action_one": "1 needs action",
+      "project.none": "No project",
       "sessions.title": "Sessions", "sessions.clear": "Clear selection",
       "sessions.delete": "Delete session", "sessions.deleteTitle": "Delete every stored message of this session",
       "sessions.deleteOne": "Delete {name}",
@@ -329,7 +336,7 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
       "btn.theme": "テーマ", "btn.themeTitle": "テーマ切替",
       "btn.lang": "English", "btn.langTitle": "Switch the display to English",
       "btn.byProject": "プロジェクト別", "btn.byProjectTitle": "リポジトリやプロジェクトごとにまとめます。オフにすると状態別になります",
-      "project.none": "プロジェクトなし", "project.action": "要対応 {n}",
+      "project.none": "プロジェクトなし",
       "sessions.title": "セッション", "sessions.clear": "選択解除",
       "sessions.delete": "セッションを削除", "sessions.deleteTitle": "このセッションの保存済みメッセージをすべて削除",
       "sessions.deleteOne": "{name} を削除",
@@ -503,11 +510,14 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
   const laneColor = (sid) => `hsl(${hue(sid)} 55% 50%)`;
 
   // ---- Session list ----
-  // Sessions by project. The server sorts sessions by urgency, so the first appearance of a project
-  // puts the project with the most urgent session on top; sessions without a project come last.
-  function projectGroups() {
+  // Most recently updated first, by the same timestamp that the card shows
+  const byRecent = (a, b) => (a.heartbeat > b.heartbeat ? -1 : a.heartbeat < b.heartbeat ? 1 : 0);
+
+  // Sessions by project, in the order of each project's first session in the given list; sessions
+  // without a project come last.
+  function projectGroups(sessions) {
     const groups = new Map();
-    for (const s of db.sessions) {
+    for (const s of sessions) {
       const key = s.repo || "";
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key).push(s);
@@ -517,7 +527,6 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
 
   function projectHeader(key, list) {
     const open = !ui.collapsed.has(key);
-    const action = list.filter((s) => s.needs_action).length;
     // A collapsed project hides its cards, so the header carries their glow
     return el("button", glowProps(open ? [] : list.map((s) => glowKey.session(s.session_id)), {
       class: "project", type: "button", "aria-expanded": String(open), title: key,
@@ -529,7 +538,6 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     }),
       el("span", { class: "chev", "aria-hidden": "true" }, "▸"),
       el("span", { class: "pname" }, key || t("project.none")),
-      action ? el("span", { class: "badge", style: { background: "var(--s-needs)" } }, t("project.action", { n: action })) : null,
       el("span", { class: "count" }, String(list.length)));
   }
 
@@ -557,31 +565,35 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
       box.append(el("div", { class: "empty" }, t("sessions.empty")));
       return;
     }
+    const sorted = [...db.sessions].sort(byRecent);
+    const action = sorted.filter((s) => s.needs_action), rest = sorted.filter((s) => !s.needs_action);
+    const group = (title, list, inProject) => [
+      el("div", { class: "group-title" }, `${title} (${list.length})`),
+      el("div", { class: "cards" }, list.map((s) => sessionCard(s, inProject)))];
+    if (action.length) {
+      box.append(el("section", { class: "action-section", "aria-label": t("group.action") },
+        group(t("group.action"), action, false)));
+    }
     if (ui.byProject) {
-      for (const [key, list] of projectGroups()) {
+      for (const [key, list] of projectGroups(rest)) {
         box.append(projectHeader(key, list));
-        if (!ui.collapsed.has(key)) box.append(el("div", { class: "cards" }, list.map(sessionCard)));
+        if (!ui.collapsed.has(key)) box.append(el("div", { class: "cards" }, list.map((s) => sessionCard(s, true))));
       }
       return;
     }
-    const groups = [[t("group.action"), (s) => s.needs_action],
-                    [t("group.active"), (s) => !s.needs_action && !["done", "abandoned"].includes(s.state)],
-                    [t("group.done"), (s) => ["done", "abandoned"].includes(s.state)]];
-    for (const [title, pred] of groups) {
-      const list = db.sessions.filter(pred);
-      if (!list.length) continue;
-      box.append(el("div", { class: "group-title" }, `${title} (${list.length})`));
-      box.append(el("div", { class: "cards" }, list.map(sessionCard)));
+    const isDone = (s) => ["done", "abandoned"].includes(s.state);
+    for (const [title, list] of [[t("group.active"), rest.filter((s) => !isDone(s))], [t("group.done"), rest.filter(isDone)]]) {
+      if (list.length) box.append(...group(title, list, false));
     }
   }
 
-  function sessionCard(s) {
+  function sessionCard(s, inProject) {
     const p = s.progress || { done: 0, total: 0, remaining: 0 };
     const pct = p.total ? Math.round((p.done / p.total) * 100) : 0;
     const pr = s.pr || {};
     const u = s.usage || {};
     const meta = [
-      !ui.byProject && s.repo && el("span", {}, s.repo),
+      !inProject && s.repo && el("span", {}, s.repo),
       s.task_ref && el("span", {}, s.task_ref),
       p.total ? el("span", {}, t("card.progress", { done: p.done, total: p.total, rem: p.remaining })) : null,
       pr.number ? el("span", {}, `PR#${pr.number}` + (pr.ci ? ` CI:${pr.ci}` : "") + (pr.unresolved_threads != null ? t("card.threads", { n: pr.unresolved_threads }) : "")) : null,
@@ -831,7 +843,7 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     const cur = sel.value;
     sel.replaceChildren(el("option", { value: "" }, t("filter.allSessions")),
       ...(ui.byProject
-        ? projectGroups().map(([key, list]) => el("optgroup", { label: key || t("project.none") }, list.map(sessionOption)))
+        ? projectGroups(db.sessions).map(([key, list]) => el("optgroup", { label: key || t("project.none") }, list.map(sessionOption)))
         : db.sessions.map(sessionOption)));
     sel.value = cur;
     $("tlScope").textContent = ui.session ? sessionName(ui.session) : t("tl.all");
