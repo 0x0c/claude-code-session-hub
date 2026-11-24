@@ -36,7 +36,7 @@
 #   setup-token`), preferred when present; or
 # - Amazon Bedrock, through GitHub's OpenID Connect (OIDC) token exchanged for short-lived AWS
 #   credentials (the `AWS_BEDROCK_ROLE_ARN` secret plus the `BEDROCK_MODEL_ID` variable; no static key).
-# With neither configured, the job is a green no-op. A `pull_request` run from a fork receives no
+# With neither configured, the job is a green no-op, except that a draft or a bot's event still fails. A `pull_request` run from a fork receives no
 # secrets by GitHub's design, so a maintainer reviews a fork's pull request on demand with
 # `@claude review`. We deliberately avoid `pull_request_target`, which would run with secrets against
 # untrusted fork code.
@@ -111,7 +111,7 @@ jobs:
         run: |
           # Prefer the subscription token; otherwise use Bedrock. Enable a provider only when all of
           # its inputs exist (Bedrock needs both the role and the model id), so a half-configured
-          # Environment stays a dormant no-op instead of turning the advisory check red.
+          # Environment stays a dormant no-op. The step above fails a draft or a bot's event even then.
           if [ -n "$OAUTH_TOKEN" ]; then
             echo "provider=oauth" >> "$GITHUB_OUTPUT"
           elif [ -n "$ROLE_ARN" ] && [ -n "$MODEL_ID" ]; then

@@ -52,7 +52,8 @@ head commit, and the review covers the finished work.
 - **Proposal skills.** `ideation`, `implement-proposal`, and `propose-and-build` point to the draft flow. A draft also gives
   a proposal its PR number before the review starts.
 - **Limits.** A PR from a fork receives no secrets, and an environment without a credential starts no
-  review. In both cases the check passes without one, as it did before the change.
+  review. In both cases the check of a PR that a person marks ready passes without one, as it did before the
+  change. A draft or a bot's event fails even then.
 
 ## Alternatives considered
 
