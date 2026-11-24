@@ -162,6 +162,8 @@ main.grid .subcards { padding: var(--space-4) 0 var(--space-8) var(--space-24); 
 .card .title { font-weight: var(--fw-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
 .card .meta { font-size: var(--fs-meta); color: var(--muted); display: flex; gap: var(--space-10); flex-wrap: wrap; margin-top: var(--space-2); }
 a.pr { color: var(--accent); }
+#tlDesktop { flex: none; }
+@media (max-width: 860px) { #tlTitle { flex-wrap: wrap; } } /* The link and the buttons do not fit one line */
 #tlPr { flex: none; font-weight: var(--fw-normal); white-space: nowrap; }
 .card .summary { font-size: var(--fs-body-sm); margin-top: var(--space-4); overflow-wrap: anywhere; }
 .spinner { width: 14px; height: 14px; flex: none; border-radius: 50%; border: 2px solid var(--line);
@@ -190,9 +192,13 @@ a.pr { color: var(--accent); }
 .tabs { display: inline-flex; border: 1px solid var(--line); border-radius: var(--radius-md); overflow: hidden; }
 .tabs button { border: 0; background: none; padding: var(--space-4) var(--space-10); cursor: pointer; font-size: var(--fs-meta); }
 .tabs button[aria-selected="true"] { background: var(--accent); color: var(--on-fill); }
-.types { display: flex; gap: var(--space-4); flex-wrap: wrap; padding: var(--space-8) var(--space-14); border-bottom: 1px solid var(--line); }
-.types button { font-size: var(--fs-label); border: 1px solid var(--line); border-radius: var(--radius-pill); background: none; padding: var(--space-1) var(--space-8); cursor: pointer; color: var(--muted); }
-.types button[aria-pressed="true"] { color: var(--ink); border-color: var(--ink); }
+.typesbtn .count { display: inline-block; min-width: 5ch; text-align: end; font-variant-numeric: tabular-nums; }
+.typesbtn.filtered { border-color: var(--accent); color: var(--accent); }
+/* A popover draws in the top layer, so neither the panel's overflow nor a sticky header clips it. placeTypes() sets its position */
+.types { position: fixed; inset: auto; margin: 0; max-width: calc(100vw - 2 * var(--space-8)); overflow-y: auto; overscroll-behavior: contain;
+  padding: var(--space-6); border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--panel); color: var(--ink); box-shadow: 0 4px 16px var(--shade); }
+.types label { display: flex; align-items: center; gap: var(--space-8); padding: var(--space-4) var(--space-8); border-radius: var(--radius-sm); font-size: var(--fs-body-sm); color: var(--ink); cursor: pointer; }
+.types label:hover { background: var(--hover); }
 .newbar { display: none; position: sticky; top: 56px; z-index: 3; margin: var(--space-8) auto 0; width: max-content;
   background: var(--accent); color: var(--on-fill); border: 0; border-radius: var(--radius-pill); padding: var(--space-4) var(--space-14); cursor: pointer; font-size: var(--fs-meta); }
 .newbar.show { display: block; }
@@ -213,10 +219,20 @@ a.pr { color: var(--accent); }
     0 0 12px 2px color-mix(in srgb, var(--glow) 12%, transparent), inset 0 0 8px color-mix(in srgb, var(--glow) 8%, transparent); }
   100% { box-shadow: 0 0 0 0 transparent, 0 0 0 0 transparent, 0 0 0 0 transparent, inset 0 0 0 transparent; }
 }
+/* Rows and cards in the detail panel sit flush against each other and the panel edge, so their glow stays inside them */
+.ev.glow, .kcard.glow, .ctable tr.glow { animation-name: glow-inset; }
+@keyframes glow-inset {
+  0%, 30%, 60% { box-shadow: inset 0 0 0 1.5px var(--glow), inset 0 0 10px 2px color-mix(in srgb, var(--glow) 55%, transparent),
+    inset 0 0 24px color-mix(in srgb, var(--glow) 35%, transparent); }
+  15%, 45%, 75% { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--glow) 30%, transparent), inset 0 0 5px 1px color-mix(in srgb, var(--glow) 18%, transparent),
+    inset 0 0 10px color-mix(in srgb, var(--glow) 10%, transparent); }
+  100% { box-shadow: inset 0 0 0 0 transparent, inset 0 0 0 0 transparent, inset 0 0 0 transparent; }
+}
 .lanes .laneglow { animation: laneglow var(--glow-ms, 6s) ease-in-out both; pointer-events: none; }
 @keyframes laneglow { 0%, 30%, 60% { opacity: .45; } 15%, 45%, 75% { opacity: .12; } 100% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) {
   @keyframes laneglow { 0%, 30% { opacity: .35; } 100% { opacity: 0; } }
+  @keyframes glow-inset { 0%, 75% { box-shadow: inset 0 0 0 2px var(--glow); } 100% { box-shadow: inset 0 0 0 0 transparent; } }
   @keyframes glow { 0%, 75% { box-shadow: 0 0 0 2px var(--glow); } 100% { box-shadow: 0 0 0 0 transparent; } }
 }
 .ev time { font-size: var(--fs-meta); color: var(--muted); font-variant-numeric: tabular-nums; padding-top: var(--space-1); }
@@ -224,6 +240,7 @@ a.pr { color: var(--accent); }
 .ev .body { min-width: 0; }
 .ev .head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-6); }
 .ev .who { font-size: var(--fs-meta); font-weight: var(--fw-strong); cursor: pointer; }
+.ev .writer { font-size: var(--fs-meta); font-weight: var(--fw-strong); }
 .ev .type { font-size: var(--fs-label); color: var(--muted); }
 .ev .text { font-size: var(--fs-body-sm); overflow-wrap: anywhere; margin-top: var(--space-1); }
 .ev .changes { display: flex; flex-wrap: wrap; gap: var(--space-4); margin-top: var(--space-4); }
@@ -317,6 +334,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     data-i18n-aria="panel.resize" data-i18n-title="panel.resizeTitle"></div>
   <section class="panel" id="detail" tabindex="-1" aria-labelledby="tlTitle">
     <h2 id="tlTitle"><span id="tlName"></span> <span class="chip" id="tlScope"></span> <a class="pr" id="tlPr" target="_blank" rel="noopener noreferrer" hidden></a>
+      <a class="iconbtn" id="tlDesktop" hidden data-i18n="tl.desktop" data-i18n-title="tl.desktopTitle"></a>
       <button class="iconbtn danger" id="deleteSession" hidden data-i18n="sessions.delete" data-i18n-title="sessions.deleteTitle"></button>
       <button class="iconbtn" id="fullscreenPanel" hidden aria-pressed="false" data-i18n-aria="panel.fullscreen" data-i18n-title="panel.fullscreenOn"><svg viewBox="0 0 12 12" aria-hidden="true"><path class="expand" d="M1 4V1H4M8 1H11V4M11 8V11H8M4 11H1V8"/><path class="shrink" d="M4 1V4H1M11 4H8V1M8 11V8H11M1 8H4V11"/></svg></button>
       <button class="iconbtn" id="closePanel" hidden data-i18n-aria="panel.close" data-i18n-title="panel.close">✕</button></h2>
@@ -329,10 +347,11 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       </div>
       <select id="fSession" data-i18n-aria="filter.sessionAria"><option value=""></option></select>
       <input type="search" id="fText" data-i18n-aria="filter.searchAria">
+      <button class="iconbtn typesbtn" id="typesBtn" type="button" aria-expanded="false" aria-controls="fTypes"></button>
+      <div class="types" id="fTypes" popover="manual" role="group" data-i18n-aria="filter.typesAria"></div>
       <label><input type="checkbox" id="fHeartbeat"> heartbeat</label>
       <label><input type="checkbox" id="fOrder"> <span data-i18n="filter.oldest"></span></label>
     </div>
-    <div class="types" id="fTypes"></div>
     <div id="detailScroll" class="scroll" role="region" aria-labelledby="tlTitle">
     <button class="newbar" id="newbar"><span id="newbarText"></span> ↑</button>
     <div id="feedView" class="feed" aria-live="polite"></div>
@@ -385,6 +404,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       "btn.byProject": "By project", "btn.byProjectTitle": "Group sessions by repository or project; turn off to group by status",
       "project.none": "No project",
       "sessions.title": "Sessions", "sessions.clear": "Clear selection",
+      "tl.desktop": "Open in Claude", "tl.desktopTitle": "Open this session in the Claude desktop app",
       "sessions.delete": "Delete session", "sessions.deleteTitle": "Delete every stored message of this session",
       "sessions.deleteConfirm": "Delete all {n} messages of \"{name}\"? This cannot be undone.",
       "sessions.deleteConfirm_one": "Delete the 1 message of \"{name}\"? This cannot be undone.",
@@ -397,6 +417,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       "filter.sessionAria": "Filter by session", "filter.allSessions": "All sessions",
       "filter.searchAria": "Search", "filter.textFeed": "Search summaries, questions, and answers",
       "filter.textCol": "Search titles, bodies, and tags", "filter.oldest": "Oldest first",
+      "filter.types": "Event types", "filter.typesTitle": "Choose the event types to show ({n} hidden)", "filter.typesAria": "Event types to show",
       "newbar": "{n} new",
       "state.needs_human": "Needs human", "state.review_ready": "Ready for review",
       "state.review_pending": "Not yet reviewable", "state.failed": "Failed", "state.stale": "Stale?",
@@ -478,6 +499,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       "btn.byProject": "プロジェクト別", "btn.byProjectTitle": "リポジトリやプロジェクトごとにまとめます。オフにすると状態別になります",
       "project.none": "プロジェクトなし",
       "sessions.title": "セッション", "sessions.clear": "選択解除",
+      "tl.desktop": "Claudeで開く", "tl.desktopTitle": "このセッションをClaudeデスクトップアプリで開く",
       "sessions.delete": "セッションを削除", "sessions.deleteTitle": "このセッションの保存済みメッセージをすべて削除",
       "sessions.deleteConfirm": "「{name}」のメッセージ {n} 件をすべて削除しますか？この操作は取り消せません。",
       "sessions.deleteFailed": "セッションを削除できませんでした: {error}",
@@ -489,6 +511,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       "filter.sessionAria": "セッションで絞り込み", "filter.allSessions": "すべてのセッション",
       "filter.searchAria": "検索", "filter.textFeed": "要約・質問・回答を検索",
       "filter.textCol": "タイトル・本文・タグを検索", "filter.oldest": "古い順",
+      "filter.types": "種別", "filter.typesTitle": "表示するイベント種別を選ぶ（{n} 件非表示）", "filter.typesAria": "表示するイベント種別",
       "newbar": "新着 {n} 件",
       "state.needs_human": "人間待ち", "state.review_ready": "レビュー可",
       "state.review_pending": "レビュー条件未達", "state.failed": "失敗", "state.stale": "停滞?",
@@ -817,6 +840,9 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
   // Only a web address becomes a link: the URL comes from a message
   const prWebUrl = (pr) => (/^https?:\/\//i.test(pr.url || "") ? pr.url : null);
   const prName = (pr) => (pr.number ? `PR#${pr.number}` : "PR");
+  // The app's link takes its own session id; check the form, because the id comes from another app's file
+  const desktopUrl = (s) => (s && /^local_[A-Za-z0-9-]{1,64}$/.test(s.desktop_id || "")
+    ? "claude://code/continue?session=" + s.desktop_id : null);
   function prLabel(pr) {
     const prUrl = prWebUrl(pr);
     return !prUrl ? prName(pr) : el("a", {
@@ -940,8 +966,31 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     return chips;
   }
 
+  // Ids ("ev-" + event id) of the rows whose details are open, including rows that a filter hides
+  const openRows = new Set();
+
+  // Rebuilding the feed replaces every row, so carry the open details, their horizontal scroll, and
+  // the focus over. The old rows are read here because a toggle event fires late, even for a removed row.
   function renderFeed() {
     const box = $("feedView");
+    const active = document.activeElement, held = active && box.contains(active) && active.closest(".ev details");
+    const focused = held && [held.closest(".ev").id, active.tagName];
+    const scrolled = new Map();
+    for (const d of box.querySelectorAll(".ev details")) {
+      const { id } = d.closest(".ev");
+      d.open ? openRows.add(id) : openRows.delete(id);
+      if (d.open) scrolled.set(id, d.querySelector("pre").scrollLeft);
+    }
+    for (const id of openRows) if (!db.events.has(id.slice(3))) openRows.delete(id);
+    rebuildFeed(box);
+    const rows = [...box.querySelectorAll(".ev")];
+    for (const row of rows) if (openRows.has(row.id)) row.querySelector("details").open = true;
+    for (const row of rows) if (scrolled.get(row.id)) row.querySelector("pre").scrollLeft = scrolled.get(row.id);
+    const row = focused && rows.find((n) => n.id === focused[0]);
+    if (row) row.querySelector("details " + focused[1])?.focus({ preventScroll: true });
+  }
+
+  function rebuildFeed(box) {
     const events = filteredEvents();
     box.replaceChildren();
     if (!events.length) { box.append(el("div", { class: "empty" }, t("events.empty"))); return; }
@@ -967,14 +1016,17 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
   function eventRow(e) {
     const body = eventBody(e);
     const color = e.state_after ? `var(${(STATE[e.state_after] || [0, "--s-queue"])[1]})` : "var(--s-queue)";
-    const who = e.writer ? `${e.writer} → ` : "";
+    // The panel title already names the selected session, so its rows name only another writer
+    const who = !ui.session
+      ? el("span", { class: "who", style: { color: laneColor(e.session_id) }, title: e.session_id,
+                     onclick: () => selectSession(e.session_id) }, (e.writer ? `${e.writer} → ` : "") + sessionName(e.session_id))
+      : e.writer ? el("span", { class: "writer" }, e.writer) : null;
     const row = el("div", glowProps([glowKey.event(e.id)], { class: "ev", id: "ev-" + e.id }),
       el("time", { datetime: e.ts, title: e.ts }, hhmm(e.ts)),
       el("span", { class: "mark", style: { background: color } }),
       el("div", { class: "body" },
         el("div", { class: "head" },
-          el("span", { class: "who", style: { color: laneColor(e.session_id) }, title: e.session_id,
-                       onclick: () => selectSession(e.session_id) }, who + sessionName(e.session_id)),
+          who,
           el("span", { class: "type" }, TYPES[e.type] || e.type),
           e.phase && !(e.diff || {}).phase ? el("span", { class: "chip" }, e.phase) : null),
         body ? el("div", { class: "text" }, body) : null,
@@ -1376,6 +1428,10 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     link.textContent = prUrl ? prName(pr) : "";
     link.title = prUrl || "";
     prUrl ? link.setAttribute("href", prUrl) : link.removeAttribute("href");
+    const appUrl = desktopUrl(shown);
+    const open = $("tlDesktop");
+    open.hidden = !appUrl;
+    appUrl ? open.setAttribute("href", appUrl) : open.removeAttribute("href");
     $("groupBtn").setAttribute("aria-pressed", String(ui.byProject));
     // In the grid layout, closing the panel clears the selection
     $("clearSel").hidden = !ui.session || ui.layout === "grid";
@@ -1606,6 +1662,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     $("detail").classList.toggle("open", grid && ui.panelOpen);
     $("detail").inert = grid && !ui.panelOpen;
     $("closePanel").hidden = !grid;
+    if ($("detail").inert) closeTypes(); else placeTypes();
     document.querySelectorAll("[data-layout]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.layout === ui.layout)));
     applyFullscreen();
   }
@@ -1668,7 +1725,8 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     if (!isCol) $("colView").replaceChildren(); // Leave no stale content (such as a glow) in a hidden tab
     // The type, heartbeat, and order controls apply to the timeline alone
     const unfiltered = v === "overview"; // it draws every session and lists no event
-    $("fTypes").hidden = isCol || unfiltered;
+    if (isCol || unfiltered) closeTypes();
+    $("typesBtn").hidden = isCol || unfiltered;
     $("fHeartbeat").parentElement.hidden = isCol || unfiltered;
     $("fOrder").parentElement.hidden = isCol || unfiltered;
     $("fText").hidden = unfiltered;
@@ -1935,11 +1993,68 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
   $("fOrder").addEventListener("change", (e) => { ui.asc = e.target.checked; render(); });
   function renderTypeFilters() {
     $("fTypes").replaceChildren(...Object.entries(TYPES).filter(([type]) => type !== "heartbeat").map(([type, label]) =>
-      el("button", { "aria-pressed": String(ui.types.has(type)), onclick: (ev) => {
-        ui.types.has(type) ? ui.types.delete(type) : ui.types.add(type);
-        ev.currentTarget.setAttribute("aria-pressed", String(ui.types.has(type)));
+      el("label", {}, el("input", { type: "checkbox", checked: ui.types.has(type), onchange: (ev) => {
+        ev.currentTarget.checked ? ui.types.add(type) : ui.types.delete(type);
+        updateTypesBtn();
         render();
-      } }, label)));
+      } }), label)));
+    updateTypesBtn();
+  }
+  function updateTypesBtn() {
+    const total = TYPE_KEYS.length - 1; // Without the heartbeat
+    fillTypesBtn($("typesBtn"), ui.types.size, total);
+  }
+  // The count keeps its width, so that ticking a box never wraps the toolbar and moves the popover
+  function fillTypesBtn(btn, shown, total) {
+    btn.replaceChildren(t("filter.types") + " ", el("span", { class: "count" }, `${shown}/${total}`));
+    btn.title = t("filter.typesTitle", { n: total - shown });
+    btn.classList.toggle("filtered", shown < total);
+    return btn;
+  }
+  // The popover is "manual": the light dismiss of an "auto" popover would also close it on a language change
+  const typesOpen = () => $("typesBtn").getAttribute("aria-expanded") === "true";
+  function openTypes() {
+    $("fTypes").showPopover();
+    $("typesBtn").setAttribute("aria-expanded", "true");
+    placeTypes();
+  }
+  function closeTypes() {
+    if (!typesOpen()) return;
+    $("fTypes").hidePopover();
+    $("typesBtn").setAttribute("aria-expanded", "false");
+  }
+  // Below the button, or above it when that side has more room; always inside the window
+  function placeTypes() {
+    if (!typesOpen()) return;
+    const pop = $("fTypes"), btn = $("typesBtn").getBoundingClientRect(), edge = 8, gap = 4;
+    const vw = document.documentElement.clientWidth, vh = window.innerHeight;
+    // Measure without lifting max-height: that would reset the popover's own scroll position
+    const h = pop.scrollHeight + pop.offsetHeight - pop.clientHeight, below = vh - btn.bottom - gap - edge, above = btn.top - gap - edge;
+    const up = h > below && above > below;
+    const room = Math.max(0, Math.min(up ? above : below, vh - 2 * edge));
+    const shown = Math.min(h, room);
+    pop.style.maxHeight = room + "px";
+    pop.style.top = Math.max(edge, up ? btn.top - gap - shown : btn.bottom + gap) + "px";
+    pop.style.left = Math.max(edge, Math.min(btn.left, vw - pop.offsetWidth - edge)) + "px";
+  }
+  $("typesBtn").addEventListener("click", () => (typesOpen() ? closeTypes() : openTypes()));
+  document.addEventListener("pointerdown", (e) => {
+    if (!e.target.closest?.("#fTypes, #typesBtn, #langBtn")) closeTypes();
+  }, true);
+  // In the capture phase, so that Escape closes the popover alone and not the grid's detail panel as well
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape" || e.isComposing || !typesOpen()) return;
+    e.preventDefault();
+    e.stopPropagation();
+    closeTypes();
+    $("typesBtn").focus({ preventScroll: true });
+  }, true);
+  window.addEventListener("scroll", placeTypes, true);
+  window.addEventListener("resize", placeTypes);
+  $("detail").addEventListener("transitionend", placeTypes);
+  if ("ResizeObserver" in window) { // What can move the button: a wrapping header, title, or toolbar, and the list above a stacked panel
+    const ro = new ResizeObserver(placeTypes);
+    for (const n of [document.querySelector("header"), $("sessions"), $("tlTitle"), $("typesBtn").parentElement, $("typesBtn")]) ro.observe(n);
   }
 
   // The panel title and the search placeholder depend on the current view as well as the language.

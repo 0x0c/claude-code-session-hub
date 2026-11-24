@@ -57,7 +57,7 @@ class DesignSystemLinkTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp, configured(URL):
             out = Path(tmp) / "out.html"
             args = argparse.Namespace(out=str(out))
-            with mock.patch.object(cli, "_snap", return_value={}), contextlib.redirect_stdout(io.StringIO()):
+            with mock.patch.object(cli, "_snap", return_value={"sessions": [], "events": []}), contextlib.redirect_stdout(io.StringIO()):
                 cli.cmd_export(args)
             self.assertNotIn(URL, out.read_text(encoding="utf-8"))
 

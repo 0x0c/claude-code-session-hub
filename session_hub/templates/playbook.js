@@ -119,6 +119,9 @@
         progress: { from: { done: 1, total: 4 }, to: { done: 2, total: 4 } }, attention: { from: { qid: 4 }, to: null },
         ready: true, confidence: { from: "low", to: "high" } } })))],
       ["Phase chip", () => pbWith({ sessions: pbKnown() }, () => eventRow(pbEvent("report", { id: "pb-phase", phase: "implement" })))],
+      ["In a selected session", () => pbCapture("feedView", { sessions: pbKnown(), events: pbEvents([
+        pbEvent("report", { id: "pb-own", phase: "implement" }), pbEvent("answer", { id: "pb-parent", ts: pbAt(25), ...PB_EVENTS.answer() })]) },
+        renderFeed, { session: "pb-working" })],
     ]],
     ["Feed", [
       ["Days and collapsed heartbeats", () => { const hb = ui.heartbeat; ui.heartbeat = true; try { return pbCapture("feedView", { sessions: pbKnown(), events: pbEvents([
@@ -188,6 +191,8 @@
     ["Panel", [
       ["Heading with a scope and a button", () => el("section", { class: "panel" }, el("h2", {}, t("tl.title"), " ",
         el("span", { class: "chip" }, t("tl.all")), el("button", { class: "iconbtn danger" }, t("sessions.delete"))))],
+      ["Heading with a link to the desktop app", () => el("section", { class: "panel" }, el("h2", {}, t("tl.title"), " ",
+        el("span", { class: "chip" }, t("tl.all")), el("a", { class: "iconbtn", href: "#" }, t("tl.desktop"))))],
       ["Resize handle, at rest and dragged", () => el("div", { class: "pb-row" }, ["resizer", "resizer active"].map((c) =>
         el("div", { class: c, style: { height: "72px" } })))],
       ["Fullscreen button, off and on", () => el("div", { class: "pb-row" }, ["false", "true"].map((on) => {
@@ -203,7 +208,14 @@
         el("button", { class: "iconbtn danger" }, t("sessions.delete")), el("button", { class: "iconbtn danger", disabled: true }, t("sessions.delete")))],
       ["Layout toggle", () => pbClone(".seg")],
       ["Toolbar and tabs", () => pbClone(".toolbar")],
-      ["Event type filter", () => pbClone("#fTypes")],
+      ["Event type filter: closed", () => el("div", { class: "pb-row" }, pbTypesBtn(12), pbTypesBtn(9))],
+      ["Event type filter: open", () => {
+        const pop = pbClone("#fTypes");
+        pop.removeAttribute("popover"); // Draw it in place, not in the top layer
+        Object.assign(pop.style, { position: "static", width: "max-content", maxHeight: "none" });
+        pop.querySelectorAll("input").forEach((box, i) => { box.checked = i !== 1; });
+        return pop;
+      }],
       ["Header", () => pbClone("header")],
       ["Chips", () => el("div", { class: "pb-row" }, el("span", { class: "chip" }, "implement"), el("span", { class: "chip" }, "#redis"))],
       ["Help icons", () => el("div", { class: "pb-row" }, badge("working"), help("state.working"), statusLabel("action", t("group.action")), help("group.action"))],
@@ -225,6 +237,8 @@
       })],
     ]],
   ];
+
+  const pbTypesBtn = (shown) => fillTypesBtn(el("button", { class: "iconbtn typesbtn" }), shown, 12);
 
   // A copy of a static part of the page. Ids are dropped so that the original stays unique.
   function pbClone(selector) {
