@@ -115,6 +115,16 @@ main.grid #detail.open { transform: none; visibility: visible; box-shadow: -8px 
 main.grid #detail > h2 { position: sticky; top: 0; z-index: 4; background: var(--panel); }
 main.grid .newbar { top: 48px; }
 @media (prefers-reduced-motion: reduce) { main.grid #detail.slide, main.grid #detail.slide.open { transition: none; } }
+/* The handle on the grid panel's left edge. A sibling of #detail, which would scroll a child away */
+.resizer { position: relative; width: 10px; cursor: col-resize; touch-action: none; user-select: none; -webkit-user-select: none; outline: none; }
+.resizer::before { content: ""; position: absolute; inset: 0 4px; background: transparent; transition: background-color .15s; }
+.resizer::after { content: ""; position: absolute; left: 50%; top: 50%; width: 4px; height: 36px; transform: translate(-50%, -50%);
+  border-radius: var(--radius-pill); background: var(--muted); }
+.resizer:hover::before, .resizer:focus-visible::before, .resizer.active::before,
+.resizer:hover::after, .resizer:focus-visible::after, .resizer.active::after { background: var(--accent); }
+main > #panelResize { display: none; position: fixed; z-index: 5; top: var(--header-h, 0px); bottom: 0; right: var(--detail-w); transform: translateX(50%); }
+@media (min-width: 860.02px) { main.grid.withpanel:not(.fullscreen) > #panelResize { display: block; } }
+@media (pointer: coarse) { .resizer { width: 20px; } .resizer::before { inset: 0 9px; } }
 /* Sessions that need action: a section of its own above the other groups */
 .action-section { margin: var(--space-10); border: 1px solid var(--s-needs); border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--s-needs) 6%, var(--panel)); }
@@ -288,6 +298,8 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     <div id="sessions" class="scroll" role="region" aria-labelledby="sessionsTitle"></div>
   </section>
 
+  <div class="resizer" id="panelResize" role="separator" aria-orientation="vertical" aria-controls="detail" tabindex="0"
+    data-i18n-aria="panel.resize" data-i18n-title="panel.resizeTitle"></div>
   <section class="panel" id="detail" tabindex="-1" aria-labelledby="tlTitle">
     <h2 id="tlTitle"><span id="tlName"></span> <span class="chip" id="tlScope"></span> <a class="pr" id="tlPr" target="_blank" rel="noopener noreferrer" hidden></a>
       <button class="iconbtn danger" id="deleteSession" hidden data-i18n="sessions.delete" data-i18n-title="sessions.deleteTitle"></button>
@@ -357,6 +369,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       "layout.aria": "Layout of the session list", "layout.list": "List", "layout.grid": "Grid",
       "panel.openAll": "All sessions", "panel.openAllTitle": "Open the timeline of every session",
       "panel.close": "Close the panel (Esc)",
+      "panel.resize": "Width of the detail panel", "panel.resizeTitle": "Drag to change the width; double-click to reset it",
       "tl.title": "Timeline", "tl.all": "All", "tab.feed": "Feed", "tab.lanes": "Swimlanes",
       "filter.sessionAria": "Filter by session", "filter.allSessions": "All sessions",
       "filter.searchAria": "Search", "filter.textFeed": "Search summaries, questions, and answers",
@@ -423,6 +436,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       "layout.aria": "セッション一覧の表示形式", "layout.list": "リスト", "layout.grid": "グリッド",
       "panel.openAll": "すべてのセッション", "panel.openAllTitle": "すべてのセッションのタイムラインを開く",
       "panel.close": "パネルを閉じる（Esc）",
+      "panel.resize": "詳細パネルの幅", "panel.resizeTitle": "ドラッグで幅を変更、ダブルクリックで既定の幅に戻す",
       "tl.title": "タイムライン", "tl.all": "すべて", "tab.feed": "フィード", "tab.lanes": "スイムレーン",
       "filter.sessionAria": "セッションで絞り込み", "filter.allSessions": "すべてのセッション",
       "filter.searchAria": "検索", "filter.textFeed": "要約・質問・回答を検索",
@@ -1335,6 +1349,99 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     (card || $("openPanel")).focus({ preventScroll: true });
   }
 
+  // ---- The width of the grid's detail panel ----
+  // The preferred width in pixels, or null for the default of --detail-w. A small window clamps the shown
+  // width and keeps the preference. PANEL_ROOM leaves one card column and its padding beside the panel.
+  const PANEL_MIN = 360, PANEL_ROOM = 376, PANEL_STEP = 24;
+  let panelPref = null, panelDrag = null;
+  try { const w = Number(localStorage.getItem("hub.panelWidth")); if (w > 0 && isFinite(w)) panelPref = w; } catch (_) {}
+  const panelMax = () => Math.max(PANEL_MIN, document.documentElement.clientWidth - PANEL_ROOM);
+  const panelWidth = () => Math.round(Math.min(panelMax(), Math.max(PANEL_MIN,
+    panelPref ?? Math.min(720, document.documentElement.clientWidth * 0.55)))); // Keep the default in sync with --detail-w
+
+  function applyPanelWidth() {
+    const root = document.documentElement.style, handle = $("panelResize"), width = panelWidth();
+    const value = panelPref == null ? "" : width + "px";
+    handle.setAttribute("aria-valuemin", PANEL_MIN);
+    handle.setAttribute("aria-valuemax", panelMax());
+    handle.setAttribute("aria-valuenow", width);
+    if (root.getPropertyValue("--detail-w") === value) return;
+    keepCardInPlace(ui.session, () => { value ? root.setProperty("--detail-w", value) : root.removeProperty("--detail-w"); });
+    if (ui.view === "lanes" && ui.layout === "grid" && ui.panelOpen) { // The drawing depends on the width
+      const top = $("detail").scrollTop;
+      renderLanes();
+      $("detail").scrollTop = top;
+    }
+  }
+
+  function savePanelWidth() {
+    try {
+      if (panelPref == null) localStorage.removeItem("hub.panelWidth");
+      else localStorage.setItem("hub.panelWidth", String(panelPref));
+    } catch (_) {}
+  }
+
+  function setPanelWidth(width) {
+    panelPref = width == null ? null : Math.min(panelMax(), Math.max(PANEL_MIN, Math.round(width)));
+    applyPanelWidth();
+  }
+
+  // Finish a drag: keep its width, or go back to the preference from before it
+  function endPanelDrag(keep) {
+    const drag = panelDrag;
+    if (!drag) return;
+    panelDrag = null;
+    cancelAnimationFrame(drag.frame);
+    $("panelResize").classList.remove("active");
+    if (!drag.moved) return;
+    if (keep) { setPanelWidth(drag.width); savePanelWidth(); }
+    else { panelPref = drag.pref; applyPanelWidth(); }
+  }
+
+  function bindPanelResize() {
+    const handle = $("panelResize");
+    handle.addEventListener("mousedown", (e) => e.preventDefault()); // Start no text selection
+    handle.addEventListener("pointerdown", (e) => {
+      if (panelDrag || e.button !== 0 || !e.isPrimary) return;
+      const width = panelWidth();
+      panelDrag = { id: e.pointerId, x: e.clientX, start: width, width, pref: panelPref, moved: false, frame: 0 };
+      handle.setPointerCapture(e.pointerId);
+      handle.focus({ preventScroll: true });
+      handle.classList.add("active");
+      $("detail").classList.remove("slide");
+    });
+    handle.addEventListener("pointermove", (e) => {
+      const drag = panelDrag;
+      if (!drag || e.pointerId !== drag.id) return;
+      if (!handle.getClientRects().length) return endPanelDrag(false); // The panel closed during the drag
+      const width = drag.start + drag.x - e.clientX;
+      if (!drag.moved && width === drag.start) return;
+      drag.moved = true;
+      drag.width = width;
+      cancelAnimationFrame(drag.frame);
+      drag.frame = requestAnimationFrame(() => setPanelWidth(drag.width));
+    });
+    const on = (type, keep) => handle.addEventListener(type, (e) => { if (panelDrag && e.pointerId === panelDrag.id) endPanelDrag(keep); });
+    on("pointerup", true);
+    on("pointercancel", false);
+    on("lostpointercapture", false);
+    handle.addEventListener("dblclick", () => { setPanelWidth(null); savePanelWidth(); });
+    handle.addEventListener("keydown", (e) => {
+      if (panelDrag) {
+        if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); endPanelDrag(false); }
+        return;
+      }
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const width = { ArrowLeft: panelWidth() + PANEL_STEP, ArrowRight: panelWidth() - PANEL_STEP, Home: PANEL_MIN, End: panelMax() }[e.key];
+      if (width === undefined) return;
+      e.preventDefault();
+      setPanelWidth(width);
+      savePanelWidth();
+    });
+    window.addEventListener("resize", applyPanelWidth);
+    applyPanelWidth();
+  }
+
   function applyLayout() {
     const grid = ui.layout === "grid";
     $("main").classList.toggle("grid", grid);
@@ -1725,6 +1832,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
   try { const theme = localStorage.getItem("hub.theme"); if (theme) document.documentElement.dataset.theme = theme; } catch (_) {}
   window.addEventListener("resize", () => { if (ui.view === "lanes") render(); else drawLink(); });
   bindLanes();
+  bindPanelResize();
   // Refresh the "N minutes ago" labels periodically
   setInterval(() => {
     document.querySelectorAll("[data-ago]").forEach((n) => { n.textContent = ago(n.dataset.ago); });

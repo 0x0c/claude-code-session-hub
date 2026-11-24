@@ -46,6 +46,27 @@ class DashboardTest(unittest.TestCase):
         self.assertIn("main.grid.withpanel { padding-right: calc(var(--detail-w) + var(--space-16)); }", PAGE)
         self.assertRegex(PAGE, r'classList\.toggle\("withpanel", grid && ui\.panelOpen\)')
 
+    def test_panel_resize_handle_is_an_accessible_separator(self):
+        handle = re.search(r'<div class="resizer" id="panelResize"[^>]*>', PAGE)[0]
+        for attr in ('role="separator"', 'aria-orientation="vertical"', 'aria-controls="detail"', 'tabindex="0"', "data-i18n-aria="):
+            self.assertIn(attr, handle)
+        for attr in ("aria-valuenow", "aria-valuemin", "aria-valuemax"):
+            self.assertIn(f'handle.setAttribute("{attr}"', PAGE)
+        # Outside #detail, whose content scrolls
+        self.assertLess(PAGE.index(handle), PAGE.index('id="detail"'))
+
+    def test_panel_resize_handle_shows_beside_an_open_grid_panel_alone(self):
+        self.assertIn("main > #panelResize { display: none;", PAGE)
+        self.assertIn("@media (min-width: 860.02px) { main.grid.withpanel:not(.fullscreen) > #panelResize { display: block; } }", PAGE)
+
+    def test_panel_width_is_remembered_and_recovers_from_a_canceled_drag(self):
+        for call in ("getItem", "setItem", "removeItem"):
+            self.assertIn(f'localStorage.{call}("hub.panelWidth"', PAGE)
+        for event, keep in (("pointerup", "true"), ("pointercancel", "false"), ("lostpointercapture", "false")):
+            self.assertIn(f'on("{event}", {keep});', PAGE)
+        self.assertIn("--detail-w: min(720px, 55%);", PAGE)  # panelWidth() repeats this default
+        self.assertIn("Math.min(720, document.documentElement.clientWidth * 0.55)", PAGE)
+
     def test_closed_grid_panel_is_inert(self):
         self.assertRegex(PAGE, r'\$\("detail"\)\.inert\s*=\s*grid\s*&&\s*!ui\.panelOpen\b')
 
