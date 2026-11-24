@@ -2,7 +2,7 @@
 #
 # A proposal keeps the `SH-XXXX` placeholder id through authoring, review, and the merge itself: the
 # branch merges as-is. The merge is a push to `main`, which triggers this workflow. The workflow runs
-# `scripts/proposals.py allocate` against `main`'s tree, renames each placeholder pair to the next
+# `scripts/proposals.py allocate` against `main`'s tree, renames each placeholder folder to the next
 # free `SH-NNNN`, and commits the result directly to `main`. Numbers therefore follow merge order on
 # `main`: the sequence has no gaps, and a rejected proposal never burns a number.
 #
@@ -73,7 +73,7 @@ jobs:
           git config user.email "${APP_SLUG}[bot]@users.noreply.github.com"
 
           # The allocator finds every SH-XXXX pair, gives each the next number above every number
-          # in use (on main and in the working tree), git-mv's both files, and rewrites the id in them.
+          # in use (on main and in the working tree), git-mv's the folder and both files, and rewrites the id in them.
           out="$(python3 scripts/proposals.py allocate)"
           echo "$out"
           ids="$(printf '%s\n' "$out" \

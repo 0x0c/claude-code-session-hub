@@ -112,8 +112,8 @@ lane of an archived session that is not `done`, `abandoned`, or `failed` ends at
 
 ## References
 
-- [`session_hub/desktop.py`](../session_hub/desktop.py) — reads the app's session files.
-- [`session_hub/schema.py`](../session_hub/schema.py) — the event types and the fold.
-- [`session_hub/server.py`](../session_hub/server.py) — `Hub.sync_desktop()`.
-- [SH-0002](SH-0002-delete-session.md) — deleting a session.
-- [`docs/DESIGN.md`](../docs/DESIGN.md) §3.1 — event sourcing and the one-file-per-writer layout.
+- [`session_hub/desktop.py`](../../session_hub/desktop.py) — reads the app's session files.
+- [`session_hub/schema.py`](../../session_hub/schema.py) — the event types and the fold.
+- [`session_hub/server.py`](../../session_hub/server.py) — `Hub.sync_desktop()`.
+- [SH-0002](../SH-0002-delete-session/SH-0002-delete-session.md) — deleting a session.
+- [`docs/DESIGN.md`](../../docs/DESIGN.md) §3.1 — event sourcing and the one-file-per-writer layout.

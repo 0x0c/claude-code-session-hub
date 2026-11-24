@@ -15,7 +15,7 @@ Session Hubは、親のClaude Codeセッションが多数のサブセッショ�
 | `bin/session-hub` | インストール方法を問わずパッケージを見つけて実行するラッパー |
 | `skills/`、`hooks/`、`prompts/` | 利用者のセッションへ配布するもの（Claude CodeプラグインとAgent Package Manager（APM）パッケージ） |
 | `.claude/skills/` | このリポジトリを開発するためのスキル。配布しません |
-| `proposals/` | 設計のプロポーザル。変更ごとに1組のファイル（`SH-NNNN-<slug>.md`と`.ja.md`） |
+| `proposals/` | 設計のプロポーザル。変更ごとに1つのフォルダー（`SH-NNNN-<slug>/`に`SH-NNNN-<slug>.md`と`.ja.md`を置く） |
 | `docs/DESIGN.md` | 設計の根拠と用語集 |
 | `tests/` | テスト（標準ライブラリの`unittest`） |
 

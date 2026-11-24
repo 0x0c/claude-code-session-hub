@@ -61,5 +61,5 @@ The change adds no text to any model's context.
 
 ## References
 
-- [`session_hub/session_name.py`](../session_hub/session_name.py) — reads the name.
-- [`docs/DESIGN.md`](../docs/DESIGN.md) — the status record.
+- [`session_hub/session_name.py`](../../session_hub/session_name.py) — reads the name.
+- [`docs/DESIGN.md`](../../docs/DESIGN.md) — the status record.

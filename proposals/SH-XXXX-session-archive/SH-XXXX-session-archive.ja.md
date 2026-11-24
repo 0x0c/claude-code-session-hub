@@ -81,8 +81,8 @@ Session Hubが、セッションのアーカイブを検知してステータス
 
 ## 参考資料
 
-- [`session_hub/desktop.py`](../session_hub/desktop.py) — アプリのセッションファイルの読み取り。
-- [`session_hub/schema.py`](../session_hub/schema.py) — イベント種別と畳み込み。
-- [`session_hub/server.py`](../session_hub/server.py) — `Hub.sync_desktop()`。
-- [SH-0002](SH-0002-delete-session.ja.md) — セッションの削除。
-- [`docs/DESIGN.ja.md`](../docs/DESIGN.ja.md) §3.1 — イベントソーシングと書き手ごとのファイル。
+- [`session_hub/desktop.py`](../../session_hub/desktop.py) — アプリのセッションファイルの読み取り。
+- [`session_hub/schema.py`](../../session_hub/schema.py) — イベント種別と畳み込み。
+- [`session_hub/server.py`](../../session_hub/server.py) — `Hub.sync_desktop()`。
+- [SH-0002](../SH-0002-delete-session/SH-0002-delete-session.ja.md) — セッションの削除。
+- [`docs/DESIGN.ja.md`](../../docs/DESIGN.ja.md) §3.1 — イベントソーシングと書き手ごとのファイル。
