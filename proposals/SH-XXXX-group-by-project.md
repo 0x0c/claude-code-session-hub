@@ -7,9 +7,9 @@
 |---|---|
 | Proposal | SH-XXXX |
 | Author | [@0x0c](https://github.com/0x0c) |
-| Status | **In progress** |
+| Status | **Implemented** |
 | Topic | Dashboard |
-| Implementing PR | — |
+| Implementing PR | [#21](https://github.com/0x0c/claude-code-session-hub/pull/21) |
 | Related | — |
 <!-- /SH-METADATA -->
 
@@ -88,7 +88,7 @@ Swimlanes, collections, and the command-line interface (CLI) output stay the sam
 
 ## Progress
 
-- [ ] Design approved
+- [x] Design approved
 - [x] Implementation with tests
 - [x] Documentation updated (README.md, docs/DESIGN.md)
 - [x] README screenshots regenerated
