@@ -13,6 +13,7 @@ PRIORITY = {
     "needs_human:blocking": 0, "failed": 1, "review_ready": 2, "stale": 3,
     "needs_human": 4, "changes_requested": 5, "blocked": 6, "working": 7,
     "planning": 7, "in_review": 8, "waiting_ci": 8, "queued": 9, "done": 10, "abandoned": 11,
+    "archived": 12,
 }
 ACTIVE_STATES = ("planning", "working")
 
@@ -36,10 +37,13 @@ def session_view(events: list[dict], now: datetime | None = None,
 
     st["gate"] = schema.ready_gate(st)
     st["gate_codes"] = schema.ready_gate_codes(st)
-    age_min = (now - schema.parse_ts(st["heartbeat"])).total_seconds() / 60
-    st["stale"] = st["state"] in ACTIVE_STATES and age_min >= stale_minutes
+    # Archive events do not set the heartbeat
+    age_min = (now - schema.parse_ts(st["heartbeat"])).total_seconds() / 60 if st["heartbeat"] else 0
+    st["stale"] = not st["archived"] and st["state"] in ACTIVE_STATES and age_min >= stale_minutes
     att = st.get("attention") or {}
-    if st["stale"]:
+    if st["archived"]:
+        key = "archived"  # Whatever the state, an archived session asks for nothing
+    elif st["stale"]:
         key = "stale"
     elif st["state"] == "needs_human" and att.get("blocking"):
         key = "needs_human:blocking"
@@ -57,7 +61,8 @@ def snapshot(all_events: dict[str, list[dict]], now: datetime | None = None,
     """Return all dashboard data. defs holds collection definitions (built-ins alone when omitted)."""
     sessions, events = [], []
     for sid, evs in all_events.items():
-        if not evs:
+        # Archive events alone (the child's file was deleted, or has not arrived) make no session
+        if all(e["type"] in schema.ARCHIVE_TYPES for e in evs):
             continue
         st, tl = session_view(evs, now)
         sessions.append(st)
@@ -114,6 +119,14 @@ ICON = {"needs_human": "NH", "review_ready": "RR", "failed": "FL", "done": "OK",
         "in_review": "IR", "changes_requested": "CR", "queued": "QU", "abandoned": "AB"}
 
 
+def state_code(s: dict) -> str:
+    """Return the two-letter code of a session for text output."""
+    # A hub of an earlier version sends no "archived" field
+    if s.get("archived"):
+        return "AR"
+    return "ST" if s["stale"] else ICON.get(s["state"], "??")
+
+
 def _ago(ts: str | None, now: datetime) -> str:
     if not ts:
         return "-"
@@ -157,6 +170,8 @@ def timeline_lines(snap: dict, session_id: str | None = None, include_heartbeat:
         for k, d in e["diff"].items():
             if k in ("state", "phase"):
                 changes.append(f"{k}:{d['from']}→{d['to']}")
+            elif k == "archived":
+                changes.append("archived" if d["to"] else "unarchived")
             elif k == "progress":
                 changes.append(f"tasks:{d['to']['done']}/{d['to']['total']}")
         text = (e.get("attention") or {}).get("question") if e["type"] == "ask" else None
