@@ -1,8 +1,10 @@
+import http.client
 import io
 import json
 import os
 import shutil
 import signal
+import socket
 import subprocess
 import sys
 import tempfile
@@ -659,6 +661,78 @@ class ServerTest(TmpMixin, unittest.TestCase):
             client.push(self.url, {"session_id": "c1", "fields": {"type": "report", "summary": "2"}}, token="tok")
             self.assertFalse(Path(env["HUB_OUTBOX"]).exists())
         self.assertEqual([e["type"] for e in self.store.read("c1")], ["start", "report"])
+
+
+class HostCheckTest(TmpMixin, unittest.TestCase):
+    """A page that rebinds its name to 127.0.0.1 sends that name in Host."""
+
+    HOSTILE = ("evil.example:8765", "127.0.0.1.evil.example", "localhost.evil.example", "192.0.2.1", "[", "")
+
+    def serve(self, token=None):
+        httpd, hub = make_server(self.store, port=0, token=token)
+        threading.Thread(target=httpd.serve_forever, daemon=True).start()
+        self.addCleanup(httpd.server_close)
+        self.addCleanup(httpd.shutdown)
+        self.addCleanup(hub.stop)
+        return httpd.server_address[1]
+
+    def request(self, port, host, method="GET", path="/api/snapshot", body=None, headers=None):
+        conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+        try:
+            conn.request(method, path, body=body, headers={"Host": host, **(headers or {})})
+            res = conn.getresponse()
+            res.read()
+            return res.status
+        finally:
+            conn.close()
+
+    def test_foreign_host_is_refused_on_every_endpoint(self):
+        core.record(self.store, "c1", {"type": "start", "title": "a"})
+        port = self.serve()
+        body = json.dumps({"session_id": "c2", "fields": {"type": "start", "title": "b"}})
+        for host in self.HOSTILE:
+            for method, path, data in (("GET", "/", None), ("GET", "/healthz", None), ("GET", "/api/snapshot", None),
+                                       ("GET", "/api/stream", None), ("POST", "/api/events", body),
+                                       ("DELETE", "/api/sessions/c1", None)):
+                with self.subTest(host=host, method=method, path=path):
+                    self.assertEqual(self.request(port, host, method, path, data), 403)
+        self.assertEqual(list(self.store.read_all()), ["c1"])
+
+    def test_a_refused_push_is_kept_in_the_outbox(self):
+        err = urllib.error.HTTPError("http://hub.example", 403, "Forbidden", {}, io.BytesIO(b"{}"))
+        outbox = self.dir / "outbox.jsonl"
+        queued = {"session_id": "c1", "fields": {"type": "start", "title": "old"}}
+        with mock.patch.dict(os.environ, {"HUB_OUTBOX": str(outbox)}), \
+                mock.patch("urllib.request.urlopen", side_effect=err):
+            client.spool(queued)
+            self.assertIsNone(client.push("http://hub.example", {**queued, "session_id": "c2"}))
+        kept = [json.loads(line)["session_id"] for line in outbox.read_text().splitlines()]
+        self.assertEqual(kept, ["c1", "c2"])
+
+    def test_local_hosts_are_served(self):
+        port = self.serve()
+        for host in (f"127.0.0.1:{port}", f"localhost:{port}", f"LOCALHOST:{port}", f"[::1]:{port}", "localhost"):
+            with self.subTest(host=host):
+                self.assertEqual(self.request(port, host), 200)
+
+    def test_refusal_drops_the_unread_body(self):
+        port = self.serve()
+        smuggled = "GET /api/snapshot HTTP/1.1\r\nHost: localhost\r\n\r\n"
+        with socket.create_connection(("127.0.0.1", port), timeout=5) as sock:
+            sock.sendall(f"POST /api/events HTTP/1.1\r\nHost: evil.example\r\n"
+                         f"Content-Length: {len(smuggled)}\r\n\r\n{smuggled}".encode())
+            data = b""
+            try:
+                while chunk := sock.recv(4096):
+                    data += chunk
+            except ConnectionResetError:
+                pass
+        self.assertEqual(data.count(b"HTTP/1.1 "), 1)
+
+    def test_a_token_admits_any_host(self):
+        port = self.serve(token="tok")
+        self.assertEqual(self.request(port, "hub.example", headers={"Authorization": "Bearer tok"}), 200)
+        self.assertEqual(self.request(port, "hub.example"), 401)
 
 
 class HooksTest(TmpMixin, unittest.TestCase):
