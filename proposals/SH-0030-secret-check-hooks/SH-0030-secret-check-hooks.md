@@ -1,11 +1,11 @@
-**English** · [日本語](SH-XXXX-secret-check-hooks.ja.md)
+**English** · [日本語](SH-0030-secret-check-hooks.ja.md)
 
-# SH-XXXX — Check for secrets before each commit
+# SH-0030 — Check for secrets before each commit
 
 <!-- SH-METADATA -->
 | Field | Value |
 |---|---|
-| Proposal | SH-XXXX |
+| Proposal | SH-0030 |
 | Author | [@0x0c](https://github.com/0x0c) |
 | Status | **Implemented** |
 | Topic | Developer workflow |
