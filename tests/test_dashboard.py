@@ -63,6 +63,7 @@ class DashboardTest(unittest.TestCase):
 
     def test_overview_replaces_the_all_sessions_button(self):
         self.assertIn('data-view="overview"', PAGE)
+        self.assertRegex(PAGE, r'function renderOverview\(\) \{\n[^\n]*\n\s*tipEl\.style\.display = "none";')
         self.assertNotIn('id="openPanel"', PAGE)
         self.assertNotIn("panel.openAll", PAGE)
         self.assertLessEqual({"tab.overview", "overview.aria", "overview.open", "overview.end"}, messages("ja"))

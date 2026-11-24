@@ -62,7 +62,7 @@ server request.
 
 - [x] Design approved
 - [x] Implementation with tests
-- [x] Documentation updated (README.md, docs/DESIGN.md, skills)
+- [x] Documentation updated (docs/DESIGN.md, README screenshots in docs/images/)
 
 ## References
 

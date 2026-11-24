@@ -906,6 +906,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
   // One thin band per session over the whole history, so that every session's lifespan fits one screen
   function renderOverview() {
     const box = $("overview"), legend = $("ovLegend");
+    tipEl.style.display = "none"; // the element under the pointer is about to be replaced
     const all = [...db.events.values()];
     legend.hidden = !db.sessions.length || !all.length;
     if (legend.hidden) { box.replaceChildren(el("div", { class: "empty" }, t("lanes.empty"))); return; }

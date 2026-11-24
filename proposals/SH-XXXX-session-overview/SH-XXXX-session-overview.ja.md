@@ -44,7 +44,7 @@
 
 - [x] 設計の承認
 - [x] テストを含む実装
-- [x] ドキュメントの更新（README.md、docs/DESIGN.md、skills）
+- [x] ドキュメントの更新（docs/DESIGN.md、docs/images/のREADME用スクリーンショット）
 
 ## 参考資料
 
