@@ -1,11 +1,11 @@
-[English](SH-XXXX-session-name-title.md) · **日本語**
+[English](SH-0003-session-name-title.md) · **日本語**
 
-# SH-XXXX — セッション名をそのままタイトルに表示
+# SH-0003 — セッション名をそのままタイトルに表示
 
 <!-- SH-METADATA -->
 | 項目 | 値 |
 |---|---|
-| 提案 | SH-XXXX |
+| 提案 | SH-0003 |
 | 作者 | [@0x0c](https://github.com/0x0c) |
 | 状態 | **Implemented** |
 | トピック | Hooks and skills |

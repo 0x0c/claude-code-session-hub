@@ -1,11 +1,11 @@
-**English** · [日本語](SH-XXXX-session-name-title.ja.md)
+**English** · [日本語](SH-0003-session-name-title.ja.md)
 
-# SH-XXXX — Show the session name as the title
+# SH-0003 — Show the session name as the title
 
 <!-- SH-METADATA -->
 | Field | Value |
 |---|---|
-| Proposal | SH-XXXX |
+| Proposal | SH-0003 |
 | Author | [@0x0c](https://github.com/0x0c) |
 | Status | **Implemented** |
 | Topic | Hooks and skills |
