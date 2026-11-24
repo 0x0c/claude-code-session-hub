@@ -1,11 +1,11 @@
-**English** · [日本語](SH-XXXX-stop-hub.ja.md)
+**English** · [日本語](SH-0012-stop-hub.ja.md)
 
-# SH-XXXX — Stop a running hub
+# SH-0012 — Stop a running hub
 
 <!-- SH-METADATA -->
 | Field | Value |
 |---|---|
-| Proposal | SH-XXXX |
+| Proposal | SH-0012 |
 | Author | [@0x0c](https://github.com/0x0c) |
 | Status | **Implemented** |
 | Topic | Hub server |

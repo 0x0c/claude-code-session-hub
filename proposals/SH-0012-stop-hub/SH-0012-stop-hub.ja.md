@@ -1,11 +1,11 @@
-[English](SH-XXXX-stop-hub.md) · **日本語**
+[English](SH-0012-stop-hub.md) · **日本語**
 
-# SH-XXXX — 起動済みのハブの終了
+# SH-0012 — 起動済みのハブの終了
 
 <!-- SH-METADATA -->
 | 項目 | 値 |
 |---|---|
-| 提案 | SH-XXXX |
+| 提案 | SH-0012 |
 | 作者 | [@0x0c](https://github.com/0x0c) |
 | 状態 | **Implemented** |
 | トピック | Hub server |
