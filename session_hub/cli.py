@@ -256,7 +256,7 @@ def cmd_doctor(a):
 
 
 def cmd_delete(a):
-    """Physically delete every message of one session, through the hub when it runs (SH-0001)."""
+    """Physically delete every message of one session, through the hub when it runs (SH-0002)."""
     url = None if a.store else client.hub_url()
     deleted, via_store = None, True
     if url:
