@@ -1,11 +1,11 @@
-**English** · [日本語](SH-XXXX-session-pr-link.ja.md)
+**English** · [日本語](SH-0010-session-pr-link.ja.md)
 
-# SH-XXXX — Link a session's pull request
+# SH-0010 — Link a session's pull request
 
 <!-- SH-METADATA -->
 | Field | Value |
 |---|---|
-| Proposal | SH-XXXX |
+| Proposal | SH-0010 |
 | Author | [@0x0c](https://github.com/0x0c) |
 | Status | **Implemented** |
 | Topic | Hooks and skills |

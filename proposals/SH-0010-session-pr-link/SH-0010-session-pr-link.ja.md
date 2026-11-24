@@ -1,11 +1,11 @@
-[English](SH-XXXX-session-pr-link.md) · **日本語**
+[English](SH-0010-session-pr-link.md) · **日本語**
 
-# SH-XXXX — セッションのプルリクエストへのリンク
+# SH-0010 — セッションのプルリクエストへのリンク
 
 <!-- SH-METADATA -->
 | 項目 | 値 |
 |---|---|
-| 提案 | SH-XXXX |
+| 提案 | SH-0010 |
 | 作者 | [@0x0c](https://github.com/0x0c) |
 | 状態 | **Implemented** |
 | トピック | Hooks and skills |
