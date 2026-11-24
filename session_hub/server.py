@@ -20,6 +20,7 @@ Endpoints:
     GET  /              dashboard (HTML)
     GET  /guide         what each status and state means (HTML)
     GET  /playbook      every dashboard component in every state (HTML)
+    GET  /knowledge     a summary of the knowledge collection (HTML)
     GET  /api/snapshot  all data (JSON)
     GET  /api/stream    SSE: a snapshot first, then updates
     POST /api/events    receive an event {"session_id", "writer"?, "fields": {...}}
@@ -330,11 +331,11 @@ def make_handler(hub: Hub, token: str | None):
             if not self._authorized():
                 return self._send(401, "unauthorized: open the page with ?token=<HUB_TOKEN> appended to the URL",
                                   "text/plain; charset=utf-8")
-            if path in ("/", "/index.html", "/playbook", "/guide") and "token=" in self.path:
+            if path in ("/", "/index.html", "/playbook", "/guide", "/knowledge") and "token=" in self.path:
                 # Accept the token from the URL once, then authenticate by cookie (removing the token from the URL)
                 self.send_response(303)
                 self.send_header("Set-Cookie", f"hub_token={token}; Path=/; HttpOnly; SameSite=Strict")
-                self.send_header("Location", path if path in ("/playbook", "/guide") else "/")
+                self.send_header("Location", path if path in ("/playbook", "/guide", "/knowledge") else "/")
                 self.send_header("Content-Length", "0")
                 self.end_headers()
                 return
@@ -346,6 +347,9 @@ def make_handler(hub: Hub, token: str | None):
             elif path == "/guide":
                 from .guide import guide_html
                 self._send(200, guide_html(), "text/html; charset=utf-8")
+            elif path == "/knowledge":
+                from .knowledge import knowledge_html
+                self._send(200, knowledge_html(), "text/html; charset=utf-8")
             elif path == "/api/snapshot":
                 with hub.lock:
                     snap = hub.snap

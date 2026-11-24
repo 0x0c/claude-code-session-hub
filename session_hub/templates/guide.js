@@ -5,7 +5,7 @@
   // The dashboard's code looks its elements up by id, so hide the ones this page has no use for
   for (const n of [$("main"), ...gdHeader.querySelectorAll(".conn, .kpis, #notifyBtn")]) n.hidden = true;
   gdHeader.querySelector("h1").replaceChildren(el("a", { class: "gd-home", href: "./" }, "Session Hub"));
-  $("guideLink").hidden = $("playbookLink").hidden = false;
+  $("guideLink").hidden = $("knowledgeLink").hidden = $("playbookLink").hidden = false;
   $("guideLink").setAttribute("aria-current", "page");
   gdHeader.after(gdRoot);
 
