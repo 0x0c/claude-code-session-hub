@@ -21,6 +21,7 @@ Endpoints:
     GET  /api/stream    SSE: a snapshot first, then updates
     POST /api/events    receive an event {"session_id", "writer"?, "fields": {...}}
     DELETE /api/sessions/<session_id>   physically delete every message of one session (SH-0002)
+    DELETE /api/server  stop this server (loopback clients alone)
 """
 
 from __future__ import annotations
@@ -335,6 +336,8 @@ def make_handler(hub: Hub, token: str | None):
         def do_DELETE(self):
             path = urllib.parse.unquote(self.path.split("?", 1)[0])
             prefix = "/api/sessions/"
+            if path == "/api/server":
+                return self._stop_server()
             if not path.startswith(prefix):
                 return self._send(404, _dumps({"error": "not found"}))
             if not self._authorized():
@@ -347,6 +350,17 @@ def make_handler(hub: Hub, token: str | None):
             if not deleted:
                 return self._send(404, _dumps({"error": "no such session"}))
             self._send(200, _dumps({"session_id": sid, "deleted": deleted}))
+
+        def _stop_server(self):
+            if not self._authorized():
+                return self._send(401, _dumps({"error": "unauthorized"}))
+            # Browsers send Origin on every DELETE and session-hub stop sends none, so refusing the header
+            # keeps pages out, even one that reaches the hub as same-origin through DNS rebinding.
+            if self.client_address[0] not in ("127.0.0.1", "::1") or "Origin" in self.headers:
+                return self._send(403, _dumps({"error": "only a local client can stop the hub"}))
+            self._send(200, _dumps({"stopping": True}))
+            # shutdown() waits for the serving loop to end, so it must not delay this response
+            threading.Thread(target=self.server.shutdown, daemon=True).start()
 
         def _stream(self):
             q, snap = hub.subscribe()

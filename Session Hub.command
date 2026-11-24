@@ -1,7 +1,8 @@
 #!/bin/sh
 # Double-click launcher for macOS Finder: starts the hub server and opens the dashboard.
 #
-# - If a hub already answers on the port, it only opens the dashboard and exits.
+# - If a hub already answers on the port, it opens the dashboard and stays until that hub stops.
+#   Ctrl-C stops the hub. Closing the window leaves it running, because this window did not start it.
 # - Otherwise it runs the server in this Terminal window. Close the window (or press Ctrl-C) to stop it.
 #
 # A Finder double-click does not see the "env" block of ~/.claude/settings.json, which reaches
@@ -44,8 +45,16 @@ PAGE="$BASE/"
 healthy() { curl -fsS -m 1 "$BASE/healthz" >/dev/null 2>&1; }
 
 if healthy; then
-  echo "Session Hub is already running at $BASE/"
+  trap 'trap "" INT; echo; bin/session-hub stop --port "$PORT"; exit $?' INT
+  echo "Session Hub is already running at $BASE/. Press Ctrl-C to stop it."
   open "$PAGE"
+  # One slow answer does not mean the hub stopped, so wait for three misses in a row.
+  misses=0
+  while [ "$misses" -lt 3 ]; do
+    sleep 1
+    if healthy; then misses=0; else misses=$((misses + 1)); fi
+  done
+  echo "Session Hub has stopped."
   exit 0
 fi
 

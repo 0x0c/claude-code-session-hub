@@ -194,6 +194,8 @@ immediately**.
   has a single writer, so sharing the store through Git causes no conflicts.
 - **Timestamp assignment**: the server assigns a millisecond timestamp that increases monotonically
   across the whole store. The arrival order and the display order therefore always agree.
+- **Stopping the hub**: `session-hub stop` calls `DELETE /api/server`, which the hub accepts from the
+  loopback interface alone. A hub that a hook started in the background stops the same way.
 - **Deleting a session**: the one exception to append-only writing. `session-hub delete` and the
   dashboard's delete buttons (in the session list and the timeline header) call
   `DELETE /api/sessions/<session_id>`, which unlinks every file of that session under the files' write
