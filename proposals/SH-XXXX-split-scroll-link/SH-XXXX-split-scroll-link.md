@@ -34,12 +34,13 @@ scroll, and the connector follows the selected card as the list scrolls.
 
 ### The split layout
 
-The layout applies to a window wider than 860px and at least 480px tall. The page fills the window;
+The layout applies to the list layout in a window wider than 860px and at least 480px tall. The page fills the window;
 the header and both panels' titles stay fixed, as do the detail panel's filters. The session list
-(`#sessions`) and a new wrapper around the detail views (`#detail`) scroll on their own. Both accept
+(`#sessions`) and a new wrapper around the detail views (`#detailScroll`) scroll on their own. Both accept
 keyboard focus, so the arrow keys scroll them.
 
-A smaller window keeps the single page scroll. The phone layout stacks the panels, and a very short
+The grid layout is unchanged: its detail panel slides over the grid, scrolls as a whole, and has no
+connector. A smaller window keeps the single page scroll. The phone layout stacks the panels, and a very short
 window leaves too little height for two scrolling panels.
 
 ### Scroll position

@@ -50,6 +50,14 @@ def note(sid: str, fields: dict, res: dict | None) -> None:
     save(sid, st)
 
 
+def set_transcript(sid: str, path: str) -> None:
+    """Remember the transcript, so that CLI sends can read the session's name from it too."""
+    st = load(sid)
+    if st.get("transcript") != path:
+        st["transcript"] = path
+        save(sid, st)
+
+
 def map_task(sid: str, task_id: str, name: str) -> None:
     st = load(sid)
     st.setdefault("tasks", {})[task_id] = name

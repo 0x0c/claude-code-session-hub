@@ -2,9 +2,9 @@
 """Create, list, lint, and number Session Hub proposals.
 
 A proposal is a design document that we write and review before we build a change. Each proposal
-is a pair of files: the English original ``proposals/SH-NNNN-<slug>.md`` and its Japanese mirror
-``proposals/SH-NNNN-<slug>.ja.md``. This script keeps the format mechanical so that reviews can
-focus on the argument:
+has its own folder ``proposals/SH-NNNN-<slug>/``, which holds the English original
+``SH-NNNN-<slug>.md``, its Japanese mirror ``SH-NNNN-<slug>.ja.md``, and any supporting files. This
+script keeps the format mechanical so that reviews can focus on the argument:
 
     python3 scripts/proposals.py new --slug push-retry --title "Retry pushes with backoff" \
         --title-ja "プッシュの再試行" --topic Protocol --author <github-handle>
@@ -63,6 +63,7 @@ JA = Language(
 )
 LANGUAGES = (EN, JA)
 
+FOLDER_RE = re.compile(r"^SH-(?:\d{4}|XXXX)-[a-z0-9]+(?:-[a-z0-9]+)*$")
 FILE_RE = re.compile(r"^SH-(\d{4}|XXXX)-([a-z0-9]+(?:-[a-z0-9]+)*)(\.ja)?\.md$")
 TITLE_RE = re.compile(r"^# (SH-(?:\d{4}|XXXX)) — (.+)$")
 NUMBER_RE = re.compile(r"^SH-(\d{4})-")
@@ -140,7 +141,8 @@ def parse(path: Path) -> Proposal:
 
 def load_all(directory: Path = PROPOSALS_DIR) -> list[Proposal]:
     """Return the English originals; each one's mirror is reached through ``mirror_of``."""
-    return [parse(f) for f in sorted(directory.glob("SH-*.md")) if not f.name.endswith(".ja.md")]
+    originals = (folder / f"{folder.name}.md" for folder in sorted(directory.glob("SH-*")))
+    return [parse(f) for f in originals if f.exists()]
 
 
 def mirror_path(original: Path) -> Path:
@@ -208,11 +210,19 @@ def lint(directory: Path = PROPOSALS_DIR) -> list[str]:
     errors: list[str] = []
     seen: dict[int, Path] = {}
 
-    for path in sorted(directory.glob("SH-*.md")):
-        if path.name.endswith(".ja.md") and not path.with_name(path.name[:-6] + ".md").exists():
-            errors.append(f"{path.name}: Japanese mirror without an English original")
-        elif not FILE_RE.match(path.name):
-            errors.append(f"{path.name}: file name must match SH-NNNN-<lowercase-slug>.md (or .ja.md)")
+    for folder in sorted(directory.glob("SH-*")):
+        if not folder.is_dir():
+            errors.append(f"{folder.name}: must live in its own folder, proposals/SH-NNNN-<slug>/")
+            continue
+        if not FOLDER_RE.match(folder.name):
+            errors.append(f"{folder.name}/: folder name must match SH-NNNN-<lowercase-slug>")
+        pair = (f"{folder.name}.md", f"{folder.name}.ja.md")
+        if not (folder / pair[0]).exists():
+            errors.append(f"{pair[1]}: Japanese mirror without an English original"
+                          if (folder / pair[1]).exists() else f"{folder.name}/: missing {pair[0]}")
+        for path in sorted(folder.glob("SH-*.md")):
+            if path.name not in pair:
+                errors.append(f"{path.name}: file name must match its folder, {folder.name}")
 
     for p in load_all(directory):
         if p.ident is None:
@@ -263,7 +273,7 @@ def resolve_author(explicit: str | None) -> str | None:
 def create(slug: str, title: str, topic: str, author: str, status: str = "Proposed",
            title_ja: str | None = None, directory: Path = PROPOSALS_DIR,
            template_dir: Path = PROPOSALS_DIR) -> tuple[Path, Path]:
-    """Scaffold the English original and the Japanese mirror; return both paths."""
+    """Scaffold a folder with the English original and the Japanese mirror; return both paths."""
     if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", slug):
         raise ValueError("slug must be lowercase words joined by hyphens, e.g. push-retry")
     if topic not in TOPICS:
@@ -271,15 +281,17 @@ def create(slug: str, title: str, topic: str, author: str, status: str = "Propos
     if status not in STATUSES:
         raise ValueError(f"status must be one of: {', '.join(STATUSES)}")
     ident = PLACEHOLDER  # allocate() numbers the pair after it merges to main
-    if (directory / f"{ident}-{slug}.md").exists():
-        raise ValueError(f"{ident}-{slug}.md already exists; pick another slug")
+    folder = directory / f"{ident}-{slug}"
+    if folder.exists():
+        raise ValueError(f"{folder.name}/ already exists; pick another slug")
+    folder.mkdir()
     paths = []
     for lang, heading in ((EN, title), (JA, title_ja or title)):
         template = template_dir / f"TEMPLATE{lang.suffix}.md"
         text = (template.read_text(encoding="utf-8")
                 .replace("SH-NNNN", ident).replace("<slug>", slug).replace("<Title>", heading)
                 .replace("<handle>", author).replace("<Topic>", topic).replace("<Status>", status))
-        path = directory / f"{ident}-{slug}{lang.suffix}.md"
+        path = folder / f"{ident}-{slug}{lang.suffix}.md"
         path.write_text(text, encoding="utf-8")
         paths.append(path)
     return paths[0], paths[1]
@@ -306,19 +318,19 @@ def numbers_on_ref(directory: Path, ref: str) -> set[int]:
 
 
 def _rename_links(text: str, slug: str, ident: str) -> str:
-    """Rewrite the file name ``SH-XXXX-<slug>.md`` (or ``.ja.md``) to its number, and no other slug.
+    """Rewrite the folder and file name ``SH-XXXX-<slug>`` to its number, and no other slug.
 
     The lookahead keeps slug ``beta`` from matching inside ``SH-XXXX-beta-two.md``.
     """
-    return re.sub(rf"{PLACEHOLDER}-{re.escape(slug)}(?=(?:\.ja)?\.md\b)", f"{ident}-{slug}", text)
+    return re.sub(rf"{PLACEHOLDER}-{re.escape(slug)}(?=(?:\.ja)?\.md\b|[/)#])", f"{ident}-{slug}", text)
 
 
 def _renumber_text(text: str, slug: str, ident: str) -> str:
     """Replace the placeholder where it names this proposal, and nowhere else.
 
     The prose of a proposal may discuss the placeholder itself, so a blanket
-    replacement would corrupt it. The id appears in three structural places: file names (the
-    language-switch line and links), the title, and the metadata row.
+    replacement would corrupt it. The id appears in three structural places: folder and file names
+    (the language-switch line and links), the title, and the metadata row.
     """
     text = _rename_links(text, slug, ident)
     text = re.sub(rf"^# {PLACEHOLDER} — ", f"# {ident} — ", text, count=1, flags=re.MULTILINE)
@@ -330,8 +342,9 @@ def _renumber_text(text: str, slug: str, ident: str) -> str:
 def allocate(directory: Path = PROPOSALS_DIR, ref: str = "origin/main") -> list[tuple[str, str]]:
     """Number every placeholder proposal, in slug order, and return the (slug, id) allocations.
 
-    The pair is renamed with ``git mv``. Every proposal file that links the placeholder file name
-    (another new proposal, say) is rewritten to the new name too.
+    The folder and the pair in it are renamed with ``git mv``, so supporting files move along. Every
+    Markdown file in a proposal folder that links the placeholder name (another new proposal, say) is
+    rewritten to the new name too.
     """
     used = {p.number for p in load_all(directory) if p.number is not None} | numbers_on_ref(directory, ref)
     pending = sorted((p for p in load_all(directory) if p.ident == PLACEHOLDER), key=lambda p: p.slug)
@@ -341,15 +354,17 @@ def allocate(directory: Path = PROPOSALS_DIR, ref: str = "origin/main") -> list[
         while n in used:
             n += 1
         ident = f"SH-{n:04d}"
-        for src in (p.path, mirror_path(p.path)):
+        old, new = p.path.parent.name, f"{ident}-{p.slug}"
+        if (directory / new).exists():
+            raise SystemExit(f"refusing to assign {ident}: {new}/ already exists")
+        _git("mv", old, new, cwd=directory)
+        for lang in LANGUAGES:
+            src, dst = (directory / new / f"{stem}{lang.suffix}.md" for stem in (old, new))
             if not src.exists():
                 continue
-            dst = src.with_name(src.name.replace(PLACEHOLDER, ident, 1))
-            if dst.exists():
-                raise SystemExit(f"refusing to assign {ident}: {dst.name} already exists")
-            _git("mv", src.name, dst.name, cwd=directory)
+            _git("mv", src.name, dst.name, cwd=src.parent)
             dst.write_text(_renumber_text(dst.read_text(encoding="utf-8"), p.slug, ident), encoding="utf-8")
-        for other in sorted(directory.glob("SH-*.md")):
+        for other in sorted(directory.glob("SH-*/**/*.md")):
             text = other.read_text(encoding="utf-8")
             new_text = _rename_links(text, p.slug, ident)
             if new_text != text:

@@ -15,7 +15,7 @@ class SplitLayoutTest(unittest.TestCase):
         self.assertIn("@media " + query + " {", self.page)
 
     def test_each_panel_has_its_own_scroll_area(self):
-        for name in ("sessions", "detail"):
+        for name in ("sessions", "detailScroll"):
             self.assertRegex(self.page, r'id="%s" class="scroll"' % name)
 
 
