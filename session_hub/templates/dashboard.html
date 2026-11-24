@@ -126,18 +126,20 @@ main.grid .newbar { top: 48px; }
 .ev.flash { animation: flash 2.5s ease-out; }
 @keyframes flash { from { background: var(--flash); } to { background: transparent; } }
 /* Glow on message receipt. --glow is the color of the new state; keep the duration in sync with GLOW_MS in the JS */
-.glow { --glow: var(--accent); animation: glow var(--glow-ms, 6s) ease-out both; position: relative; z-index: 1; }
+.glow { --glow: var(--accent); animation: glow var(--glow-ms, 6s) ease-in-out both; position: relative; z-index: 1; border-radius: 8px; }
+/* Breathe: three bright peaks, each falling back to a faint halo, then fade out. The halo itself pulses;
+   a constant outline would read as a static highlight. */
 @keyframes glow {
-  0%   { box-shadow: 0 0 0 2px var(--glow), 0 0 22px 6px color-mix(in srgb, var(--glow) 55%, transparent); }
-  15%  { box-shadow: 0 0 0 2px var(--glow), 0 0 14px 3px color-mix(in srgb, var(--glow) 40%, transparent); }
-  30%  { box-shadow: 0 0 0 2px var(--glow), 0 0 22px 6px color-mix(in srgb, var(--glow) 55%, transparent); }
-  75%  { box-shadow: 0 0 0 1px color-mix(in srgb, var(--glow) 60%, transparent), 0 0 10px 2px color-mix(in srgb, var(--glow) 25%, transparent); }
-  100% { box-shadow: 0 0 0 0 transparent, 0 0 0 0 transparent; }
+  0%, 30%, 60% { box-shadow: 0 0 0 1.5px var(--glow), 0 0 14px 4px color-mix(in srgb, var(--glow) 75%, transparent),
+    0 0 36px 12px color-mix(in srgb, var(--glow) 45%, transparent), inset 0 0 22px color-mix(in srgb, var(--glow) 30%, transparent); }
+  15%, 45%, 75% { box-shadow: 0 0 0 1px color-mix(in srgb, var(--glow) 30%, transparent), 0 0 6px 1px color-mix(in srgb, var(--glow) 25%, transparent),
+    0 0 12px 2px color-mix(in srgb, var(--glow) 12%, transparent), inset 0 0 8px color-mix(in srgb, var(--glow) 8%, transparent); }
+  100% { box-shadow: 0 0 0 0 transparent, 0 0 0 0 transparent, 0 0 0 0 transparent, inset 0 0 0 transparent; }
 }
-.ev.glow { border-radius: 6px; background: color-mix(in srgb, var(--glow) 8%, transparent); }
-.lanes .laneglow { animation: laneglow var(--glow-ms, 6s) ease-out both; pointer-events: none; }
-@keyframes laneglow { 0%, 30% { opacity: .35; } 100% { opacity: 0; } }
+.lanes .laneglow { animation: laneglow var(--glow-ms, 6s) ease-in-out both; pointer-events: none; }
+@keyframes laneglow { 0%, 30%, 60% { opacity: .45; } 15%, 45%, 75% { opacity: .12; } 100% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) {
+  @keyframes laneglow { 0%, 30% { opacity: .35; } 100% { opacity: 0; } }
   @keyframes glow { 0%, 75% { box-shadow: 0 0 0 2px var(--glow); } 100% { box-shadow: 0 0 0 0 transparent; } }
 }
 .ev time { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; padding-top: 1px; }
@@ -540,7 +542,7 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
         badge(stateKey(s))),
       el("div", { class: "meta" }, meta),
       s.summary ? el("div", { class: "summary" }, s.summary) : null,
-      p.total ? el("div", { class: "progress", "aria-hidden": "true" }, el("i", { style: { width: pct + "%" } })) : null,
+      p.total && s.state !== "done" ? el("div", { class: "progress", "aria-hidden": "true" }, el("i", { style: { width: pct + "%" } })) : null,
     );
     const a = s.attention;
     if (a) {
@@ -983,7 +985,9 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     ui.fresh = new Set(fresh.map((e) => e.id));
     for (const e of fresh) {
       if (e.type === "heartbeat") continue; // Do not glow for automatic hook sends
-      const color = css((STATE[e.state_after] || [0, "--accent"])[1]) || css("--accent");
+      // The grey of a queued or done session reads as a plain shadow, so those glow in the accent color
+      const name = (STATE[e.state_after] || [0, "--accent"])[1];
+      const color = css(["--s-queue", "--s-done"].includes(name) ? "--accent" : name) || css("--accent");
       markGlow(glowKey.event(e.id), color);
       markGlow(glowKey.session(e.session_id), color);
     }

@@ -428,7 +428,7 @@ label, it gives the English label and the Japanese label in parentheses.
   (作業中・待機), and "done" (完了), each sorted by the priority in §4.3.
   - Clicking a group heading collapses or expands that group. A collapsed heading keeps its count,
     and glows when a hidden session sends a message. The browser remembers the collapsed groups.
-  - Each card shows a state badge, a task progress bar, the remaining work, the PR and CI, the
+  - Each card shows a state badge, a task progress bar (hidden in the `done` state), the remaining work, the PR and CI, the
     tokens and cost, the last update, and any unanswered question (with its options, its default,
     and the command to answer it).
   - **A session in an active state (planning / working / changes_requested) shows a spinner.**
@@ -468,6 +468,9 @@ label, it gives the English label and the Japanese label in parentheses.
   - the matching timeline row
   - the swimlane band
   - the collection item the message landed in
+
+  The halo pulses three times and then fades. A queued, done, or abandoned session, whose state color
+  is grey, glows in the accent color.
 
   A glow survives a redraw and continues where it left off. When messages arrive back to back, the
   latest one restarts the glow. Heartbeats (the hooks' automatic sends) do not glow. With the
