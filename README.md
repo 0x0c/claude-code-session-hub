@@ -161,7 +161,9 @@ project.
 - With `HUB_AUTOSTART=1`, the first session to start launches the hub server in the background (log:
   `~/.session-hub/.server.log`). To run the server yourself, remove the variable and run
   `session-hub serve`.
-- On macOS, you can also double-click `Session Hub.command` at the repository root in Finder. It
+- On macOS, you can also double-click `Session Hub.command` in Finder. It sits at the root of a
+  clone of this repository and, after an APM install, in `apm_modules/0x0c/claude-code-session-hub/`
+  (a plugin install keeps it in Claude Code's plugin cache, so clone the repository to get it). It
   starts the server in a Terminal window and opens the dashboard; if a hub is already running, it
   only opens the dashboard. Close the window to stop the server. A double-click does not see the
   `env` block above, so the launcher reads `HUB_STORE`, `HUB_URL`, and `HUB_TOKEN` from

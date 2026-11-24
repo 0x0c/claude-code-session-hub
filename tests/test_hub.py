@@ -1,9 +1,12 @@
 import io
 import json
 import os
+import shutil
+import subprocess
 import tempfile
 import threading
 import unittest
+import urllib.parse
 import urllib.request
 from contextlib import redirect_stdout
 from pathlib import Path
@@ -383,6 +386,51 @@ class HooksTest(TmpMixin, unittest.TestCase):
             os.environ.pop("HUB_STORE")
             self.assertEqual(self.run_hook("stop", {}), "")
             self.assertEqual(self.run_hook("todo", {"tool_name": "TodoWrite", "tool_input": {"todos": []}}), "")
+
+
+@unittest.skipUnless(shutil.which("curl"), "the launcher checks the hub with curl")
+class LauncherTest(TmpMixin, unittest.TestCase):
+    """`Session Hub.command`: the settings it resolves decide which hub it opens."""
+
+    LAUNCHER = Path(__file__).resolve().parent.parent / "Session Hub.command"
+
+    def setUp(self):
+        super().setUp()
+        self.httpd, _ = make_server(self.store, port=0, token="a+b&c")
+        self.port = self.httpd.server_address[1]
+        threading.Thread(target=self.httpd.serve_forever, daemon=True).start()
+        self.home = self.dir / "home"
+        (self.home / ".claude").mkdir(parents=True)
+        stub = self.dir / "bin" / "open"
+        stub.parent.mkdir()
+        self.opened = self.dir / "opened"
+        stub.write_text(f'#!/bin/sh\necho "$1" >> "{self.opened}"\n')
+        stub.chmod(0o755)
+
+    def tearDown(self):
+        self.httpd.shutdown()
+        self.httpd.server_close()
+        super().tearDown()
+
+    def launch(self, settings_env: dict, **env) -> str:
+        (self.home / ".claude" / "settings.json").write_text(json.dumps({"env": settings_env}))
+        clean = {k: v for k, v in os.environ.items() if not k.startswith("HUB_")}
+        clean.update(HOME=str(self.home), PATH=f"{self.dir / 'bin'}:{os.environ['PATH']}", **env)
+        res = subprocess.run(["sh", str(self.LAUNCHER)], env=clean, cwd=self.dir,
+                             capture_output=True, text=True, timeout=30)
+        self.assertEqual(res.returncode, 0, res.stderr)
+        return self.opened.read_text().strip()
+
+    def test_reads_settings_json_and_opens_the_running_hub(self):
+        # An IPv6 loopback URL with an uppercase scheme, and a token that needs percent-encoding
+        opened = self.launch({"HUB_STORE": "~/store", "HUB_URL": f"HTTP://[::1]:{self.port}",
+                              "HUB_TOKEN": "a+b&c"})
+        self.assertEqual(opened, f"http://127.0.0.1:{self.port}/?token={urllib.parse.quote('a+b&c', safe='')}")
+
+    def test_shell_environment_wins_over_settings_json(self):
+        opened = self.launch({"HUB_URL": "http://127.0.0.1:1", "HUB_TOKEN": "wrong"},
+                             HUB_URL=f"http://127.0.0.1:{self.port}", HUB_TOKEN="a+b&c")
+        self.assertEqual(opened, f"http://127.0.0.1:{self.port}/?token=a%2Bb%26c")
 
 
 if __name__ == "__main__":
