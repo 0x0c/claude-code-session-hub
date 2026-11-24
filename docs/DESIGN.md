@@ -197,7 +197,7 @@ immediately**.
 - **Stopping the hub**: `session-hub stop` calls `DELETE /api/server`, which the hub accepts from the
   loopback interface alone. A hub that a hook started in the background stops the same way.
 - **Deleting a session**: the one exception to append-only writing. `session-hub delete` and the
-  dashboard's delete buttons (in the session list and the timeline header) call
+  dashboard's delete button (in the timeline header) call
   `DELETE /api/sessions/<session_id>`, which unlinks every file of that session under the files' write
   locks and pushes the removal to every browser. The operation works on whole sessions alone, so the
   folded state of every other session stays intact

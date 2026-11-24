@@ -265,11 +265,9 @@ To remove a finished session and every stored message of it, from the hub and th
 session-hub delete <session_id>
 ```
 
-The deletion cannot be undone. The dashboard offers the same operation in two places: the **×** button
-on each session in the list, and **Delete session** in the timeline header once you select a session.
-Both ask for a confirmation. On a device with a pointer, the **×** button appears when you point at
-the session or focus it with the keyboard. A session that reports again after the deletion reappears
-with its new messages alone.
+The deletion cannot be undone. The dashboard offers the same operation: once you select a session,
+**Delete session** appears in the timeline header and asks for a confirmation. A session that reports
+again after the deletion reappears with its new messages alone.
 
 When you archive a session in the Claude desktop app on macOS, the hub notices within seconds and
 moves the session into the dashboard's **Archived** group. An archived session keeps its history and its last state, and
