@@ -39,6 +39,8 @@ def note(sid: str, fields: dict, res: dict | None) -> None:
     st = load(sid)
     if fields.get("actor", "child") == "child":
         st["started"] = True
+    if fields.get("repo"):
+        st["repo"] = fields["repo"]
     if res and res.get("status"):
         st["state"] = res["status"]["state"]
     elif fields.get("type") in ("done", "fail", "ask", "ready"):

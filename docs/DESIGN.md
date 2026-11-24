@@ -52,7 +52,7 @@ Each session has one status record, a JSON object. The field `v` holds the schem
 |---|---|---|---|
 | Identity | `v`, `session_id`, `parent_id`, `title`, `task_ref` | At launch (parent) | `task_ref` is an issue number or a task identifier (ID) |
 | | `session_name` | Hook or command (automatic) | The session's name in Claude Code, read from the transcript. Clipped at 200 characters. When present, it replaces `title`, so the dashboard shows the name |
-| Location | `repo`, `branch`, `base` | At launch / hook | |
+| Location | `repo`, `branch`, `base` | At launch / hook | `repo` names the project: `--repo`, or the path of the Git remote, or the folder name |
 | State | `state` | Child (CLI) | One of the values listed in §1.2 |
 | | `phase` | Child | A narrow enumeration such as `plan` / `implement` / `test` / `fix` / `docs` / `self_review` |
 | | `summary` | Child | What the child is doing now. **≤ 80 characters** |
@@ -194,9 +194,10 @@ immediately**.
 - **Timestamp assignment**: the server assigns a millisecond timestamp that increases monotonically
   across the whole store. The arrival order and the display order therefore always agree.
 - **Deleting a session**: the one exception to append-only writing. `session-hub delete` and the
-  dashboard's **Delete session** button call `DELETE /api/sessions/<session_id>`, which unlinks every
-  file of that session under the files' write locks and pushes the removal to every browser. The
-  operation works on whole sessions alone, so the folded state of every other session stays intact
+  dashboard's delete buttons (in the session list and the timeline header) call
+  `DELETE /api/sessions/<session_id>`, which unlinks every file of that session under the files' write
+  locks and pushes the removal to every browser. The operation works on whole sessions alone, so the
+  folded state of every other session stays intact
   ([SH-0002](../proposals/SH-0002-delete-session/SH-0002-delete-session.md)).
 
 ### 3.2 Child → hub (`session-hub report` and related commands)
@@ -427,10 +428,13 @@ label, it gives the English label and the Japanese label in parentheses.
   - The tab title also shows the "needs action" count, as in `(3) Session Hub`.
   - Optional browser notifications announce transitions to waiting for a human, ready for review,
     failed, done, and stale.
-- **Session list** (left): split into "needs action" (要対応), "working or waiting"
-  (作業中・待機), and "done" (完了), each sorted by last update, the newest first. The
-  last update is the time on the card, and a heartbeat counts.
-  - "Needs action" is a framed section of its own at the top. It appears when a session needs action.
+- **Session list** (left): a framed "needs action" (要対応) section at the top when a session needs
+  action, then one collapsible section per project (`repo`) for the other sessions.
+  - Every section sorts by last update, the newest first. The last update is the time on the card,
+    and a heartbeat counts. The project with the newest update comes first, and sessions without a
+    project come last.
+  - The **By project** button switches the sessions below "needs action" to grouping by status:
+    "working or waiting" (作業中・待機) and "done" (完了).
   - Each card shows a state badge, a task progress bar (hidden in the `done` state), the remaining work, the PR and CI, the
     tokens and cost, the last update, and any unanswered question (with its options, its default,
     and the command to answer it).
