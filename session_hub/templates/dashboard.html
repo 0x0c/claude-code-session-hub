@@ -79,6 +79,13 @@ main.grid #detail.open { transform: none; visibility: visible; box-shadow: -8px 
 main.grid #detail > h2 { position: sticky; top: 0; z-index: 4; background: var(--panel); }
 main.grid .newbar { top: 48px; }
 @media (prefers-reduced-motion: reduce) { main.grid #detail.slide, main.grid #detail.slide.open { transition: none; } }
+/* Sessions that need action: a section of its own above the other groups */
+.action-section { margin: 10px; border: 1px solid var(--s-needs); border-radius: 8px;
+  background: color-mix(in srgb, var(--s-needs) 6%, var(--panel)); }
+.action-section .group-title { color: var(--s-needs); }
+main:not(.grid) .action-section .card:last-child { border-radius: 0 0 7px 7px; }
+main.grid .action-section { margin: 14px 0 4px; padding: 0 12px 12px; }
+main.grid .action-section .card:not(.selected):not(:hover) { background: var(--panel); }
 .group-title { font-size: 11px; font-weight: 600; letter-spacing: .04em; color: var(--muted); padding: 10px 14px 4px; }
 .card { padding: 10px 14px; border-top: 1px solid var(--line); cursor: pointer; border-left: 3px solid transparent; }
 .card:hover { background: var(--hover); }
@@ -487,8 +494,10 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     for (const [title, pred] of groups) {
       const list = db.sessions.filter(pred).sort(byRecent);
       if (!list.length) continue;
-      box.append(el("div", { class: "group-title" }, `${title} (${list.length})`));
-      box.append(el("div", { class: "cards" }, list.map(sessionCard)));
+      const heading = el("div", { class: "group-title" }, `${title} (${list.length})`);
+      const cards = el("div", { class: "cards" }, list.map(sessionCard));
+      if (title === t("group.action")) box.append(el("section", { class: "action-section", "aria-label": title }, heading, cards));
+      else box.append(heading, cards);
     }
   }
 
