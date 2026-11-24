@@ -1,11 +1,11 @@
-**English** · [日本語](SH-XXXX-collapse-session-groups.ja.md)
+**English** · [日本語](SH-0009-collapse-session-groups.ja.md)
 
-# SH-XXXX — Collapse the session list by status
+# SH-0009 — Collapse the session list by status
 
 <!-- SH-METADATA -->
 | Field | Value |
 |---|---|
-| Proposal | SH-XXXX |
+| Proposal | SH-0009 |
 | Author | [@0x0c](https://github.com/0x0c) |
 | Status | **Implemented** |
 | Topic | Dashboard |

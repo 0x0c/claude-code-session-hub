@@ -28,7 +28,8 @@ them on a browser dashboard.
   reports from being missed. The hooks send heartbeats, token usage, and task progress
   automatically, and they ask for a report when a session tries to stop while still marked as
   working. The dashboard shows each session under its name in Claude Code; the `--title` of
-  `session-hub start` appears only until the session has a name.
+  `session-hub start` appears only until the session has a name. When a session opens a pull
+  request, its card links to that pull request.
 
 [docs/DESIGN.md](docs/DESIGN.md) covers the design rationale and the protocol, and its
 [glossary](docs/DESIGN.md#appendix-a-glossary) defines the terms.
