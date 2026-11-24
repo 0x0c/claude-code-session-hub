@@ -49,6 +49,14 @@ class DashboardTest(unittest.TestCase):
         self.assertIn(r'/^https?:\/\//i.test(pr.url || "") ? pr.url : null', PAGE)
         self.assertRegex(PAGE, r'class: "pr", href: prUrl, target: "_blank", rel: "noopener noreferrer"')
 
+    def test_swimlanes_zoom_and_list_the_shown_period(self):
+        for button in ("laneIn", "laneOut", "laneFit"):
+            self.assertIn(f'$("{button}").addEventListener("click"', PAGE)
+        self.assertIn('{ passive: false }', PAGE)  # a passive wheel listener cannot stop the page zoom
+        columns = re.search(r'\[([^\]]*)\]\.map\(\(c\) => el\("th", \{ scope: "col" \}', PAGE)[1]
+        self.assertLessEqual({"lanes.col." + c for c in re.findall(r'"(\w+)"', columns)}, messages("ja"))
+        self.assertLessEqual({"dur.sec", "dur.min", "dur.hour", "dur.day"}, messages("ja"))
+
 
 class DesignTokenTest(unittest.TestCase):
     def setUp(self):

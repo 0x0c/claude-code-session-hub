@@ -45,9 +45,9 @@
 
   // Run a dashboard renderer against sample data and take what it drew out of its container
   function pbCapture(id, data, draw, settings = {}) {
-    const saved = { ...db }, state = { view: ui.view, session: ui.session, byProject: ui.byProject, collapsed: ui.collapsed };
+    const saved = { ...db }, state = { view: ui.view, session: ui.session, byProject: ui.byProject, collapsed: ui.collapsed, lane: ui.lane };
     Object.assign(db, data);
-    Object.assign(ui, { byProject: false, collapsed: new Set() }, settings);
+    Object.assign(ui, { byProject: false, collapsed: new Set(), lane: { span: null, end: null } }, settings);
     try { draw(); return [...$(id).childNodes]; }
     finally { Object.assign(db, saved); Object.assign(ui, state); }
   }
@@ -139,6 +139,21 @@
           pbEvent(type, { id: "pb-l" + i, ts: pbAt(min), state_after: after, ...(PB_EVENTS[type] || (() => ({})))(), ...{ state_after: after } }));
         const nodes = pbCapture("lanes", { sessions: [pbSession("working")], events: pbEvents(list) }, renderLanes);
         return [el("div", { class: "lanes" }, nodes), el("div", { class: "legend" }, [...$("legend").childNodes])];
+      }],
+      ["Zoom controls", () => pbClone("#lanebar")],
+      ["Zoomed in, with the details of the shown period", () => {
+        const list = [["start", 120, "working"], ["ask", 80, "needs_human"], ["answer", 60, "working"], ["ready", 20, "review_ready"]].map(([type, min, after], i) =>
+          pbEvent(type, { id: "pb-z" + i, ts: pbAt(min), ...(PB_EVENTS[type] || (() => ({})))(), state_after: after }));
+        const lane = { span: 60 * 60000, end: PB_NOW - 40 * 60000 };
+        const nodes = pbCapture("lanes", { sessions: [pbSession("working")], events: pbEvents(list) }, renderLanes, { lane });
+        return [el("div", { class: "lanes zoomed" }, nodes), ...$("laneTable").childNodes];
+      }],
+      ["While dragging", () => el("div", { class: "lanes zoomed dragging" }, pbCapture("lanes", { sessions: [pbSession("working")],
+        events: pbEvents([pbEvent("start")]) }, renderLanes))],
+      ["Period without events", () => {
+        const lane = { span: 60000, end: PB_NOW };
+        pbCapture("lanes", { sessions: [pbSession("working")], events: pbEvents([pbEvent("heartbeat", { ts: pbAt(60) })]) }, renderLanes, { lane });
+        return [...$("laneTable").childNodes];
       }],
       ["Lane that received a message", () => {
         markGlow(glowKey.session("pb-lane"), css("--s-needs"));
