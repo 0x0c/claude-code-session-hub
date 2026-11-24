@@ -1,0 +1,13 @@
+/* The status guide's own layout. Every class starts with gd-. */
+/* The dashboard's split layout fixes the page to the window; the guide scrolls */
+body { height: auto !important; display: block !important; overflow: auto !important; }
+header h1 { margin-right: auto; }
+.gd-home { color: inherit; text-decoration: none; }
+.gd-home:hover { color: var(--accent); }
+.gd-main { max-width: 900px; margin: 0 auto; padding: var(--space-16); display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-16); }
+.gd-main > h2 { font-size: var(--fs-title); margin: 0; }
+.gd-main > p { margin: 0; }
+.gd-main th:nth-child(1) { width: 150px; }
+.gd-main th:nth-child(2) { width: 170px; }
+.gd-lead { margin: 0; padding: var(--space-10) var(--space-14) var(--space-4); font-size: var(--fs-body-sm); }
+@media (max-width: 600px) { .gd-main th { width: auto !important; } }
