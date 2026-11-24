@@ -4,7 +4,7 @@
 //
 // For each language, the script seeds a demo store, starts a hub on a free port, opens the
 // dashboard in Chromium (Playwright), pushes one live message so that a card glows, and captures
-// the feed and the knowledge tab. It needs Node.js with the `playwright` package and Chromium.
+// the feed, the knowledge tab, and the grid layout. It needs Node.js with the `playwright` package and Chromium.
 const { chromium } = require("playwright");
 const { execFileSync, spawn } = require("child_process");
 const fs = require("fs");
@@ -54,6 +54,11 @@ async function waitForHub(url) {
       await page.click('[data-view="col:knowledge"]');
       await sleep(300);
       await page.screenshot({ path: path.join(OUT, `knowledge-${lang}.png`) });
+      await page.click('[data-view="feed"]');
+      await page.click('[data-layout="grid"]');
+      await page.click(".card");
+      await sleep(500); // let the detail panel slide in
+      await page.screenshot({ path: path.join(OUT, `grid-${lang}.png`) });
       await ctx.close();
     } finally {
       hub.kill();
