@@ -38,7 +38,7 @@ The change touches the session list in `session_hub/templates/dashboard.html`. I
 - **Grouping by status.** When **By project** is off, the Archived group stays a flat list.
 - **Position.** The Archived group stays at the bottom of the list and starts collapsed.
 - **Heading.** A project heading inside Archived uses the indented heading style of the status groups
-  inside a project. The heading shows the project's name and count, without a badge. The labels exist
+  inside a project. The heading shows the project's name and count, without a badge or a help icon. The labels exist
   already, so the `MESSAGES` table needs no new label.
 - **Cards.** A card inside a project group omits the project's name, which the heading shows.
 - **State.** Every project group inside Archived starts expanded. The browser stores a collapsed one in

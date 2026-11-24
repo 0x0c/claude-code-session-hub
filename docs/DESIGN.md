@@ -425,6 +425,7 @@ label, it gives the English label and the Japanese label in parentheses.
 |---|---|
 | The dashboard of `session-hub serve` | For humans. Reflects each push as it arrives (SSE) |
 | `session-hub export --out dashboard.html` | A standalone HyperText Markup Language (HTML) file with an embedded snapshot (for sharing and archiving; does not update) |
+| `GET /guide` (the **Status guide** link in the header) | What each status and state means |
 | `GET /playbook` (the **Playbook** link in the header) | Every dashboard component in every state, drawn from sample data |
 | `GET /api/snapshot` | JSON for machines |
 | `session-hub attention` | For the parent LLM. Sessions that need action alone, one line each |
@@ -450,6 +451,8 @@ label, it gives the English label and the Japanese label in parentheses.
     collapsed heading keeps its count, and glows when a hidden session sends a message. The browser
     remembers the collapsed groups. The **Archived** group comes last and starts collapsed. In the
     grouping by project, its sessions are grouped by project too.
+  - A `?` icon follows each status label in a group heading and the state badge on each card. Hovering
+    over the icon, or tapping it, shows what the label means.
   - Each card shows a state badge, a task progress bar (hidden in the `done` state), the remaining work, the PR and CI, the
     tokens and cost, the last update, and any unanswered question (with its options, its default,
     and the command to answer it). The PR number on the card, in the title of the selected session's
@@ -560,11 +563,13 @@ claude-code-session-hub/
     local_state.py        The child's local state (last reported state, task ID mapping, transcript path)
     usage.py              Token totals from the transcript
     playbook.py           The playbook page
+    guide.py              The status guide page
     session_name.py       The session's name from the transcript
     pr_link.py            The session's linked PR from the transcript
     cli.py                The session-hub command
     templates/dashboard.html
     templates/playbook.{js,css}
+    templates/guide.{js,css}
   bin/session-hub         Wrapper that needs no installation
   .claude-plugin/         Claude Code plugin definition (plugin.json, marketplace.json)
   apm.yml                 APM metadata alone (no .apm/ or dependencies, so APM distributes the plugin layout as is)

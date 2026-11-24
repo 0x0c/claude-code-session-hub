@@ -13,6 +13,8 @@ them on a browser dashboard.
 - **Attention first.** The dashboard puts the sessions that need attention in a section of their own at the
   top: waiting for a human, failed, ready for review, or stalled. A spinner marks a session that is working. A
   **timeline** (a feed or swimlanes) replays every report in order.
+- **Every label explained.** Hover over the `?` icon next to a status or state to read what it means, or
+  open the **Status guide** from the header to read them all on one page.
 - **Grouped by project.** The session list gathers the other sessions by repository or project, the most
   recently updated first, and splits each project into "Working and waiting" and "Done".
   Archived sessions stay in a group of their own, split by project. The project's name
