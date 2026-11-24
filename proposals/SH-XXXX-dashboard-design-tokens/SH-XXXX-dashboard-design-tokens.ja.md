@@ -64,5 +64,5 @@
 
 ## 参考資料
 
-- [`session_hub/templates/dashboard.html`](../session_hub/templates/dashboard.html) — スタイルシート
-- [`docs/DESIGN.ja.md`](../docs/DESIGN.ja.md) — ダッシュボードの表示内容
+- [`session_hub/templates/dashboard.html`](../../session_hub/templates/dashboard.html) — スタイルシート
+- [`docs/DESIGN.ja.md`](../../docs/DESIGN.ja.md) — ダッシュボードの表示内容

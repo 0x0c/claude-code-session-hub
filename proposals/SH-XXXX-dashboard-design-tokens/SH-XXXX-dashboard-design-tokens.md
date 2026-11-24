@@ -64,5 +64,5 @@ A test reads the stylesheet and checks three rules:
 
 ## References
 
-- [`session_hub/templates/dashboard.html`](../session_hub/templates/dashboard.html) — the stylesheet
-- [`docs/DESIGN.md`](../docs/DESIGN.md) — what the dashboard shows
+- [`session_hub/templates/dashboard.html`](../../session_hub/templates/dashboard.html) — the stylesheet
+- [`docs/DESIGN.md`](../../docs/DESIGN.md) — what the dashboard shows
