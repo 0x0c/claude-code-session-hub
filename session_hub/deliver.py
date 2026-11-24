@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import os
 
-from . import client, core, local_state, session_name
+from . import client, core, local_state, pr_link, session_name
 from .store import EventStore
 
 
@@ -26,9 +26,13 @@ def deliver(session_id: str, fields: dict, writer: str | None = None, store_root
     If the server rejects the payload (4xx), the ValueError propagates unchanged.
     """
     if writer is None:
-        name = session_name.from_transcript(local_state.load(session_id).get("transcript"))
+        transcript = local_state.load(session_id).get("transcript")
+        name = session_name.from_transcript(transcript)
         if name:
             fields = {**fields, "session_name": name}
+        link = pr_link.from_transcript(transcript)
+        if link:
+            fields = {**fields, "pr_link": link}
     payload = {"session_id": session_id, "writer": writer, "fields": fields}
     url = client.hub_url()
     res, mode = None, "outbox"

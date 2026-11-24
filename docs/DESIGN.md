@@ -63,7 +63,7 @@ Each session has one status record, a JSON object. The field `v` holds the schem
 | | `attention.question`, `attention.options[]`, `attention.default`, `attention.since` | Child | We recommend offering options: the answer then fits in one word, which cuts the tokens of each round trip |
 | | `attention.blocking` | Child | `true`: the child has stopped completely. `false`: the child continues with the default and waits for confirmation |
 | Blockers | `blocked_on` | Child | Another session ID or an external cause (`session:xxx`, `ci`, `upstream`) |
-| PR | `pr.number`, `pr.url` | Hook | |
+| PR | `pr.number`, `pr.url` | Hook | The last pull request that Claude Code linked to the session, read from the transcript (`pr_link`), or the one reported with `session-hub pr`. The newer fact wins, and a different pull request clears the old PR facts. The dashboard links the number to `pr.url` |
 | | `pr.ci` | Script | `pending` / `pass` / `fail` / `none` |
 | | `pr.mergeable`, `pr.unresolved_threads`, `pr.review` | Script | Fetched from GitHub |
 | | `ready.self_review`, `ready.tests_added`, `ready.description` | Child | The child's self-reported checklist |
@@ -543,6 +543,7 @@ claude-code-session-hub/
     local_state.py        The child's local state (last reported state, task ID mapping, transcript path)
     usage.py              Token totals from the transcript
     session_name.py       The session's name from the transcript
+    pr_link.py            The session's linked PR from the transcript
     cli.py                The session-hub command
     templates/dashboard.html
   bin/session-hub         Wrapper that needs no installation

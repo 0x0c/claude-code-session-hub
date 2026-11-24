@@ -636,6 +636,39 @@ class HooksTest(TmpMixin, unittest.TestCase):
         deliver("kid", {"type": "report", "summary": "s"})
         self.assertEqual(title(), "renamed")
 
+    def test_linked_pull_request(self):
+        t = self.dir / "t.jsonl"
+        url = "https://github.com/o/r/pull/"
+        rec = lambda n: json.dumps({"type": "pr-link", "prNumber": n, "prUrl": f"{url}{n}"}) + "\n"  # noqa: E731
+        pr = lambda: schema.fold(self.store.read("kid"))["pr"]  # noqa: E731
+
+        t.write_text('{"type": "user", "text": "pr-link"}\n')
+        self.run_hook("stop", {"transcript_path": str(t), "stop_hook_active": True})
+        self.assertEqual(pr(), {})
+        with t.open("a") as f:
+            f.write(rec(7) + 'broken "pr-link"\n["pr-link"]\n{"type": "pr-link", "prNumber": 9}\n')
+        deliver("kid", {"type": "report", "summary": "s"}, writer="parent")
+        self.assertEqual(pr(), {})  # The parent does not speak for the child's pull request
+        self.run_hook("stop", {"transcript_path": str(t), "stop_hook_active": True})
+        self.assertEqual(pr(), {"number": 7, "url": url + "7"})
+        deliver("kid", {"type": "pr", "pr": {"ci": "pass"}})
+        self.assertEqual(pr(), {"number": 7, "url": url + "7", "ci": "pass"})
+        with t.open("a") as f:
+            f.write(rec(8))
+        deliver("kid", {"type": "pr", "pr": {"ci": "pending"}})  # A new link drops the old CI facts
+        self.assertEqual(pr(), {"number": 8, "url": url + "8", "ci": "pending"})
+        deliver("kid", {"type": "pr", "pr": {"number": 7}})  # A report replaces an unchanged link
+        self.run_hook("stop", {"transcript_path": str(t), "stop_hook_active": True})
+        self.assertEqual(pr(), {"number": 7})
+        deliver("kid", {"type": "pr", "pr": {"number": 8}})  # The linked number gets its URL back
+        self.assertEqual(pr(), {"number": 8, "url": url + "8"})
+
+    def test_malformed_pr_link_is_dropped(self):
+        for link in ("x", {"number": 1}, {"number": "1", "url": "https://h/1"}, {"number": True, "url": "https://h/1"},
+                     {"number": 1, "url": "javascript:alert(1)"}, {"number": 1, "url": "https://h/" + "x" * 500}):
+            ev = core.record(self.store, "kid", {"type": "report", "pr_link": link})["event"]
+            self.assertNotIn("pr_link", ev)
+
     def test_todo_sync(self):
         self.run_hook("todo", {"tool_name": "TodoWrite", "tool_input": {"todos": [
             {"content": "a", "status": "completed", "activeForm": "A"},

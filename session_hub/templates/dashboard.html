@@ -133,6 +133,7 @@ main.grid .action-section .card:not(.selected):not(:hover) { background: var(--p
 .card .row1 { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .card .title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
 .card .meta { font-size: 12px; color: var(--muted); display: flex; gap: 10px; flex-wrap: wrap; margin-top: 2px; }
+.card .meta a.pr { color: var(--accent); }
 .card .summary { font-size: 13px; margin-top: 4px; overflow-wrap: anywhere; }
 .spinner { width: 14px; height: 14px; flex: none; border-radius: 50%; border: 2px solid var(--line);
   border-top-color: var(--s-work); animation: spin .9s linear infinite; }
@@ -629,12 +630,20 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     const p = s.progress || { done: 0, total: 0, remaining: 0 };
     const pct = p.total ? Math.round((p.done / p.total) * 100) : 0;
     const pr = s.pr || {};
+    // Only a web address becomes a link: the URL comes from a message
+    const prUrl = /^https?:\/\//i.test(pr.url || "") ? pr.url : null;
+    const prName = pr.number ? `PR#${pr.number}` : "PR";
+    const prLabel = !prUrl ? prName : el("a", {
+      class: "pr", href: prUrl, target: "_blank", rel: "noopener noreferrer", title: prUrl,
+      onclick: (e) => e.stopPropagation(), // Opening the pull request does not select the card
+      onkeydown: (e) => e.stopPropagation(),
+    }, prName);
     const u = s.usage || {};
     const meta = [
       !inProject && s.repo && el("span", {}, s.repo),
       s.task_ref && el("span", {}, s.task_ref),
       p.total ? el("span", {}, t("card.progress", { done: p.done, total: p.total, rem: p.remaining })) : null,
-      pr.number ? el("span", {}, `PR#${pr.number}` + (pr.ci ? ` CI:${pr.ci}` : "") + (pr.unresolved_threads != null ? t("card.threads", { n: pr.unresolved_threads }) : "")) : null,
+      pr.number || prUrl ? el("span", {}, prLabel, (pr.ci ? ` CI:${pr.ci}` : "") + (pr.unresolved_threads != null ? t("card.threads", { n: pr.unresolved_threads }) : "")) : null,
       s.phase && el("span", {}, s.phase),
       (u.input || u.output) ? el("span", {}, `${fmtNum(u.input)}/${fmtNum(u.output)} tok`) : null,
       u.cost_usd != null ? el("span", {}, `$${Number(u.cost_usd).toFixed(2)}`) : null,
