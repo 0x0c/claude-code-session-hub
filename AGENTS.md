@@ -20,7 +20,7 @@ The parent reads a few lines from `session-hub attention` instead of reading tra
 | `bin/session-hub` | The wrapper that finds the package however it was installed |
 | `skills/`, `hooks/`, `prompts/` | What we ship to users' sessions (Claude Code plugin and Agent Package Manager (APM) package) |
 | `.claude/skills/` | Skills for developing this repository; not shipped |
-| `proposals/` | Design proposals, one pair of files per change (`SH-NNNN-<slug>.md` and `.ja.md`) |
+| `proposals/` | Design proposals, one folder per change (`SH-NNNN-<slug>/`, holding `SH-NNNN-<slug>.md` and `.ja.md`) |
 | `docs/DESIGN.md` | The design rationale and the glossary |
 | `tests/` | The test suite (standard library `unittest`) |
 

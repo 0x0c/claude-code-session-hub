@@ -23,14 +23,14 @@ subset and still believe it followed the norm.
   and opening, heading order, the units of a procedure step, how terms relate, the main path versus
   the extras, and visual versus semantic breaks.
 
-- **Scope.** Every proposal (`proposals/SH-*.md`), every document under `docs/`, the `README.md`,
+- **Scope.** Every proposal (`proposals/SH-*/SH-*.md`), every document under `docs/`, the `README.md`,
   and every skill under `skills/` and `.claude/skills/`. Code comments and docstrings follow the
   sentence-level rules here (clarity, no filler, active voice) but not the document-structure rules.
 - **Language.** Write code comments, docstrings, skills, prompts, commit messages, and pull request
   text in **English**, under [`english-document-writing`](../english-document-writing/SKILL.md).
   User-facing documents are **bilingual**: the English original `<name>.md` and a Japanese mirror
   `<name>.ja.md` next to it (`README.ja.md`, `docs/DESIGN.ja.md`, `AGENTS.ja.md`,
-  `proposals/SH-0001-<slug>.ja.md`). Write the mirror under
+  `proposals/SH-0001-<slug>/SH-0001-<slug>.ja.md`). Write the mirror under
   [`japanese-document-writing`](../japanese-document-writing/SKILL.md), and update both files in the
   same change. Where a language layer overlaps these principles, its specific wording governs.
   The dashboard's labels live in its `MESSAGES` table in both languages. The command-line

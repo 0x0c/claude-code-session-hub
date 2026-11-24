@@ -92,6 +92,6 @@
 
 ## 参考資料
 
-- [`scripts/proposals.py`](../scripts/proposals.py) — `new`、`lint`、`allocate`、`guard`。
-- [`.github/workflows/proposal-id.yml`](../.github/workflows/proposal-id.yml) — ワークフロー。
-- [`proposals/README.md`](README.ja.md) — プロポーザルの形式と、番号が付く仕組み。
+- [`scripts/proposals.py`](../../scripts/proposals.py) — `new`、`lint`、`allocate`、`guard`。
+- [`.github/workflows/proposal-id.yml`](../../.github/workflows/proposal-id.yml) — ワークフロー。
+- [`proposals/README.md`](../README.ja.md) — プロポーザルの形式と、番号が付く仕組み。

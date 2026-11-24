@@ -196,7 +196,7 @@ immediately**.
   dashboard's **Delete session** button call `DELETE /api/sessions/<session_id>`, which unlinks every
   file of that session under the files' write locks and pushes the removal to every browser. The
   operation works on whole sessions alone, so the folded state of every other session stays intact
-  ([SH-0002](../proposals/SH-0002-delete-session.md)).
+  ([SH-0002](../proposals/SH-0002-delete-session/SH-0002-delete-session.md)).
 
 ### 3.2 Child → hub (`session-hub report` and related commands)
 

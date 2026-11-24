@@ -145,7 +145,7 @@ and the dialog text live in the `MESSAGES` table in English and Japanese.
 
 ## References
 
-- [`session_hub/store.py`](../session_hub/store.py) — the event store and its per-writer files.
-- [`session_hub/server.py`](../session_hub/server.py) — `Hub.publish()` and the `removed` field.
-- [`session_hub/templates/dashboard.html`](../session_hub/templates/dashboard.html) — the dashboard.
-- [`docs/DESIGN.md`](../docs/DESIGN.md) §3.1 — event sourcing and the one-file-per-writer layout.
+- [`session_hub/store.py`](../../session_hub/store.py) — the event store and its per-writer files.
+- [`session_hub/server.py`](../../session_hub/server.py) — `Hub.publish()` and the `removed` field.
+- [`session_hub/templates/dashboard.html`](../../session_hub/templates/dashboard.html) — the dashboard.
+- [`docs/DESIGN.md`](../../docs/DESIGN.md) §3.1 — event sourcing and the one-file-per-writer layout.
