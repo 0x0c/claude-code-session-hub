@@ -45,6 +45,10 @@ class DashboardTest(unittest.TestCase):
     def test_closed_grid_panel_is_inert(self):
         self.assertRegex(PAGE, r'\$\("detail"\)\.inert\s*=\s*grid\s*&&\s*!ui\.panelOpen\b')
 
+    def test_pull_request_link_is_limited_to_web_addresses(self):
+        self.assertIn(r'/^https?:\/\//i.test(pr.url || "") ? pr.url : null', PAGE)
+        self.assertRegex(PAGE, r'class: "pr", href: prUrl, target: "_blank", rel: "noopener noreferrer"')
+
 
 class DesignTokenTest(unittest.TestCase):
     def setUp(self):

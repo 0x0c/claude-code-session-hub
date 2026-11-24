@@ -114,7 +114,7 @@ def seed(store: EventStore, lang: str = "ja") -> None:
         summary=x["b.s1"], tasks=tasks(("t.logger", "doing", "M"), ("t.tests", "todo", "S")))
     add(B, 90, type="report", phase="test", summary=x["b.s2"],
         tasks=tasks(("t.logger", "done", "M"), ("t.tests", "doing", "S")))
-    add(B, 40, type="pr", actor="script", state="waiting_ci", pr={"number": 45, "ci": "pending"})
+    add(B, 40, type="pr", actor="script", state="waiting_ci", pr={"number": 45, "url": "https://github.com/example/app/pull/45", "ci": "pending"})
     add(B, 22, type="pr", actor="script", pr={"ci": "pass", "mergeable": True, "unresolved_threads": 0})
     add(B, 6, type="ready", summary=x["b.s3"], ready={"self_review": True, "tests_added": True, "description": True},
         tasks=tasks(("t.logger", "done", "M"), ("t.tests", "done", "S")))
@@ -166,7 +166,8 @@ def live(url: str, interval: float, lang: str = "ja") -> None:
         dict(type="ask", attention={"kind": "decision", "question": x["l.q"], "options": [x["l.yes"], x["l.no"]],
                                     "default": x["l.yes"], "blocking": False}),
         dict(type="report", state="working", summary=x["l.s2"]),
-        dict(type="pr", actor="script", state="waiting_ci", pr={"number": 52, "ci": "pending"}),
+        dict(type="pr", actor="script", state="waiting_ci", pr={
+            "number": 52, "url": "https://github.com/example/app/pull/52", "ci": "pending"}),
     ]
     i = 0
     while True:
