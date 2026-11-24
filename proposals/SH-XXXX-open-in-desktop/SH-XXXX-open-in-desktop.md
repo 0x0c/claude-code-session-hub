@@ -58,7 +58,9 @@ The scheme is undocumented, so a later version of the app may change it. The lin
 elsewhere or does nothing, and the rest of the dashboard is unaffected. A browser may ask for a
 confirmation before it opens the app.
 
-The change adds no text to any model's context.
+The change adds no text to any hook, skill, or default command output. `session-hub status --json`
+prints the snapshot's sessions as they are, so its output gains the `desktop_id` field when it reads a
+running hub.
 
 ## Alternatives considered
 
