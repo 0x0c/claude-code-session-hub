@@ -1,6 +1,9 @@
 """Static checks of the dashboard page. The suite has no browser, so these cover its wiring."""
 
+import json
 import re
+import shutil
+import subprocess
 import unittest
 from pathlib import Path
 
@@ -37,6 +40,23 @@ class DashboardTest(unittest.TestCase):
     def test_script_ids_exist_in_the_page(self):
         used = set(re.findall(r'\$\("(\w+)"\)', PAGE))
         self.assertLessEqual(used, set(re.findall(r'\bid="(\w+)"', PAGE)))
+
+    @unittest.skipUnless(shutil.which("node"), "needs node")
+    def test_families_nest_under_parents_and_survive_loops(self):
+        code = re.search(r"  function parentOf\(.*?(?=  // \[key, label, sessions\] of each non-empty group, in)", PAGE, re.S)[0]
+        script = """
+          const S = (id, parent) => ({ session_id: id, parent_id: parent });
+          const db = { sessions: [S("kid", "mom"), S("other"), S("mom"), S("grandkid", "kid"), S("orphan", "gone"),
+                                  S("l1", "l2"), S("l2", "l1"), S("tail", "l1")] };
+          const shape = (list) => list.map((n) => (n.kids.length ? [n.s.session_id, shape(n.kids)] : n.s.session_id));
+          const run = (list) => shape(families(list, sessionsById()));
+          console.log(JSON.stringify([run(db.sessions), run(db.sessions.filter((s) => s.session_id !== "kid"))]));
+        """
+        out = subprocess.run(["node", "-e", code + script], capture_output=True, text=True, check=True).stdout
+        tail = ["orphan", ["l1", ["tail"]], "l2"]
+        self.assertEqual(json.loads(out), [
+            [["mom", [["kid", ["grandkid"]]]], "other", *tail],
+            ["other", "mom", "grandkid", *tail]])  # A child whose parent is in another list stands alone
 
     def test_layout_toggle_offers_list_and_grid(self):
         self.assertEqual(re.findall(r'<button data-layout="(\w+)"', PAGE), ["list", "grid"])
