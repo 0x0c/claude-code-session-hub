@@ -7,9 +7,9 @@
 |---|---|
 | Proposal | SH-XXXX |
 | Author | [@0x0c](https://github.com/0x0c) |
-| Status | **In progress** |
+| Status | **Implemented** |
 | Topic | Developer workflow |
-| Implementing PR | — |
+| Implementing PR | [#30](https://github.com/0x0c/claude-code-session-hub/pull/30) |
 | Related | — |
 <!-- /SH-METADATA -->
 
@@ -58,7 +58,7 @@ The build contains no time stamp and stops with an error in three cases: a token
 
 ## Progress
 
-- [ ] Design approved
+- [x] Design approved
 - [x] Implementation with tests
 - [x] Documentation updated (AGENTS.md)
 

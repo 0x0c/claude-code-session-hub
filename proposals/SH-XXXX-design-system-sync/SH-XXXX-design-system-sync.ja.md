@@ -7,9 +7,9 @@
 |---|---|
 | 提案 | SH-XXXX |
 | 作者 | [@0x0c](https://github.com/0x0c) |
-| 状態 | **In progress** |
+| 状態 | **Implemented** |
 | トピック | Developer workflow |
-| 実装PR | — |
+| 実装PR | [#30](https://github.com/0x0c/claude-code-session-hub/pull/30) |
 | 関連 | — |
 <!-- /SH-METADATA -->
 
@@ -58,7 +58,7 @@
 
 ## 進捗
 
-- [ ] 設計の承認
+- [x] 設計の承認
 - [x] 実装とテスト
 - [x] ドキュメントの更新（AGENTS.ja.md）
 
