@@ -77,7 +77,7 @@ running hub.
 
 - [x] Design approved
 - [x] Implementation with tests
-- [x] Documentation updated (README.md, docs/DESIGN.md, skills)
+- [x] Documentation updated (README.md, docs/DESIGN.md)
 
 ## References
 
