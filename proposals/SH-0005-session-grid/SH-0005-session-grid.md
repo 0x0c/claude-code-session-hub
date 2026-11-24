@@ -1,11 +1,11 @@
-**English** · [日本語](SH-XXXX-session-grid.ja.md)
+**English** · [日本語](SH-0005-session-grid.ja.md)
 
-# SH-XXXX — Session grid with a detail panel
+# SH-0005 — Session grid with a detail panel
 
 <!-- SH-METADATA -->
 | Field | Value |
 |---|---|
-| Proposal | SH-XXXX |
+| Proposal | SH-0005 |
 | Author | [@0x0c](https://github.com/0x0c) |
 | Status | **Implemented** |
 | Topic | Dashboard |

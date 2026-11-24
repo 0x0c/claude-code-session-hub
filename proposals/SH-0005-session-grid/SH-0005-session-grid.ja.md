@@ -1,11 +1,11 @@
-[English](SH-XXXX-session-grid.md) · **日本語**
+[English](SH-0005-session-grid.md) · **日本語**
 
-# SH-XXXX — セッションのグリッド表示と詳細パネル
+# SH-0005 — セッションのグリッド表示と詳細パネル
 
 <!-- SH-METADATA -->
 | 項目 | 値 |
 |---|---|
-| 提案 | SH-XXXX |
+| 提案 | SH-0005 |
 | 作者 | [@0x0c](https://github.com/0x0c) |
 | 状態 | **Implemented** |
 | トピック | Dashboard |
