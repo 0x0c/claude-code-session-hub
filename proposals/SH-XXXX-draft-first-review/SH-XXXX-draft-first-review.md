@@ -34,7 +34,8 @@ head commit, and the review covers the finished work.
   no review.
 - **Drafts and bots.** GitHub counts a skipped job as passing. The job therefore runs on every
   `pull_request` event that starts the workflow, and its first step fails on a draft or on a bot's
-  event. A person who marks the PR ready starts a run that replaces the failure.
+  event. A person who marks the PR ready starts a run that should replace the failure on the same
+  commit. We have not verified the replacement on GitHub; the Rollout item says when we do.
 - **Comments.** A person can comment `@claude review`, on a draft too. A run that a comment starts
   reports as `claude review (requested)`, even when it is skipped, so it neither satisfies nor
   overwrites the required check.
