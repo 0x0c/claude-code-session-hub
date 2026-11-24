@@ -53,6 +53,15 @@ class DashboardTest(unittest.TestCase):
         self.assertIn(r'/^https?:\/\//i.test(pr.url || "") ? pr.url : null', PAGE)
         self.assertRegex(PAGE, r'class: "pr", href: prUrl, target: "_blank", rel: "noopener noreferrer"')
 
+    def test_detail_view_links_the_pull_request(self):
+        self.assertRegex(PAGE, r'<a class="pr" id="tlPr" target="_blank" rel="noopener noreferrer" hidden>')
+        self.assertIn("link.hidden = !prUrl;", PAGE)
+        self.assertIn("const body = eventBody(e);", PAGE)
+        self.assertIn('el("div", { class: "text" }, body)', PAGE)
+        self.assertIn("p.url || (p.number && p.number === known.number ? known.url : null)", PAGE)
+        self.assertIn("if (!prWebUrl(pr)) return text;", PAGE)
+        self.assertIn('onkeydown: (e) => { if (e.key === "Enter" || e.key === " ") e.stopPropagation(); }', PAGE)
+
 
 class DesignTokenTest(unittest.TestCase):
     def setUp(self):

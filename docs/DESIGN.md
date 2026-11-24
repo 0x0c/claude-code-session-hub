@@ -451,7 +451,8 @@ label, it gives the English label and the Japanese label in parentheses.
     remembers the collapsed groups. The **Archived** group comes last and starts collapsed.
   - Each card shows a state badge, a task progress bar (hidden in the `done` state), the remaining work, the PR and CI, the
     tokens and cost, the last update, and any unanswered question (with its options, its default,
-    and the command to answer it).
+    and the command to answer it). The PR number on the card, in the title of the selected session's
+    timeline, and on the timeline's PR/CI rows links to the PR when its address is known.
   - **A session in an active state (planning / working / changes_requested) shows a spinner.**
     A session that is merely waiting (for CI, on a blocker, or for a human) shows no spinner, and
     neither does a session suspected stale.
