@@ -7,9 +7,9 @@
 |---|---|
 | Proposal | SH-XXXX |
 | Author | [@0x0c](https://github.com/0x0c) |
-| Status | **In progress** |
+| Status | **Implemented** |
 | Topic | Dashboard |
-| Implementing PR | — |
+| Implementing PR | [#41](https://github.com/0x0c/claude-code-session-hub/pull/41) |
 | Related | [SH-0005](../SH-0005-session-grid/SH-0005-session-grid.md), [SH-0017](../SH-0017-grid-panel-resize/SH-0017-grid-panel-resize.md) |
 <!-- /SH-METADATA -->
 

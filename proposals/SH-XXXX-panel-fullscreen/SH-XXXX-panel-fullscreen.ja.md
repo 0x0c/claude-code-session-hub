@@ -7,9 +7,9 @@
 |---|---|
 | 提案 | SH-XXXX |
 | 作者 | [@0x0c](https://github.com/0x0c) |
-| 状態 | **In progress** |
+| 状態 | **Implemented** |
 | トピック | Dashboard |
-| 実装PR | — |
+| 実装PR | [#41](https://github.com/0x0c/claude-code-session-hub/pull/41) |
 | 関連 | [SH-0005](../SH-0005-session-grid/SH-0005-session-grid.md), [SH-0017](../SH-0017-grid-panel-resize/SH-0017-grid-panel-resize.md) |
 <!-- /SH-METADATA -->
 
