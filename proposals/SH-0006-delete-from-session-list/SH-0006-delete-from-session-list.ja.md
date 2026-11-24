@@ -1,11 +1,11 @@
-[English](SH-XXXX-delete-from-session-list.md) · **日本語**
+[English](SH-0006-delete-from-session-list.md) · **日本語**
 
-# SH-XXXX — セッション一覧からの削除
+# SH-0006 — セッション一覧からの削除
 
 <!-- SH-METADATA -->
 | 項目 | 値 |
 |---|---|
-| 提案 | SH-XXXX |
+| 提案 | SH-0006 |
 | 作者 | [@0x0c](https://github.com/0x0c) |
 | 状態 | **Implemented** |
 | トピック | Dashboard |

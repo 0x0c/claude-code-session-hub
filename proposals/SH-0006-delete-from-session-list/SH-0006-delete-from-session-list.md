@@ -1,11 +1,11 @@
-**English** · [日本語](SH-XXXX-delete-from-session-list.ja.md)
+**English** · [日本語](SH-0006-delete-from-session-list.ja.md)
 
-# SH-XXXX — Delete a session from the session list
+# SH-0006 — Delete a session from the session list
 
 <!-- SH-METADATA -->
 | Field | Value |
 |---|---|
-| Proposal | SH-XXXX |
+| Proposal | SH-0006 |
 | Author | [@0x0c](https://github.com/0x0c) |
 | Status | **Implemented** |
 | Topic | Dashboard |
