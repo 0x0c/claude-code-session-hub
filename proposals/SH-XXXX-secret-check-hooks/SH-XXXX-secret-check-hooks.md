@@ -86,7 +86,8 @@ first allowlist covers the content hashes in `scripts/design_system.lock.json`.
 ### History scan
 
 `scripts/check_secrets.sh` scans every commit reachable from `HEAD`, including what a merge commit
-itself changes. The gate (`scripts/check.sh`) runs the script. The `secret-scan` workflow runs
+itself changes. The gate (`scripts/check.sh`) runs the script. The `Tests` workflow runs the gate through
+`make check`, on a shallow checkout. The `secret-scan` workflow has the full history and runs
 `make setup` and the same script on each pull request and on `main`.
 
 The job reports a secret after the push, so a secret that bypassed the hooks must be revoked.

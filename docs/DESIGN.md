@@ -197,7 +197,7 @@ immediately**.
 - **Stopping the hub**: `session-hub stop` calls `DELETE /api/server`, which the hub accepts from the
   loopback interface alone. A hub that a hook started in the background stops the same way.
 - **Deleting a session**: the one exception to append-only writing. `session-hub delete` and the
-  dashboard's delete buttons (in the session list and the timeline header) call
+  dashboard's delete button (in the timeline header) call
   `DELETE /api/sessions/<session_id>`, which unlinks every file of that session under the files' write
   locks and pushes the removal to every browser. The operation works on whole sessions alone, so the
   folded state of every other session stays intact
@@ -425,6 +425,7 @@ label, it gives the English label and the Japanese label in parentheses.
 |---|---|
 | The dashboard of `session-hub serve` | For humans. Reflects each push as it arrives (SSE) |
 | `session-hub export --out dashboard.html` | A standalone HyperText Markup Language (HTML) file with an embedded snapshot (for sharing and archiving; does not update) |
+| `GET /guide` (the **Status guide** link in the header) | What each status and state means |
 | `GET /playbook` (the **Playbook** link in the header) | Every dashboard component in every state, drawn from sample data |
 | `GET /api/snapshot` | JSON for machines |
 | `session-hub attention` | For the parent LLM. Sessions that need action alone, one line each |
@@ -449,6 +450,8 @@ label, it gives the English label and the Japanese label in parentheses.
   - Clicking any group heading, "needs action" included, collapses or expands that group. A
     collapsed heading keeps its count, and glows when a hidden session sends a message. The browser
     remembers the collapsed groups. The **Archived** group comes last and starts collapsed.
+  - A `?` icon follows each status label in a group heading and the state badge on each card. Hovering
+    over the icon, or tapping it, shows what the label means.
   - Each card shows a state badge, a task progress bar (hidden in the `done` state), the remaining work, the PR and CI, the
     tokens and cost, the last update, and any unanswered question (with its options, its default,
     and the command to answer it). The PR number on the card, in the title of the selected session's
@@ -462,13 +465,16 @@ label, it gives the English label and the Japanese label in parentheses.
   and the detail panel on the right scroll separately. A smaller window scrolls as one page.
 - **Connector line**: in the same layout, a line joins the selected session's card to the detail
   panel. The line turns dashed while the card is scrolled out of the list.
-- **Timeline** (right): traces the reports from children in time order, in two forms.
+- **Timeline** (right): traces the reports from children in time order, in three forms.
   - **Feed**: events grouped by date. Each row shows the time, the session, the type, the text, and
     what the event changed (state A→B, phase, task count, a resolved question).
     "Details" (詳細) opens the raw event JSON. New events are highlighted. While the reader is
     scrolled down, a "N new" bar (新着 N 件) announces new events instead of moving the screen.
     Filters: session, event type, full-text search, heartbeat display (consecutive heartbeats
     collapse into one row), and newest or oldest first.
+  - **Overview**: one thin band per session over the whole history, with state colors alone: no dots,
+    no zoom, no table. It shows every session's lifespan and where each waited, on one screen.
+    Hovering shows the state and its period, and clicking a session's name selects it.
   - **Swimlanes**: one horizontal band per session, with state changes drawn as colored spans.
     Dots mark events (question = orange, answer = blue). Hovering shows details, and clicking jumps
     to the matching feed row. A long wait for a human, or a stall, is visible at a glance.
@@ -480,11 +486,14 @@ label, it gives the English label and the Japanese label in parentheses.
   browser remembers the choice (`localStorage`, `hub.layout`; the default is the list).
   - The grid keeps the groups and spreads the cards over the full width.
   - Clicking a card slides a detail panel in from the right. The panel is the timeline with its tabs
-    and filters, limited to that session. **All sessions** (すべてのセッション) opens the panel without
-    the limit.
-  - The open panel takes at most 720px, and at most 55% of the window. The grid narrows beside it, so
-    the panel covers no card. In a window at most 860px wide, the panel covers the whole grid.
+    and filters, limited to that session. The **Overview** tab (俯瞰) still shows every session.
+  - The open panel takes at most 720px by default, and at most 55% of the window. The grid narrows
+    beside it, so the panel covers no card. Dragging the panel's left edge, or the arrow keys on that
+    handle, change the width. A double-click on the handle restores the default, and the browser
+    remembers the width (`hub.panelWidth`). In a window at most 860px wide, the panel covers the whole grid.
   - Clicking the same card, the close button, or Escape closes the panel and clears the selection.
+  - The fullscreen button beside the close button expands the panel over the whole window, page header
+    included. The button or Escape brings the previous width back; a second Escape closes the panel.
 - **Collection tabs** (right panel): each defined collection adds a tab automatically, for example
   "Knowledge (6)" (ナレッジ (6)).
   - A `cards` view shows one card per item, grouped (knowledge is grouped by kind). Each card shows
@@ -555,11 +564,13 @@ claude-code-session-hub/
     local_state.py        The child's local state (last reported state, task ID mapping, transcript path)
     usage.py              Token totals from the transcript
     playbook.py           The playbook page
+    guide.py              The status guide page
     session_name.py       The session's name from the transcript
     pr_link.py            The session's linked PR from the transcript
     cli.py                The session-hub command
     templates/dashboard.html
     templates/playbook.{js,css}
+    templates/guide.{js,css}
   bin/session-hub         Wrapper that needs no installation
   .claude-plugin/         Claude Code plugin definition (plugin.json, marketplace.json)
   apm.yml                 APM metadata alone (no .apm/ or dependencies, so APM distributes the plugin layout as is)
@@ -667,6 +678,7 @@ claude-code-session-hub/
 | Priority | The order of `session-hub attention` (§4.3). A human wait that blocks the child ranks highest |
 | Spinner | The rotating icon that marks a child as active (planning, working, or addressing changes) |
 | Feed | One form of the timeline: events listed in time order |
+| Overview | One form of the timeline: one thin band per session over the whole history, with state colors alone |
 | Swimlanes | One form of the timeline: one horizontal band per session, with state changes shown in color |
 
 ### Communication and mechanisms
