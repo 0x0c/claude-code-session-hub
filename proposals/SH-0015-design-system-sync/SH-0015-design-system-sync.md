@@ -1,11 +1,11 @@
-**English** · [日本語](SH-XXXX-design-system-sync.ja.md)
+**English** · [日本語](SH-0015-design-system-sync.ja.md)
 
-# SH-XXXX — Idempotent sync of the design system page
+# SH-0015 — Idempotent sync of the design system page
 
 <!-- SH-METADATA -->
 | Field | Value |
 |---|---|
-| Proposal | SH-XXXX |
+| Proposal | SH-0015 |
 | Author | [@0x0c](https://github.com/0x0c) |
 | Status | **Implemented** |
 | Topic | Developer workflow |

@@ -1,11 +1,11 @@
-[English](SH-XXXX-design-system-sync.md) · **日本語**
+[English](SH-0015-design-system-sync.md) · **日本語**
 
-# SH-XXXX — デザインシステムのページのべき等な同期
+# SH-0015 — デザインシステムのページのべき等な同期
 
 <!-- SH-METADATA -->
 | 項目 | 値 |
 |---|---|
-| 提案 | SH-XXXX |
+| 提案 | SH-0015 |
 | 作者 | [@0x0c](https://github.com/0x0c) |
 | 状態 | **Implemented** |
 | トピック | Developer workflow |
