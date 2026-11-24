@@ -7,9 +7,9 @@
 |---|---|
 | 提案 | SH-XXXX |
 | 作者 | [@0x0c](https://github.com/0x0c) |
-| 状態 | **In progress** |
+| 状態 | **Implemented** |
 | トピック | Dashboard |
-| 実装PR | — |
+| 実装PR | [#44](https://github.com/0x0c/claude-code-session-hub/pull/44) |
 | 関連 | [SH-0002](../SH-0002-delete-session/SH-0002-delete-session.md), [SH-0006](../SH-0006-delete-from-session-list/SH-0006-delete-from-session-list.md) |
 <!-- /SH-METADATA -->
 
