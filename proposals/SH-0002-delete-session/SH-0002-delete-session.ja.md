@@ -100,7 +100,7 @@ Server-Sent Events（SSE）が失敗したときに使うポーリングも、�
 
 ## 参考資料
 
-- [`session_hub/store.py`](../session_hub/store.py) — イベントストアと、書き手ごとのファイル。
-- [`session_hub/server.py`](../session_hub/server.py) — `Hub.publish()` と `removed` フィールド。
-- [`session_hub/templates/dashboard.html`](../session_hub/templates/dashboard.html) — ダッシュボード。
-- [`docs/DESIGN.md`](../docs/DESIGN.ja.md) §3.1 — イベントソーシングと、書き手ごとに1ファイルの構成。
+- [`session_hub/store.py`](../../session_hub/store.py) — イベントストアと、書き手ごとのファイル。
+- [`session_hub/server.py`](../../session_hub/server.py) — `Hub.publish()` と `removed` フィールド。
+- [`session_hub/templates/dashboard.html`](../../session_hub/templates/dashboard.html) — ダッシュボード。
+- [`docs/DESIGN.md`](../../docs/DESIGN.ja.md) §3.1 — イベントソーシングと、書き手ごとに1ファイルの構成。

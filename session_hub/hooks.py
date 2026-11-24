@@ -234,7 +234,11 @@ HANDLERS = {"session-start": session_start, "stop": stop, "todo": todo}
 
 def run(name: str) -> None:
     try:
-        out = HANDLERS[name](_read_payload())
+        payload = _read_payload()
+        sid = current_session_id()
+        if enabled() and sid and payload.get("transcript_path"):
+            local_state.set_transcript(sid, payload["transcript_path"])
+        out = HANDLERS[name](payload)
     except Exception as exc:  # A hook failure must not stop the session
         print(f"session-hub hook {name}: {exc}", file=sys.stderr)
         return
