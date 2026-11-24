@@ -54,7 +54,7 @@ panel's inert state stay as SH-0005 defines them.
 ## Alternatives considered
 
 - **Keep the overlay.** SH-0005 chose the overlay because a reflow moves the card under the pointer.
-  The overlay hides cards, which costs more; the scroll correction limits the movement to the columns.
+  Hidden cards cost more than moving cards, and the scroll correction keeps the vertical movement small.
 - **Share a small window as well.** Below 860 pixels, neither the cards nor the timeline would have a
   readable width.
 

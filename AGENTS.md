@@ -187,6 +187,9 @@ We verified these facts with APM 0.35.1 by installing this repository into a scr
   `style.setProperty("--name", value)`.
 - A tab that is not shown keeps its old DOM, so clear it when switching away, or stale state (such as
   an expired glow) lingers.
+- Style the dashboard from the design tokens in the `:root` block: color, type (`--fs-*`, `--fw-*`),
+  spacing (`--space-*`), and corners (`--radius-*`). A test
+  (`tests/test_dashboard.py`) rejects a literal value for these properties; layout sizes stay literal.
 
 ### Check the dashboard in a real browser
 
