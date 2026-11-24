@@ -32,8 +32,9 @@ Once the change ships, pressing Ctrl-C in the launcher's window stops the hub in
 
 `DELETE /api/server` stops the server. The hub answers `200 {"stopping": true}` first, then leaves its
 serving loop, exactly as Ctrl-C does. The hub answers `401` without the right token and `403` to a
-client outside the loopback interface. We choose `DELETE` because a page from another origin cannot
-send it without a preflight request, which the hub does not answer.
+client outside the loopback interface. The hub also answers `403` to a request with an `Origin`
+header. Browsers send `Origin` on every `DELETE`, and the command sends none. A page therefore cannot
+stop the hub, even when Domain Name System (DNS) rebinding makes the page same-origin.
 
 ### Command
 

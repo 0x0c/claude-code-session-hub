@@ -360,6 +360,16 @@ class ServerTest(TmpMixin, unittest.TestCase):
             real(handler)
         return setup
 
+    def test_stop_refuses_a_browser_page(self):
+        for origin in ("http://evil.example:8765", "null"):
+            req = urllib.request.Request(self.url + "/api/server", method="DELETE",
+                                         headers={"Authorization": "Bearer tok", "Origin": origin})
+            with self.assertRaises(urllib.error.HTTPError) as cm:
+                urllib.request.urlopen(req, timeout=5)
+            self.assertEqual(cm.exception.code, 403)
+            cm.exception.close()
+        self.assertTrue(client.healthy(self.url))
+
     def test_stop_reports_an_old_hub(self):
         err = urllib.error.HTTPError(self.url, 404, "not found", {}, io.BytesIO(b"{}"))
         with mock.patch("urllib.request.urlopen", side_effect=err):

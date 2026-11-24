@@ -282,10 +282,11 @@ def make_handler(hub: Hub, token: str | None):
             self._send(200, _dumps({"session_id": sid, "deleted": deleted}))
 
         def _stop_server(self):
-            # DELETE, like session deletion, so that a page from another origin cannot send it
             if not self._authorized():
                 return self._send(401, _dumps({"error": "unauthorized"}))
-            if self.client_address[0] not in ("127.0.0.1", "::1"):
+            # Browsers send Origin on every DELETE and session-hub stop sends none, so refusing the header
+            # keeps pages out, even one that reaches the hub as same-origin through DNS rebinding.
+            if self.client_address[0] not in ("127.0.0.1", "::1") or "Origin" in self.headers:
                 return self._send(403, _dumps({"error": "only a local client can stop the hub"}))
             self._send(200, _dumps({"stopping": True}))
             # shutdown() waits for the serving loop to end, so it must not delay this response
