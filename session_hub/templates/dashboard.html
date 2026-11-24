@@ -841,8 +841,31 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     return chips;
   }
 
+  // Ids ("ev-" + event id) of the rows whose details are open, including rows that a filter hides
+  const openRows = new Set();
+
+  // Rebuilding the feed replaces every row, so carry the open details, their horizontal scroll, and
+  // the focus over. The old rows are read here because a toggle event fires late, even for a removed row.
   function renderFeed() {
     const box = $("feedView");
+    const active = document.activeElement, held = active && box.contains(active) && active.closest(".ev details");
+    const focused = held && [held.closest(".ev").id, active.tagName];
+    const scrolled = new Map();
+    for (const d of box.querySelectorAll(".ev details")) {
+      const { id } = d.closest(".ev");
+      d.open ? openRows.add(id) : openRows.delete(id);
+      if (d.open) scrolled.set(id, d.querySelector("pre").scrollLeft);
+    }
+    for (const id of openRows) if (!db.events.has(id.slice(3))) openRows.delete(id);
+    rebuildFeed(box);
+    const rows = [...box.querySelectorAll(".ev")];
+    for (const row of rows) if (openRows.has(row.id)) row.querySelector("details").open = true;
+    for (const row of rows) if (scrolled.get(row.id)) row.querySelector("pre").scrollLeft = scrolled.get(row.id);
+    const row = focused && rows.find((n) => n.id === focused[0]);
+    if (row) row.querySelector("details " + focused[1])?.focus({ preventScroll: true });
+  }
+
+  function rebuildFeed(box) {
     const events = filteredEvents();
     box.replaceChildren();
     if (!events.length) { box.append(el("div", { class: "empty" }, t("events.empty"))); return; }

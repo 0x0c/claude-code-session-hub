@@ -70,6 +70,15 @@ class DashboardTest(unittest.TestCase):
         self.assertIn("if (!prWebUrl(pr)) return text;", PAGE)
         self.assertIn('onkeydown: (e) => { if (e.key === "Enter" || e.key === " ") e.stopPropagation(); }', PAGE)
 
+    def test_open_details_survive_an_update(self):
+        render = re.search(r"  function renderFeed\(\) \{\n(.*?)\n  \}\n", PAGE, re.S)[1]
+        before, rebuild, after = render.partition("rebuildFeed(box);")
+        self.assertTrue(rebuild)
+        self.assertIn("d.open ? openRows.add(id) : openRows.delete(id);", before)
+        self.assertIn("if (!db.events.has(id.slice(3))) openRows.delete(id);", before)
+        self.assertIn('if (openRows.has(row.id)) row.querySelector("details").open = true;', after)
+        self.assertNotIn("ontoggle", PAGE)  # a toggle event fires late, even for a replaced row
+
 
 class DesignTokenTest(unittest.TestCase):
     def setUp(self):
