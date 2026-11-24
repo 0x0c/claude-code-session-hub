@@ -20,7 +20,7 @@ draft, completes and self-reviews the work there, and marks the PR ready.
 
 ## Motivation
 
-The ruleset of `main` requires the `claude review` check. The review ran only when a PR opened, so
+The ruleset of `main` required the `claude review` check when we found the problem. The review ran only when a PR opened, so
 its check stayed on the first commit, and a later push left the PR blocked. A review that someone
 requested with `@claude review` did not help, because GitHub records an `issue_comment` run on the
 default branch. PR #45 stayed blocked in this way after a successful review.
@@ -51,6 +51,9 @@ head commit, and the review covers the finished work.
   complete fix, repeats the self-review, and runs `gh pr ready` again. This cycle starts one review of the new head commit.
 - **Proposal skills.** `ideation`, `implement-proposal`, and `propose-and-build` point to the draft flow. A draft also gives
   a proposal its PR number before the review starts.
+- **Rollout.** The ruleset does not list `claude review` while this change is in review. The
+  maintainer adds the check after the change merges and a draft PR confirms that the success after
+  `gh pr ready` replaces the failure on the same commit. Until then, the check blocks no merge.
 - **Limits.** A PR from a fork receives no secrets, and an environment without a credential starts no
   review. In both cases the check of a PR that a person marks ready passes without one, as it did before the
   change. A draft or a bot's event fails even then.
