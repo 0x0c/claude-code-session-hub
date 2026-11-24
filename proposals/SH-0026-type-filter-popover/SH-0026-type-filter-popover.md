@@ -1,11 +1,11 @@
-**English** · [日本語](SH-XXXX-type-filter-popover.ja.md)
+**English** · [日本語](SH-0026-type-filter-popover.ja.md)
 
-# SH-XXXX — Filter event types from a popover
+# SH-0026 — Filter event types from a popover
 
 <!-- SH-METADATA -->
 | Field | Value |
 |---|---|
-| Proposal | SH-XXXX |
+| Proposal | SH-0026 |
 | Author | [@0x0c](https://github.com/0x0c) |
 | Status | **Implemented** |
 | Topic | Dashboard |
