@@ -1,11 +1,11 @@
-[English](SH-XXXX-detail-pr-link.md) · **日本語**
+[English](SH-0019-detail-pr-link.md) · **日本語**
 
-# SH-XXXX — 詳細パネルのプルリクエストへのリンク
+# SH-0019 — 詳細パネルのプルリクエストへのリンク
 
 <!-- SH-METADATA -->
 | 項目 | 値 |
 |---|---|
-| 提案 | SH-XXXX |
+| 提案 | SH-0019 |
 | 作者 | [@0x0c](https://github.com/0x0c) |
 | 状態 | **Implemented** |
 | トピック | Dashboard |

@@ -1,11 +1,11 @@
-**English** · [日本語](SH-XXXX-detail-pr-link.ja.md)
+**English** · [日本語](SH-0019-detail-pr-link.ja.md)
 
-# SH-XXXX — Link the pull request in the detail panel
+# SH-0019 — Link the pull request in the detail panel
 
 <!-- SH-METADATA -->
 | Field | Value |
 |---|---|
-| Proposal | SH-XXXX |
+| Proposal | SH-0019 |
 | Author | [@0x0c](https://github.com/0x0c) |
 | Status | **Implemented** |
 | Topic | Dashboard |
