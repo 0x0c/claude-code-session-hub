@@ -49,5 +49,5 @@
 
 ## 参考資料
 
-- [`session_hub/templates/dashboard.html`](../session_hub/templates/dashboard.html) — `renderSessions()`。
-- [`docs/DESIGN.md`](../docs/DESIGN.ja.md) §5.2 — 画面構成。
+- [`session_hub/templates/dashboard.html`](../../session_hub/templates/dashboard.html) — `renderSessions()`。
+- [`docs/DESIGN.md`](../../docs/DESIGN.ja.md) §5.2 — 画面構成。

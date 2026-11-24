@@ -63,5 +63,5 @@ session that needs action therefore stays visible in the header even when its gr
 
 ## References
 
-- [`session_hub/templates/dashboard.html`](../session_hub/templates/dashboard.html) — `renderSessions()`.
-- [`docs/DESIGN.md`](../docs/DESIGN.md) §5.2 — the screen layout.
+- [`session_hub/templates/dashboard.html`](../../session_hub/templates/dashboard.html) — `renderSessions()`.
+- [`docs/DESIGN.md`](../../docs/DESIGN.md) §5.2 — the screen layout.
