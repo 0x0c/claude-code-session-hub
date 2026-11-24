@@ -434,6 +434,7 @@ label, it gives the English label and the Japanese label in parentheses.
 | `session-hub export --out dashboard.html` | A standalone HyperText Markup Language (HTML) file with an embedded snapshot (for sharing and archiving; does not update) |
 | `GET /guide` (the **Status guide** link in the header) | What each status and state means |
 | `GET /playbook` (the **Playbook** link in the header) | Every dashboard component in every state, drawn from sample data |
+| The **Design system** link (in the header and the Playbook's menu, when `HUB_DESIGN_SYSTEM_URL` is set) | The design system page, in a new tab |
 | `GET /api/snapshot` | JSON for machines |
 | `session-hub attention` | For the parent LLM. Sessions that need action alone, one line each |
 | `session-hub log [<session_id>]` | Follow the timeline in a terminal |
@@ -456,7 +457,8 @@ label, it gives the English label and the Japanese label in parentheses.
     "working or waiting" (作業中・待機) and "done" (完了).
   - Clicking any group heading, "needs action" included, collapses or expands that group. A
     collapsed heading keeps its count, and glows when a hidden session sends a message. The browser
-    remembers the collapsed groups. The **Archived** group comes last and starts collapsed.
+    remembers the collapsed groups. The **Archived** group comes last and starts collapsed. In the
+    grouping by project, the dashboard splits it into one collapsible group per project.
   - A sub-session in the same group as its parent is indented under the parent's card and tied to it by
     lines. The family takes the place of its most recently updated member. In another group, the
     sub-session's card links to its parent (↳). A parent's card shows the number of its sub-sessions.

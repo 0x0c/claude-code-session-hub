@@ -16,8 +16,9 @@ them on a browser dashboard.
 - **Every label explained.** Hover over the `?` icon next to a status or state to read what it means, or
   open the **Status guide** from the header to read them all on one page.
 - **Grouped by project.** The session list gathers the other sessions by repository or project, the most
-  recently updated first, and splits each project into "Working and waiting" and "Done". The
-  name comes from the Git remote or the folder; `session-hub start --repo <name>` overrides it. The
+  recently updated first, and splits each project into "Working and waiting" and "Done".
+  Archived sessions stay in a group of their own, split by project. The project's name
+  comes from the Git remote or the folder; `session-hub start --repo <name>` overrides it. The
   **By project** button switches to grouping by status.
 - **Families at a glance.** A sub-session sits under its parent's card, tied to it by lines, or links to
   its parent when the two are in different groups. The hub finds the parent of a session that the Claude
@@ -345,6 +346,7 @@ alone to the parent with `send_message`.
 | `HUB_STOP_GUARD` | `0` disables the Stop hook's prompt |
 | `HUB_AUTOSTART` | `1` starts the local hub server at session start if it is not running (only when `HUB_URL` points to 127.0.0.1 or localhost) |
 | `HUB_DESKTOP_SESSIONS` | The directory of the Claude desktop app's session files, which the hub server reads to detect archived sessions and parents, and to link to the app (default on macOS: `~/Library/Application Support/Claude/claude-code-sessions`); `0` turns all of these off |
+| `HUB_DESIGN_SYSTEM_URL` | The address of a design system page; when set on the hub server, the header and the Playbook link to it |
 | `HUB_OUTBOX` / `HUB_STATE_DIR` | Where the outbox and local state live (default `~/.cache/...`) |
 
 ## Tests
@@ -390,6 +392,14 @@ the dashboard.
 Every non-trivial change starts as a design proposal under [`proposals/`](proposals/README.md), and
 the code follows the proposal. [`AGENTS.md`](AGENTS.md) describes the working agreement, the writing
 rules, and the gate (`scripts/check.sh`) that must pass before a push.
+
+Set up each clone before you work on it. One command installs a pinned
+[gitleaks](https://github.com/gitleaks/gitleaks) and enables the Git hooks that block a commit that
+holds a secret. A Claude Code session runs it on start, and cannot edit files until it succeeds:
+
+```bash
+make setup
+```
 
 User-facing documents are bilingual: each English page `<name>.md` has a Japanese mirror
 `<name>.ja.md` next to it, and a change updates both.

@@ -54,6 +54,8 @@
   }
   const pbEvents = (list) => new Map(list.map((e) => [e.id, e]));
   const pbProjects = () => [pbSession("needs_human", { needs_action: true, attention: pbAsk(true) }), pbSession("planning", { repo: "api" }), pbSession("working")];
+  const pbArchived = () => [["acme/app", 10], ["acme/api", 20], ["acme/app", 30], [undefined, 40]].map(([repo, min], i) =>
+    pbSession("done", { session_id: "pb-archived-" + i, repo, heartbeat: pbAt(min), archived: { since: pbAt(min) } }));
   const pbKnown = () => [pbSession("working"), { ...pbSession("done"), title: pbText("other") }];
   const pbFamily = () => [pbSession("working"),
     pbSession("planning", { title: pbText("other"), parent_id: "pb-working" }),
@@ -95,6 +97,10 @@
       }, { byProject: true }), "narrow"],
       ["Status group collapsed", () => pbCapture("sessions", { sessions: [pbSession("working", { repo: "acme/app" }), pbSession("done", { repo: "acme/app" })] }, () => {
         ui.collapsed = new Set([subKey("acme/app", "done")]);
+        renderSessions();
+      }, { byProject: true }), "narrow"],
+      ["Archived, by project", () => pbCapture("sessions", { sessions: pbArchived() }, () => {
+        ui.collapsed = new Set([foldMark(ARCHIVED_KEY), subKey("acme/api", "archived")]);
         renderSessions();
       }, { byProject: true }), "narrow"],
       ["Grid layout", () => el("main", { class: "grid", style: { padding: "0" } }, pbCapture("sessions", { sessions: [
@@ -293,6 +299,7 @@
     const button = (label, act) => el("button", { class: "iconbtn", onclick: act }, label);
     const nav = el("nav", { class: "pb-nav" }, el("b", {}, "Session Hub playbook"),
       location.protocol === "file:" ? null : el("a", { href: "./" }, "← Session Hub"),
+      DESIGN_SYSTEM_URL ? el("a", { href: DESIGN_SYSTEM_URL, target: "_blank", rel: "noopener noreferrer", title: t("btn.designSystemTitle") }, t("btn.designSystem")) : null,
       el("div", { class: "pb-tools" }, button(t("btn.theme"), () => { $("themeBtn").click(); pbRender(); }),
         button(t("btn.lang"), () => { $("langBtn").click(); pbRender(); })),
       PB.map(([name]) => el("a", { href: "#" + name }, name)));

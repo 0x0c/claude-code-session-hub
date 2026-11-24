@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import hmac
 import json
+import os
 import urllib.parse
 from http.cookies import SimpleCookie
 import queue
@@ -254,6 +255,22 @@ def dashboard_html() -> str:
     return resources.files("session_hub").joinpath("templates/dashboard.html").read_text(encoding="utf-8")
 
 
+def design_system_url() -> str | None:
+    """The design system page to link to (HUB_DESIGN_SYSTEM_URL), or None unless it is a web address."""
+    url = os.environ.get("HUB_DESIGN_SYSTEM_URL", "").strip()
+    try:
+        parts = urllib.parse.urlsplit(url)
+    except ValueError:  # Malformed, such as an unclosed "["
+        return None
+    return url if parts.scheme in ("http", "https") and parts.netloc else None
+
+
+def with_design_system(html: str) -> str:
+    """The page with its design system link filled in. An exported file skips this, so it never carries the address."""
+    # "<" is escaped so that the address cannot end the page's script
+    return html.replace("/*__HUB_DESIGN_SYSTEM_URL__*/null", _dumps(design_system_url()).replace("<", "\\u003c"))
+
+
 def _is_local_host(host: str) -> bool:
     try:
         return client.is_loopback("//" + host)
@@ -322,7 +339,7 @@ def make_handler(hub: Hub, token: str | None):
                 self.end_headers()
                 return
             if path in ("/", "/index.html"):
-                self._send(200, dashboard_html(), "text/html; charset=utf-8")
+                self._send(200, with_design_system(dashboard_html()), "text/html; charset=utf-8")
             elif path == "/playbook":
                 from .playbook import playbook_html
                 self._send(200, playbook_html(), "text/html; charset=utf-8")
