@@ -85,7 +85,7 @@ class DashboardTest(unittest.TestCase):
         self.assertLessEqual({"panel.fullscreenOn", "panel.fullscreenOff"}, messages("ja"))
 
     def test_escape_clears_the_search_then_leaves_fullscreen_then_closes_the_panel(self):
-        handler = re.search(r'if \(e\.key !== "Escape".*?\n  \}\);', PAGE, re.S)[0]
+        handler = re.search(r'if \(e\.key !== "Escape" [^\n]*ui\.layout !== "grid".*?\n  \}\);', PAGE, re.S)[0]
         steps = [handler.index(s) for s in ('e.target === $("fText")', "setFullscreen(false)", "closePanel()")]
         self.assertEqual(steps, sorted(steps))
         self.assertIn("return setFullscreen(false);", handler)
@@ -103,6 +103,12 @@ class DashboardTest(unittest.TestCase):
         self.assertLessEqual({"lanes.col." + c for c in re.findall(r'"(\w+)"', columns)}, messages("ja"))
         self.assertLessEqual({"dur.sec", "dur.min", "dur.hour", "dur.day"}, messages("ja"))
 
+    def test_detail_view_opens_the_desktop_app(self):
+        self.assertIn('/^local_[A-Za-z0-9-]{1,64}$/.test(s.desktop_id || "")', PAGE)
+        self.assertIn('"claude://code/continue?session=" + s.desktop_id', PAGE)
+        self.assertIn("open.hidden = !appUrl;", PAGE)
+        self.assertIn("@media (max-width: 860px) { #tlTitle { flex-wrap: wrap; } }", PAGE)
+
     def test_overview_replaces_the_all_sessions_button(self):
         self.assertIn('data-view="overview"', PAGE)
         self.assertRegex(PAGE, r'function renderOverview\(\) \{\n[^\n]*\n\s*tipEl\.style\.display = "none";')
@@ -118,6 +124,31 @@ class DashboardTest(unittest.TestCase):
         self.assertIn("p.url || (p.number && p.number === known.number ? known.url : null)", PAGE)
         self.assertIn("if (!prWebUrl(pr)) return text;", PAGE)
         self.assertIn('onkeydown: (e) => { if (e.key === "Enter" || e.key === " ") e.stopPropagation(); }', PAGE)
+
+    def test_selected_session_feed_omits_the_session_title(self):
+        row = PAGE[PAGE.index("function eventRow(e)"):PAGE.index("const stripEvent")]
+        self.assertRegex(row, r'const who = !ui\.session\s+\? el\("span", \{ class: "who"')
+        self.assertIn(': e.writer ? el("span", { class: "writer" }, e.writer) : null;', row)
+        self.assertEqual(row.count("sessionName("), 1)
+
+    def test_open_details_survive_an_update(self):
+        render = re.search(r"  function renderFeed\(\) \{\n(.*?)\n  \}\n", PAGE, re.S)[1]
+        before, rebuild, after = render.partition("rebuildFeed(box);")
+        self.assertTrue(rebuild)
+        self.assertIn("d.open ? openRows.add(id) : openRows.delete(id);", before)
+        self.assertIn("if (!db.events.has(id.slice(3))) openRows.delete(id);", before)
+        self.assertIn('if (openRows.has(row.id)) row.querySelector("details").open = true;', after)
+        self.assertNotIn("ontoggle", PAGE)  # a toggle event fires late, even for a replaced row
+
+    def test_type_filter_is_a_popover_with_its_own_escape(self):
+        self.assertRegex(PAGE, r'id="typesBtn" type="button" aria-expanded="false" aria-controls="fTypes"')
+        self.assertRegex(PAGE, r'id="fTypes" popover="manual" role="group" data-i18n-aria="filter.typesAria"')
+        self.assertIn('el("input", { type: "checkbox", checked: ui.types.has(type)', PAGE)
+        self.assertIn('if (isCol || unfiltered) closeTypes();\n    $("typesBtn").hidden = isCol || unfiltered;', PAGE)
+        self.assertIn('if ($("detail").inert) closeTypes();', PAGE)
+        escape = re.search(r'!typesOpen\(\)\) return;\n\s+e\.preventDefault\(\);(.*?)\}, true\);', PAGE, re.S)[1]
+        for call in ("e.stopPropagation();", "closeTypes();", '$("typesBtn").focus('):
+            self.assertIn(call, escape)
 
 
 class DesignTokenTest(unittest.TestCase):
