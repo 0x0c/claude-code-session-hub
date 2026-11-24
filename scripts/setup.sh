@@ -9,8 +9,20 @@ set -eu
 cd "$(dirname "$0")/.."
 . .githooks/gitleaks.sh
 
+# True when core.hooksPath is this repository's own .githooks: the relative path, or an absolute
+# path to this checkout's or the main checkout's copy. core.hooksPath is shared by every linked
+# worktree, so a setup run in the main checkout may have left an absolute path behind.
+own_hooks() {
+  [ -n "$1" ] || return 1
+  case "$1" in /*) dir="$1" ;; *) dir="$PWD/$1" ;; esac
+  dir="$(cd "$dir" 2>/dev/null && pwd -P)" || return 1
+  [ "$dir" = "$(pwd -P)/.githooks" ] && return 0
+  main="$(cd "$(git rev-parse --git-common-dir)/.." 2>/dev/null && pwd -P)" || return 1
+  [ "$dir" = "$main/.githooks" ]
+}
+
 is_set_up() {
-  [ "$(git config core.hooksPath || true)" = .githooks ] && [ -x "$GITLEAKS" ]
+  own_hooks "$(git config core.hooksPath || true)" && [ -x "$GITLEAKS" ]
 }
 
 case "${1:-}" in
@@ -66,7 +78,7 @@ done
 
 # Replacing another hooks folder would silently turn its hooks off, so leave that to the person.
 current="$(git config core.hooksPath || true)"
-if [ -n "$current" ] && [ "$current" != .githooks ]; then
+if [ -n "$current" ] && ! own_hooks "$current"; then
   fail "core.hooksPath is already $current; to replace it, run: git config core.hooksPath .githooks"
 fi
 
