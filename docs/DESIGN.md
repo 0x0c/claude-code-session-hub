@@ -425,7 +425,7 @@ label, it gives the English label and the Japanese label in parentheses.
     failed, done, and stale.
 - **Session list** (left): split into "needs action" (要対応), "working or waiting"
   (作業中・待機), and "done" (完了), each sorted by the priority in §4.3.
-  - Each card shows a state badge, a task progress bar (hidden once the session is done), the remaining work, the PR and CI, the
+  - Each card shows a state badge, a task progress bar (hidden in the `done` state), the remaining work, the PR and CI, the
     tokens and cost, the last update, and any unanswered question (with its options, its default,
     and the command to answer it).
   - **A session in an active state (planning / working / changes_requested) shows a spinner.**
