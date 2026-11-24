@@ -430,7 +430,7 @@ label, it gives the English label and the Japanese label in parentheses.
 - **Session list** (left): split into "needs action" (要対応), "working or waiting"
   (作業中・待機), and "done" (完了), each sorted by last update, the newest first. The
   last update is the time on the card, and a heartbeat counts.
-  - Each card shows a state badge, a task progress bar, the remaining work, the PR and CI, the
+  - Each card shows a state badge, a task progress bar (hidden in the `done` state), the remaining work, the PR and CI, the
     tokens and cost, the last update, and any unanswered question (with its options, its default,
     and the command to answer it).
   - **A session in an active state (planning / working / changes_requested) shows a spinner.**
@@ -448,6 +448,13 @@ label, it gives the English label and the Japanese label in parentheses.
   - **Swimlanes**: one horizontal band per session, with state changes drawn as colored spans.
     Dots mark events (question = orange, answer = blue). Hovering shows details, and clicking jumps
     to the matching feed row. A long wait for a human, or a stall, is visible at a glance.
+- **Grid layout**: a toggle in the session list's header switches between the list and a grid, and the
+  browser remembers the choice (`localStorage`, `hub.layout`; the default is the list).
+  - The grid keeps the groups and spreads the cards over the full width.
+  - Clicking a card slides a detail panel in from the right. The panel is the timeline with its tabs
+    and filters, limited to that session. **All sessions** (すべてのセッション) opens the panel without
+    the limit.
+  - Clicking the same card, the close button, or Escape closes the panel and clears the selection.
 - **Collection tabs** (right panel): each defined collection adds a tab automatically, for example
   "Knowledge (6)" (ナレッジ (6)).
   - A `cards` view shows one card per item, grouped (knowledge is grouped by kind). Each card shows
@@ -463,6 +470,9 @@ label, it gives the English label and the Japanese label in parentheses.
   - the matching timeline row
   - the swimlane band
   - the collection item the message landed in
+
+  The halo pulses three times and then fades. A queued, done, or abandoned session, whose state color
+  is grey, glows in the accent color.
 
   A glow survives a redraw and continues where it left off. When messages arrive back to back, the
   latest one restarts the glow. Heartbeats (the hooks' automatic sends) do not glow. With the
