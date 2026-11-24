@@ -76,6 +76,15 @@ class DashboardTest(unittest.TestCase):
         self.assertIn(': e.writer ? el("span", { class: "writer" }, e.writer) : null;', row)
         self.assertEqual(row.count("sessionName("), 1)
 
+    def test_open_details_survive_an_update(self):
+        render = re.search(r"  function renderFeed\(\) \{\n(.*?)\n  \}\n", PAGE, re.S)[1]
+        before, rebuild, after = render.partition("rebuildFeed(box);")
+        self.assertTrue(rebuild)
+        self.assertIn("d.open ? openRows.add(id) : openRows.delete(id);", before)
+        self.assertIn("if (!db.events.has(id.slice(3))) openRows.delete(id);", before)
+        self.assertIn('if (openRows.has(row.id)) row.querySelector("details").open = true;', after)
+        self.assertNotIn("ontoggle", PAGE)  # a toggle event fires late, even for a replaced row
+
 
 class DesignTokenTest(unittest.TestCase):
     def setUp(self):
