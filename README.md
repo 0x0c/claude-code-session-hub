@@ -16,8 +16,9 @@ them on a browser dashboard.
 - **Every label explained.** Hover over the `?` icon next to a status or state to read what it means, or
   open the **Status guide** from the header to read them all on one page.
 - **Grouped by project.** The session list gathers the other sessions by repository or project, the most
-  recently updated first, and splits each project into "Working and waiting" and "Done". The
-  name comes from the Git remote or the folder; `session-hub start --repo <name>` overrides it. The
+  recently updated first, and splits each project into "Working and waiting" and "Done".
+  Archived sessions stay in a group of their own, split by project. The project's name
+  comes from the Git remote or the folder; `session-hub start --repo <name>` overrides it. The
   **By project** button switches to grouping by status.
 - **A few lines for the parent.** The parent session reads no transcripts. It decides from the few
   lines that `session-hub attention` prints.

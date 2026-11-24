@@ -452,7 +452,8 @@ label, it gives the English label and the Japanese label in parentheses.
     "working or waiting" (作業中・待機) and "done" (完了).
   - Clicking any group heading, "needs action" included, collapses or expands that group. A
     collapsed heading keeps its count, and glows when a hidden session sends a message. The browser
-    remembers the collapsed groups. The **Archived** group comes last and starts collapsed.
+    remembers the collapsed groups. The **Archived** group comes last and starts collapsed. In the
+    grouping by project, the dashboard splits it into one collapsible group per project.
   - A `?` icon follows each status label in a group heading and the state badge on each card. Hovering
     over the icon, or tapping it, shows what the label means.
   - Each card shows a state badge, a task progress bar (hidden in the `done` state), the remaining work, the PR and CI, the
