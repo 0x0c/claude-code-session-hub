@@ -7,9 +7,9 @@
 |---|---|
 | Proposal | SH-XXXX |
 | Author | [@0x0c](https://github.com/0x0c) |
-| Status | **In progress** |
+| Status | **Implemented** |
 | Topic | Dashboard |
-| Implementing PR | — |
+| Implementing PR | [#23](https://github.com/0x0c/claude-code-session-hub/pull/23) |
 | Related | — |
 <!-- /SH-METADATA -->
 
@@ -58,7 +58,7 @@ A test reads the stylesheet and checks three rules:
 
 ## Progress
 
-- [ ] Design approved
+- [x] Design approved
 - [x] Implementation with tests
 - [x] Documentation updated (AGENTS.md)
 
