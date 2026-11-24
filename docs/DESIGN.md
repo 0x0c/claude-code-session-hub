@@ -468,7 +468,10 @@ label, it gives the English label and the Japanese label in parentheses.
     "Details" (詳細) opens the raw event JSON. New events are highlighted. While the reader is
     scrolled down, a "N new" bar (新着 N 件) announces new events instead of moving the screen.
     Filters: session, event type, full-text search, heartbeat display (consecutive heartbeats
-    collapse into one row), and newest or oldest first.
+    collapse into one row), and newest or oldest first. The event types are checkboxes in a popover that
+    the **Event types** (種別) button opens; the button shows the number of
+    shown types and the total. Escape, an
+    outside click, or a second press closes the popover.
   - **Swimlanes**: one horizontal band per session, with state changes drawn as colored spans.
     Dots mark events (question = orange, answer = blue). Hovering shows details, and clicking jumps
     to the matching feed row. A long wait for a human, or a stall, is visible at a glance.

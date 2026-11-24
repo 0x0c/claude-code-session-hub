@@ -193,7 +193,14 @@
         el("button", { class: "iconbtn danger" }, t("sessions.delete")), el("button", { class: "iconbtn danger", disabled: true }, t("sessions.delete")))],
       ["Layout toggle", () => pbClone(".seg")],
       ["Toolbar and tabs", () => pbClone(".toolbar")],
-      ["Event type filter", () => pbClone("#fTypes")],
+      ["Event type filter: closed", () => el("div", { class: "pb-row" }, pbTypesBtn(12), pbTypesBtn(9))],
+      ["Event type filter: open", () => {
+        const pop = pbClone("#fTypes");
+        pop.removeAttribute("popover"); // Draw it in place, not in the top layer
+        Object.assign(pop.style, { position: "static", width: "max-content", maxHeight: "none" });
+        pop.querySelectorAll("input").forEach((box, i) => { box.checked = i !== 1; });
+        return pop;
+      }],
       ["Header", () => pbClone("header")],
       ["Chips", () => el("div", { class: "pb-row" }, el("span", { class: "chip" }, "implement"), el("span", { class: "chip" }, "#redis"))],
       ["Tooltip", () => el("div", { class: "tip", style: { position: "static", display: "inline-block" } }, t("state.working"))],
@@ -214,6 +221,8 @@
       })],
     ]],
   ];
+
+  const pbTypesBtn = (shown) => fillTypesBtn(el("button", { class: "iconbtn typesbtn" }), shown, 12);
 
   // A copy of a static part of the page. Ids are dropped so that the original stays unique.
   function pbClone(selector) {
