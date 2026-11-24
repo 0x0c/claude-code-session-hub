@@ -107,6 +107,7 @@ class DashboardTest(unittest.TestCase):
         self.assertIn('/^local_[A-Za-z0-9-]{1,64}$/.test(s.desktop_id || "")', PAGE)
         self.assertIn('"claude://code/continue?session=" + s.desktop_id', PAGE)
         self.assertIn("open.hidden = !appUrl;", PAGE)
+        self.assertIn("@media (max-width: 860px) { #tlTitle { flex-wrap: wrap; } }", PAGE)
 
     def test_overview_replaces_the_all_sessions_button(self):
         self.assertIn('data-view="overview"', PAGE)

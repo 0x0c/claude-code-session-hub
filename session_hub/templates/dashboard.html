@@ -172,6 +172,7 @@ main.grid .subcards { padding: var(--space-4) 0 var(--space-8) var(--space-24); 
 .card .meta { font-size: var(--fs-meta); color: var(--muted); display: flex; gap: var(--space-10); flex-wrap: wrap; margin-top: var(--space-2); }
 a.pr { color: var(--accent); }
 #tlDesktop { flex: none; }
+@media (max-width: 860px) { #tlTitle { flex-wrap: wrap; } } /* The link and the buttons do not fit one line */
 #tlPr { flex: none; font-weight: var(--fw-normal); white-space: nowrap; }
 .card .summary { font-size: var(--fs-body-sm); margin-top: var(--space-4); overflow-wrap: anywhere; }
 .spinner { width: 14px; height: 14px; flex: none; border-radius: 50%; border: 2px solid var(--line);
