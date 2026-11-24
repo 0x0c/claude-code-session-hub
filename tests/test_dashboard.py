@@ -108,6 +108,13 @@ class DashboardTest(unittest.TestCase):
         self.assertIn('"claude://code/continue?session=" + s.desktop_id', PAGE)
         self.assertIn("open.hidden = !appUrl;", PAGE)
 
+    def test_overview_replaces_the_all_sessions_button(self):
+        self.assertIn('data-view="overview"', PAGE)
+        self.assertRegex(PAGE, r'function renderOverview\(\) \{\n[^\n]*\n\s*tipEl\.style\.display = "none";')
+        self.assertNotIn('id="openPanel"', PAGE)
+        self.assertNotIn("panel.openAll", PAGE)
+        self.assertLessEqual({"tab.overview", "overview.aria", "overview.open", "overview.end"}, messages("ja"))
+
     def test_detail_view_links_the_pull_request(self):
         self.assertRegex(PAGE, r'<a class="pr" id="tlPr" target="_blank" rel="noopener noreferrer" hidden>')
         self.assertIn("link.hidden = !prUrl;", PAGE)
