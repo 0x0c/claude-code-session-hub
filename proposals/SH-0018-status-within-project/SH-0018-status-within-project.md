@@ -1,11 +1,11 @@
-**English** · [日本語](SH-XXXX-status-within-project.ja.md)
+**English** · [日本語](SH-0018-status-within-project.ja.md)
 
-# SH-XXXX — Group sessions by status within a project
+# SH-0018 — Group sessions by status within a project
 
 <!-- SH-METADATA -->
 | Field | Value |
 |---|---|
-| Proposal | SH-XXXX |
+| Proposal | SH-0018 |
 | Author | [@0x0c](https://github.com/0x0c) |
 | Status | **Implemented** |
 | Topic | Dashboard |
