@@ -435,6 +435,9 @@ label, it gives the English label and the Japanese label in parentheses.
     project come last.
   - The **By project** button switches the sessions below "needs action" to grouping by status:
     "working or waiting" (作業中・待機) and "done" (完了).
+  - Clicking any group heading, "needs action" included, collapses or expands that group. A
+    collapsed heading keeps its count, and glows when a hidden session sends a message. The browser
+    remembers the collapsed groups.
   - Each card shows a state badge, a task progress bar (hidden in the `done` state), the remaining work, the PR and CI, the
     tokens and cost, the last update, and any unanswered question (with its options, its default,
     and the command to answer it).
@@ -443,6 +446,10 @@ label, it gives the English label and the Japanese label in parentheses.
     neither does a session suspected stale.
   - A "ready for review" claim that rests on the self-report alone, without passing the gate (§4.1),
     shows as "Not yet reviewable" (レビュー条件未達) together with the unmet reason.
+- **Independent scrolling**: in the list layout, in a window wider than 860px and at least 480px tall, the session list
+  and the detail panel on the right scroll separately. A smaller window scrolls as one page.
+- **Connector line**: in the same layout, a line joins the selected session's card to the detail
+  panel. The line turns dashed while the card is scrolled out of the list.
 - **Timeline** (right): traces the reports from children in time order, in two forms.
   - **Feed**: events grouped by date. Each row shows the time, the session, the type, the text, and
     what the event changed (state A→B, phase, task count, a resolved question).
