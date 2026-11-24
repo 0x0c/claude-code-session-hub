@@ -625,7 +625,7 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
   function renderArchived(box, archived) {
     if (archived.length) {
       box.append(el("details", { class: "archived", open: ui.showArchived,
-        ontoggle: (e) => { ui.showArchived = e.currentTarget.open; } },
+        ontoggle: (e) => { ui.showArchived = e.currentTarget.open; drawLink(); } },
         el("summary", { class: "group-title" }, `${t("group.archived")} (${archived.length})`),
         el("div", { class: "cards" }, archived.map((s) => sessionCard(s, false)))));
     }
@@ -911,11 +911,14 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
   const detailScroller = () => (ui.layout === "grid" ? $("detail") : isSplit() ? $("detailScroll") : window);
   const scrollPos = () => { const n = detailScroller(); return n === window ? window.scrollY : n.scrollTop; };
 
+  // A card inside the closed archived fold has no position to point at
+  const VISIBLE_SELECTED = ".card.selected:not(details:not([open]) *)";
+
   // Draw a line from the selected card to the detail panel's title. When the card is scrolled out of
   // the list, the line starts at the nearest edge of the list and turns dashed.
   function drawLink() {
     const svg = $("link");
-    const card = isSplit() && ui.session ? $("sessions").querySelector(".card.selected") : null;
+    const card = isSplit() && ui.session ? $("sessions").querySelector(VISIBLE_SELECTED) : null;
     svg.toggleAttribute("hidden", !card);
     $("detail").classList.toggle("linked", !!card);
     if (!card) return;
@@ -943,7 +946,7 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
 
   // Scroll the list, and only the list, until the selected card is visible
   function revealSelectedCard() {
-    const box = $("sessions"), card = box.querySelector(".card.selected");
+    const box = $("sessions"), card = box.querySelector(VISIBLE_SELECTED);
     if (!isSplit() || !card) return;
     const b = box.getBoundingClientRect(), c = card.getBoundingClientRect();
     if (c.top < b.top || c.height > b.height) box.scrollTop -= b.top - c.top;
