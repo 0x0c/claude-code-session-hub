@@ -31,11 +31,12 @@ with its count, and it stays collapsed after a live update and after a page relo
 
 The change touches `session_hub/templates/dashboard.html` alone.
 
-- **Heading.** Each group heading becomes a button inside a level-three heading. The button carries
-  `aria-expanded`, shows a ▾ or ▸ marker, and keeps the session count in both states. The existing
+- **Heading.** Each group heading becomes the collapsible button that the grouping by project uses. The
+  button carries `aria-expanded`, shows an arrow marker, and keeps the session count in both states. The existing
   group labels name the button, so the `MESSAGES` table needs no new label.
-- **State.** Every group starts expanded. The ids of the collapsed groups (`action`, `active`, and
-  `done`) live in `localStorage` under `hub.collapsed`. The page works without storage; the choice
+- **State.** Every group starts expanded. The keys of the collapsed groups (`status:action`,
+  `status:active`, and `status:done`) live in `localStorage` under `hub.collapsed`, next to the
+  collapsed projects. The `status:` prefix keeps them apart from a project named `done`. The page works without storage; the choice
   then lasts until a reload.
 - **Hidden activity.** A collapsed heading glows when one of its hidden sessions sends a message. It
   also shows the selection mark when the selected session is hidden.
