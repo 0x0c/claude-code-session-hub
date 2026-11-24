@@ -44,6 +44,15 @@ We also remove the playbook story and the design system specimen of the button.
 `DELETE /api/sessions/<session_id>` endpoint, and `session-hub delete` stay unchanged. The button that
 closes the grid layout's detail panel also stays, because it closes the panel and deletes nothing.
 
+### What we give up
+
+SH-0006 added the button for two reasons: deleting a session took a trip to the timeline header, and
+on a narrow screen that header sits below the whole list. Both reasons still describe the list
+layout, and we accept the cost. On a narrow screen, a user of the list layout selects a session and
+scrolls down to **Delete session**. Selecting a card does not scroll the header into view. In the grid
+layout, selecting a card opens the detail panel over the full width, with **Delete session** at its
+top.
+
 ## Alternatives considered
 
 - **Keep the button in the list layout alone.** Both layouts draw the same card, and the reasons
