@@ -7,9 +7,9 @@
 |---|---|
 | 提案 | SH-XXXX |
 | 作者 | [@0x0c](https://github.com/0x0c) |
-| 状態 | **In progress** |
+| 状態 | **Implemented** |
 | トピック | Dashboard |
-| 実装PR | — |
+| 実装PR | [#47](https://github.com/0x0c/claude-code-session-hub/pull/47) |
 | 関連 | [SH-0014](../SH-0014-dashboard-playbook/SH-0014-dashboard-playbook.md), [SH-0015](../SH-0015-design-system-sync/SH-0015-design-system-sync.md) |
 <!-- /SH-METADATA -->
 

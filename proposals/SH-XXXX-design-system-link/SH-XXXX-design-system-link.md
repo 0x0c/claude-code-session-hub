@@ -7,9 +7,9 @@
 |---|---|
 | Proposal | SH-XXXX |
 | Author | [@0x0c](https://github.com/0x0c) |
-| Status | **In progress** |
+| Status | **Implemented** |
 | Topic | Dashboard |
-| Implementing PR | — |
+| Implementing PR | [#47](https://github.com/0x0c/claude-code-session-hub/pull/47) |
 | Related | [SH-0014](../SH-0014-dashboard-playbook/SH-0014-dashboard-playbook.md), [SH-0015](../SH-0015-design-system-sync/SH-0015-design-system-sync.md) |
 <!-- /SH-METADATA -->
 
