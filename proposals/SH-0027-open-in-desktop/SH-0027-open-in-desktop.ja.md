@@ -1,11 +1,11 @@
-[English](SH-XXXX-open-in-desktop.md) · **日本語**
+[English](SH-0027-open-in-desktop.md) · **日本語**
 
-# SH-XXXX — Claudeデスクトップアプリでセッションを開く
+# SH-0027 — Claudeデスクトップアプリでセッションを開く
 
 <!-- SH-METADATA -->
 | 項目 | 値 |
 |---|---|
-| 提案 | SH-XXXX |
+| 提案 | SH-0027 |
 | 作者 | [@0x0c](https://github.com/0x0c) |
 | 状態 | **Implemented** |
 | トピック | Dashboard |

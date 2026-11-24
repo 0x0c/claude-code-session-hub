@@ -1,11 +1,11 @@
-**English** · [日本語](SH-XXXX-open-in-desktop.ja.md)
+**English** · [日本語](SH-0027-open-in-desktop.ja.md)
 
-# SH-XXXX — Open a session in the Claude desktop app
+# SH-0027 — Open a session in the Claude desktop app
 
 <!-- SH-METADATA -->
 | Field | Value |
 |---|---|
-| Proposal | SH-XXXX |
+| Proposal | SH-0027 |
 | Author | [@0x0c](https://github.com/0x0c) |
 | Status | **Implemented** |
 | Topic | Dashboard |
