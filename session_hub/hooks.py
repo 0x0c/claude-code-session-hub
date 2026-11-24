@@ -134,6 +134,8 @@ def stop(payload: dict) -> str:
     repo = project.for_session(sid)
     if repo:
         beat["repo_hint"] = repo  # Not `repo`: an older hub would let it replace an explicit project
+    if os.environ.get("HUB_PARENT_SESSION_ID"):
+        beat["parent_hint"] = os.environ["HUB_PARENT_SESSION_ID"]
     send(beat)
 
     if os.environ.get("HUB_STOP_GUARD", "1") == "0" or payload.get("stop_hook_active"):

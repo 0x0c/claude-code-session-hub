@@ -34,6 +34,7 @@
     ready: () => ({ state_after: "review_ready" }),
     done: () => ({ state_after: "done" }),
     fail: () => ({ state_after: "failed", last_error: pbText("error") }),
+    parent: () => ({ writer: "desktop", summary: null, parent_hint: "pb-done" }),
     finding: () => ({ finding: { title: pbText("finding") } }),
     heartbeat: () => ({ usage: { input: 90000, output: 9000, context_pct: 42 } }),
   };
@@ -56,6 +57,10 @@
   const pbArchived = () => [["acme/app", 10], ["acme/api", 20], ["acme/app", 30], [undefined, 40]].map(([repo, min], i) =>
     pbSession("done", { session_id: "pb-archived-" + i, repo, heartbeat: pbAt(min), archived: { since: pbAt(min) } }));
   const pbKnown = () => [pbSession("working"), { ...pbSession("done"), title: pbText("other") }];
+  const pbFamily = () => [pbSession("working"),
+    pbSession("planning", { title: pbText("other"), parent_id: "pb-working" }),
+    pbSession("waiting_ci", { title: pbText("long"), parent_id: "pb-planning" }),
+    pbSession("in_review", { title: pbText("other"), parent_id: "pb-working" }), pbSession("blocked")];
   const pbWith = (data, make) => { const saved = { ...db }; Object.assign(db, data); try { return make(); } finally { Object.assign(db, saved); } };
 
   const pbTokens = () => {
@@ -100,6 +105,12 @@
       }, { byProject: true }), "narrow"],
       ["Grid layout", () => el("main", { class: "grid", style: { padding: "0" } }, pbCapture("sessions", { sessions: [
         pbSession("working", { repo: "acme/app" }), pbSession("done", { repo: "acme/app" })] }, renderSessions, { byProject: true }))],
+    ]],
+    ["SessionFamily", [
+      ["In one group, across two levels", () => pbCapture("sessions", { sessions: pbFamily() }, renderSessions), "narrow"],
+      ["Parent in another group", () => pbCapture("sessions", { sessions: [
+        pbSession("working"), pbSession("done", { title: pbText("other"), parent_id: "pb-working" })] }, renderSessions), "narrow"],
+      ["Grid layout", () => el("main", { class: "grid", style: { padding: "0" } }, pbCapture("sessions", { sessions: pbFamily() }, renderSessions))],
     ]],
     ["SessionCard", [
       ...Object.keys(STATE_COLORS).filter((s) => !["stale", "review_pending", "archived"].includes(s)).map((s) =>

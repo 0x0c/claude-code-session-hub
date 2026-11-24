@@ -1,12 +1,14 @@
-"""Read which sessions the Claude desktop app holds, and which of them it has archived.
+"""Read which sessions the Claude desktop app holds, which it has archived, and which started which.
 
 The app keeps one JSON file per session, <root>/<account>/<organization>/local_<id>.json. We read
-four of its fields and never write to the directory:
+five of its fields and never write to the directory:
 
     cliSessionId    the Claude Code session ID, which is also the hub's session ID
     isArchived      whether the user archived the session
     sessionId       the app's own ID, which its claude:// links take (optional)
     lastActivityAt  when the session was last active (optional)
+    spawnedFrom     for a session started from another one, an object whose sessionId is the app's
+                    own ID of the session that started it (optional)
 
 The format belongs to the app and is undocumented, so anything unexpected counts as "unknown", and
 an unknown session is left as it is.
@@ -31,6 +33,14 @@ class AppSession(NamedTuple):
     active: float = 0
 
 
+class AppFile(NamedTuple):
+    """What one file of the app says."""
+    sid: str
+    session: AppSession
+    app_id: str | None  # Kept for an archived session too: it may be the parent of another one
+    origin: str | None  # The app's own ID of the session that started this one
+
+
 def default_root() -> Path | None:
     """Return the app's session directory, or None when there is nothing to watch.
 
@@ -47,20 +57,23 @@ def default_root() -> Path | None:
 class DesktopSessions:
     def __init__(self, root: Path | str):
         self.root = Path(root)
-        self._cache: dict[Path, tuple[tuple, tuple[str, AppSession] | None]] = {}
+        self._cache: dict[Path, tuple[tuple, AppFile | None]] = {}
+        self.parents: dict[str, str] = {}  # {session ID: parent's session ID}, as of the last scan
 
     @staticmethod
-    def _parse(path: Path) -> tuple[str, AppSession] | None:
+    def _parse(path: Path) -> AppFile | None:
         data = json.loads(path.read_text(encoding="utf-8"))
         if not isinstance(data, dict):
             return None
         sid, archived = data.get("cliSessionId"), data.get("isArchived")
         if not isinstance(sid, str) or not isinstance(archived, bool):
             return None
-        app_id, active = data.get("sessionId"), data.get("lastActivityAt")
-        linkable = not archived and isinstance(app_id, str) and APP_ID.fullmatch(app_id)
-        return sid, AppSession(archived, app_id if linkable else None,
-                               active if isinstance(active, (int, float)) else 0)
+        app_id, active, spawned = data.get("sessionId"), data.get("lastActivityAt"), data.get("spawnedFrom")
+        origin = spawned.get("sessionId") if isinstance(spawned, dict) else None
+        app_id = app_id if isinstance(app_id, str) else None
+        linkable = not archived and app_id and APP_ID.fullmatch(app_id)
+        session = AppSession(archived, app_id if linkable else None, active if isinstance(active, (int, float)) else 0)
+        return AppFile(sid, session, app_id, origin if isinstance(origin, str) else None)
 
     @staticmethod
     def _merge(a: AppSession, b: AppSession) -> AppSession:
@@ -90,7 +103,19 @@ class DesktopSessions:
                 continue
             cache[path] = entry
             if entry[1]:
-                sid, found = entry[1]
+                sid, found = entry[1].sid, entry[1].session
                 out[sid] = self._merge(out[sid], found) if sid in out else found
         self._cache = cache
+        self.parents = self._parents([entry[1] for entry in cache.values() if entry[1]])
         return out
+
+    @staticmethod
+    def _parents(files: list[AppFile]) -> dict[str, str]:
+        ids = {f.app_id: f.sid for f in files if f.app_id}
+        found: dict[str, set[str]] = {}
+        for f in files:
+            parent = ids.get(f.origin)
+            if parent and parent != f.sid:
+                found.setdefault(f.sid, set()).add(parent)
+        # App sessions that share one Claude Code session may disagree; then the parent is unknown
+        return {sid: parents.pop() for sid, parents in found.items() if len(parents) == 1}

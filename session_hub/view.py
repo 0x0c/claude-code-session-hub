@@ -61,8 +61,8 @@ def snapshot(all_events: dict[str, list[dict]], now: datetime | None = None,
     """Return all dashboard data. defs holds collection definitions (built-ins alone when omitted)."""
     sessions, events = [], []
     for sid, evs in all_events.items():
-        # Archive events alone (the child's file was deleted, or has not arrived) make no session
-        if all(e["type"] in schema.ARCHIVE_TYPES for e in evs):
+        # Bookkeeping alone (the child's file was deleted, or has not arrived) make no session
+        if all(e["type"] in schema.BOOKKEEPING_TYPES for e in evs):
             continue
         st, tl = session_view(evs, now)
         sessions.append(st)
