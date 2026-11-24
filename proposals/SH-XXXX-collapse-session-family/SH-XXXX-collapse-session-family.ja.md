@@ -7,9 +7,9 @@
 |---|---|
 | 提案 | SH-XXXX |
 | 作者 | [@0x0c](https://github.com/0x0c) |
-| 状態 | **In progress** |
+| 状態 | **Implemented** |
 | トピック | Dashboard |
-| 実装PR | — |
+| 実装PR | [#51](https://github.com/0x0c/claude-code-session-hub/pull/51) |
 | 関連 | [SH-0009](../SH-0009-collapse-session-groups/SH-0009-collapse-session-groups.md) |
 <!-- /SH-METADATA -->
 

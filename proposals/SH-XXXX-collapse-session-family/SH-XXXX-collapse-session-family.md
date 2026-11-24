@@ -7,9 +7,9 @@
 |---|---|
 | Proposal | SH-XXXX |
 | Author | [@0x0c](https://github.com/0x0c) |
-| Status | **In progress** |
+| Status | **Implemented** |
 | Topic | Dashboard |
-| Implementing PR | — |
+| Implementing PR | [#51](https://github.com/0x0c/claude-code-session-hub/pull/51) |
 | Related | [SH-0009](../SH-0009-collapse-session-groups/SH-0009-collapse-session-groups.md) |
 <!-- /SH-METADATA -->
 
