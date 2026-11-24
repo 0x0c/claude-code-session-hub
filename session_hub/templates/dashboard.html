@@ -240,6 +240,7 @@ a.pr { color: var(--accent); }
 .ev .body { min-width: 0; }
 .ev .head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-6); }
 .ev .who { font-size: var(--fs-meta); font-weight: var(--fw-strong); cursor: pointer; }
+.ev .evproject { font-size: var(--fs-label); color: var(--muted); overflow-wrap: anywhere; }
 .ev .writer { font-size: var(--fs-meta); font-weight: var(--fw-strong); }
 .ev .type { font-size: var(--fs-label); color: var(--muted); }
 .ev .text { font-size: var(--fs-body-sm); overflow-wrap: anywhere; margin-top: var(--space-1); }
@@ -719,6 +720,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     const s = db.sessions.find((x) => x.session_id === sid);
     return (s && s.title) || sid;
   };
+  const sessionProject = (sid) => (db.sessions.find((x) => x.session_id === sid) || {}).repo || "";
   // A stable hue per session
   const hue = (sid) => { let h = 0; for (const c of sid) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h % 360; };
   const laneColor = (sid) => `hsl(${hue(sid)} 55% 50%)`;
@@ -925,7 +927,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     for (const e of db.events.values()) {
       if (ui.session && e.session_id !== ui.session) continue;
       if (e.type === "heartbeat" ? !ui.heartbeat : !ui.types.has(e.type)) continue;
-      if (q && !eventText(e).toLowerCase().includes(q) && !sessionName(e.session_id).toLowerCase().includes(q)) continue;
+      if (q && !eventText(e).toLowerCase().includes(q) && !sessionName(e.session_id).toLowerCase().includes(q) && !sessionProject(e.session_id).toLowerCase().includes(q)) continue;
       out.push(e);
     }
     out.sort((a, b) => (a.ts < b.ts ? -1 : a.ts > b.ts ? 1 : a.id < b.id ? -1 : 1));
@@ -1035,12 +1037,14 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       ? el("span", { class: "who", style: { color: laneColor(e.session_id) }, title: e.session_id,
                      onclick: () => selectSession(e.session_id) }, (e.writer ? `${e.writer} → ` : "") + sessionName(e.session_id))
       : e.writer ? el("span", { class: "writer" }, e.writer) : null;
+    const project = !ui.session && sessionProject(e.session_id); // one session has one project
     const row = el("div", glowProps([glowKey.event(e.id)], { class: "ev", id: "ev-" + e.id }),
       el("time", { datetime: e.ts, title: e.ts }, hhmm(e.ts)),
       el("span", { class: "mark", style: { background: color } }),
       el("div", { class: "body" },
         el("div", { class: "head" },
           who,
+          project ? el("span", { class: "evproject" }, project) : null,
           el("span", { class: "type" }, TYPES[e.type] || e.type),
           e.phase && !(e.diff || {}).phase ? el("span", { class: "chip" }, e.phase) : null),
         body ? el("div", { class: "text" }, body) : null,
