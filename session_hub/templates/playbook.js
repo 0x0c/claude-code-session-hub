@@ -76,7 +76,8 @@
     ]],
     ["GroupHeading", [
       ["All groups, with cards", () => pbCapture("sessions", { sessions: [
-        pbSession("needs_human", { needs_action: true, attention: pbAsk(true) }), pbSession("working"), pbSession("done")] }, renderSessions), "narrow"],
+        pbSession("needs_human", { needs_action: true, attention: pbAsk(true) }), pbSession("working"), pbSession("done"),
+        pbSession("abandoned", { archived: { since: pbAt(60) } })] }, renderSessions), "narrow"],
       ["Grid layout", () => el("main", { class: "grid", style: { padding: "0" } }, pbCapture("sessions", { sessions: [
         pbSession("needs_human", { needs_action: true, attention: pbAsk(true) }), pbSession("failed", { needs_action: true }), pbSession("working")] }, renderSessions))],
       ["No sessions", () => pbCapture("sessions", { sessions: [] }, renderSessions), "narrow"],
@@ -89,8 +90,9 @@
       }, { byProject: true }), "narrow"],
     ]],
     ["SessionCard", [
-      ...Object.keys(STATE_COLORS).filter((s) => !["stale", "review_pending"].includes(s)).map((s) =>
+      ...Object.keys(STATE_COLORS).filter((s) => !["stale", "review_pending", "archived"].includes(s)).map((s) =>
         [s, () => sessionCard(pbSession(s, s === "failed" ? { last_error: pbText("error") } : {})), "narrow"]),
+      ["archived", () => sessionCard(pbSession("done", { archived: { since: pbAt(60) } })), "narrow"],
       ["stale", () => sessionCard(pbSession("working", { stale: true })), "narrow"],
       ["review_pending (gate not met)", () => sessionCard(pbSession("review_ready", {
         gate: ["ci"], gate_codes: [{ code: "ci", value: "unknown" }] })), "narrow"],
