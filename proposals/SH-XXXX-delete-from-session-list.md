@@ -7,9 +7,9 @@
 |---|---|
 | Proposal | SH-XXXX |
 | Author | [@0x0c](https://github.com/0x0c) |
-| Status | **In progress** |
+| Status | **Implemented** |
 | Topic | Dashboard |
-| Implementing PR | — |
+| Implementing PR | [#13](https://github.com/0x0c/claude-code-session-hub/pull/13) |
 | Related | [SH-0001](SH-0001-delete-session.md) |
 <!-- /SH-METADATA -->
 
