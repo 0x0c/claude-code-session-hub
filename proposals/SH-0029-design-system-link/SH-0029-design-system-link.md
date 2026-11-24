@@ -1,11 +1,11 @@
-**English** · [日本語](SH-XXXX-design-system-link.ja.md)
+**English** · [日本語](SH-0029-design-system-link.ja.md)
 
-# SH-XXXX — Link to the design system page
+# SH-0029 — Link to the design system page
 
 <!-- SH-METADATA -->
 | Field | Value |
 |---|---|
-| Proposal | SH-XXXX |
+| Proposal | SH-0029 |
 | Author | [@0x0c](https://github.com/0x0c) |
 | Status | **Implemented** |
 | Topic | Dashboard |
