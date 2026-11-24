@@ -70,6 +70,12 @@ class DashboardTest(unittest.TestCase):
         self.assertIn("if (!prWebUrl(pr)) return text;", PAGE)
         self.assertIn('onkeydown: (e) => { if (e.key === "Enter" || e.key === " ") e.stopPropagation(); }', PAGE)
 
+    def test_selected_session_feed_omits_the_session_title(self):
+        row = PAGE[PAGE.index("function eventRow(e)"):PAGE.index("const stripEvent")]
+        self.assertRegex(row, r'const who = !ui\.session\s+\? el\("span", \{ class: "who"')
+        self.assertIn(': e.writer ? el("span", { class: "writer" }, e.writer) : null;', row)
+        self.assertEqual(row.count("sessionName("), 1)
+
 
 class DesignTokenTest(unittest.TestCase):
     def setUp(self):
