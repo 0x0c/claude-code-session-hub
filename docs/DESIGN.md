@@ -51,6 +51,7 @@ Each session has one status record, a JSON object. The field `v` holds the schem
 | Group | Field | Writer | Description |
 |---|---|---|---|
 | Identity | `v`, `session_id`, `parent_id`, `title`, `task_ref` | At launch (parent) | `task_ref` is an issue number or a task identifier (ID) |
+| | `session_name` | Hook or command (automatic) | The session's name in Claude Code, read from the transcript. Clipped at 200 characters. When present, it replaces `title`, so the dashboard shows the name |
 | Location | `repo`, `branch`, `base` | At launch / hook | `repo` names the project: `--repo`, or the path of the Git remote, or the folder name |
 | State | `state` | Child (CLI) | One of the values listed in §1.2 |
 | | `phase` | Child | A narrow enumeration such as `plan` / `implement` / `test` / `fix` / `docs` / `self_review` |
@@ -510,8 +511,9 @@ claude-code-session-hub/
     view.py               Data assembly for the dashboard / attention / log / knowledge
     collections.py        Collection definitions (match / reduce / view / sinks) and projection
     hooks.py              Claude Code hook handlers (session-start / stop / todo)
-    local_state.py        The child's local state (last reported state, task ID mapping)
+    local_state.py        The child's local state (last reported state, task ID mapping, transcript path)
     usage.py              Token totals from the transcript
+    session_name.py       The session's name from the transcript
     cli.py                The session-hub command
     templates/dashboard.html
   bin/session-hub         Wrapper that needs no installation

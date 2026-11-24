@@ -26,7 +26,8 @@ them on a browser dashboard.
 - **A Claude Code plugin.** The plugin ships skills that describe how to report, and hooks that keep
   reports from being missed. The hooks send heartbeats, token usage, and task progress
   automatically, and they ask for a report when a session tries to stop while still marked as
-  working.
+  working. The dashboard shows each session under its name in Claude Code; the `--title` of
+  `session-hub start` appears only until the session has a name.
 
 [docs/DESIGN.md](docs/DESIGN.md) covers the design rationale and the protocol, and its
 [glossary](docs/DESIGN.md#appendix-a-glossary) defines the terms.

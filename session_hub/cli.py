@@ -306,7 +306,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub = p.add_subparsers(dest="cmd", required=True)
 
     s = sub.add_parser("start", help="record the start of a session")
-    s.add_argument("--title"); s.add_argument("--task-ref"); s.add_argument("--parent")
+    s.add_argument("--title", help="shown until the session has a name in Claude Code"); s.add_argument("--task-ref"); s.add_argument("--parent")
     s.add_argument("--repo", help="project to group by (default: the Git remote or the folder name)")
     s.add_argument("--branch"); s.add_argument("--summary")
     s.add_argument("--state", default="planning", choices=schema.STATES)
