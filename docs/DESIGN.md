@@ -194,9 +194,10 @@ immediately**.
 - **Timestamp assignment**: the server assigns a millisecond timestamp that increases monotonically
   across the whole store. The arrival order and the display order therefore always agree.
 - **Deleting a session**: the one exception to append-only writing. `session-hub delete` and the
-  dashboard's **Delete session** button call `DELETE /api/sessions/<session_id>`, which unlinks every
-  file of that session under the files' write locks and pushes the removal to every browser. The
-  operation works on whole sessions alone, so the folded state of every other session stays intact
+  dashboard's delete buttons (in the session list and the timeline header) call
+  `DELETE /api/sessions/<session_id>`, which unlinks every file of that session under the files' write
+  locks and pushes the removal to every browser. The operation works on whole sessions alone, so the
+  folded state of every other session stays intact
   ([SH-0002](../proposals/SH-0002-delete-session/SH-0002-delete-session.md)).
 
 ### 3.2 Child → hub (`session-hub report` and related commands)

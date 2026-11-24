@@ -78,7 +78,8 @@ main.grid { grid-template-columns: minmax(0, 1fr); max-width: none; }
 main.grid #sessions { padding: 0 var(--space-14) var(--space-14); }
 main.grid .group-title { padding-left: 0; }
 main.grid .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); gap: var(--space-12); }
-main.grid .card { border: 1px solid var(--line); border-left-width: 3px; border-radius: var(--radius-lg); min-width: 0; }
+main.grid .cardwrap { min-width: 0; }
+main.grid .card { border: 1px solid var(--line); border-left-width: 3px; border-radius: var(--radius-lg); height: 100%; }
 main.grid .card.selected { border-color: var(--accent); }
 main.grid #detail { position: fixed; top: var(--header-h, 0px); right: 0; bottom: 0; z-index: 4; width: min(720px, 100%);
   overflow-y: auto; overscroll-behavior: contain; border-width: 0 0 0 1px; border-radius: 0; outline: none;
@@ -94,8 +95,18 @@ main.grid .newbar { top: 48px; }
 .group-title > span { display: inline-block; font-size: var(--fs-meta); font-weight: var(--fw-strong); color: var(--on-fill);
   padding: var(--space-1) var(--space-8); border-radius: var(--radius-sm); background: var(--group-color); }
 .card { padding: var(--space-10) var(--space-14); border-top: 1px solid var(--line); cursor: pointer; border-left: 3px solid transparent; }
-.card:hover { background: var(--hover); }
+.cardwrap:hover .card { background: var(--hover); }
 .card.selected { background: var(--hover); border-left-color: var(--accent); }
+.cardwrap { position: relative; }
+.cardwrap.deletable .row1 { padding-right: calc(26px + var(--space-2)); }
+/* A sibling of the card, not a child: the card is itself a button. Above a glowing card (z-index 1) */
+.carddel { position: absolute; z-index: 2; top: 9px; right: 8px; width: 26px; height: 26px; padding: 0; border: 0;
+  border-radius: var(--radius-md); background: none; color: var(--muted); font-size: var(--fs-title); line-height: 1; cursor: pointer; }
+.carddel:hover, .carddel:focus-visible { color: var(--s-fail); background: color-mix(in srgb, var(--s-fail) 14%, transparent); }
+.carddel[aria-disabled] { opacity: .5; cursor: progress; }
+@media (hover: hover) {
+  .cardwrap:not(:hover):not(:has(:focus-visible)) .carddel:not([aria-disabled]) { opacity: 0; }
+}
 .card .row1 { display: flex; align-items: center; gap: var(--space-8); min-width: 0; }
 .card .title { font-weight: var(--fw-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
 .card .meta { font-size: var(--fs-meta); color: var(--muted); display: flex; gap: var(--space-10); flex-wrap: wrap; margin-top: var(--space-2); }
@@ -266,6 +277,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       "btn.lang": "日本語", "btn.langTitle": "表示を日本語に切り替える",
       "sessions.title": "Sessions", "sessions.clear": "Clear selection",
       "sessions.delete": "Delete session", "sessions.deleteTitle": "Delete every stored message of this session",
+      "sessions.deleteOne": "Delete {name}",
       "sessions.deleteConfirm": "Delete all {n} messages of \"{name}\"? This cannot be undone.",
       "sessions.deleteConfirm_one": "Delete the 1 message of \"{name}\"? This cannot be undone.",
       "sessions.deleteFailed": "Could not delete the session: {error}",
@@ -320,6 +332,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       "btn.lang": "English", "btn.langTitle": "Switch the display to English",
       "sessions.title": "セッション", "sessions.clear": "選択解除",
       "sessions.delete": "セッションを削除", "sessions.deleteTitle": "このセッションの保存済みメッセージをすべて削除",
+      "sessions.deleteOne": "{name} を削除",
       "sessions.deleteConfirm": "「{name}」のメッセージ {n} 件をすべて削除しますか？この操作は取り消せません。",
       "sessions.deleteFailed": "セッションを削除できませんでした: {error}",
       "layout.aria": "セッション一覧の表示形式", "layout.list": "リスト", "layout.grid": "グリッド",
@@ -457,6 +470,8 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
   try { ui.notify = localStorage.getItem("hub.notify") === "1"; } catch (_) {}
   try { if (localStorage.getItem("hub.layout") === "grid") ui.layout = "grid"; } catch (_) {}
 
+  const deleting = new Set(); // ids of sessions with a deletion request in flight
+
   // ---- Display utilities ----
   // States in which a child session is doing work (excludes pure waiting, such as waiting for CI)
   const isActive = (s) => !s.stale && ["planning", "working", "changes_requested"].includes(s.state);
@@ -485,8 +500,21 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
   const laneColor = (sid) => `hsl(${hue(sid)} 55% 50%)`;
 
   // ---- Session list ----
+  // Rebuilding the list destroys the focused control, so put the focus back on the same control of
+  // the same session, or of the session that took its place after a deletion.
   function renderSessions() {
     const box = $("sessions");
+    const old = document.activeElement && box.contains(document.activeElement) ? document.activeElement : null;
+    const wrap = old && old.closest(".cardwrap");
+    const at = wrap ? [...box.querySelectorAll(".cardwrap")].indexOf(wrap) : -1;
+    rebuildSessions(box);
+    if (!wrap) return;
+    const wraps = [...box.querySelectorAll(".cardwrap")];
+    const next = wraps.find((w) => w.dataset.sid === wrap.dataset.sid) || wraps[Math.min(at, wraps.length - 1)];
+    if (next) next.querySelector(old.classList.contains("carddel") ? ".carddel" : ".card").focus({ preventScroll: true });
+  }
+
+  function rebuildSessions(box) {
     box.replaceChildren();
     if (!db.sessions.length) {
       box.append(el("div", { class: "empty" }, t("sessions.empty")));
@@ -518,9 +546,10 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       u.cost_usd != null ? el("span", {}, `$${Number(u.cost_usd).toFixed(2)}`) : null,
       el("span", { "data-ago": s.heartbeat }, ago(s.heartbeat)),
     ];
+    const name = s.title || s.session_id;
     const card = el("div", glowProps([glowKey.session(s.session_id)], {
       class: "card" + (ui.session === s.session_id ? " selected" : ""), tabindex: "0", role: "button", "data-sid": s.session_id,
-      "aria-label": t("card.showTimeline", { name: s.title || s.session_id }),
+      "aria-label": t("card.showTimeline", { name }),
       onclick: () => toggleCard(s.session_id),
       onkeydown: (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); card.click(); } },
     }),
@@ -528,7 +557,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
         isActive(s)
           ? el("span", { class: "spinner", role: "img", "aria-label": t("card.working") })
           : el("span", { class: "dot", style: { background: laneColor(s.session_id) } }),
-        el("span", { class: "title", title: s.session_id }, s.title || s.session_id),
+        el("span", { class: "title", title: s.session_id }, name),
         badge(stateKey(s))),
       el("div", { class: "meta" }, meta),
       s.summary ? el("div", { class: "summary" }, s.summary) : null,
@@ -545,7 +574,12 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     }
     if (stateKey(s) === "review_pending") card.append(el("div", { class: "meta" }, t("gate.prefix") + gateText(s).join(" / ")));
     if (s.last_error && s.state === "failed") card.append(el("div", { class: "summary", style: { color: "var(--s-fail)" } }, s.last_error));
-    return card;
+    // Deleting needs the live hub, so a static export never shows the button
+    if (EMBEDDED) return el("div", { class: "cardwrap", dataset: { sid: s.session_id } }, card);
+    const label = t("sessions.deleteOne", { name });
+    return el("div", { class: "cardwrap deletable", dataset: { sid: s.session_id } }, card,
+      el("button", { class: "carddel", type: "button", title: label, "aria-label": label,
+        "aria-disabled": deleting.has(s.session_id) ? "true" : null, onclick: () => deleteSession(s.session_id) }, "×"));
   }
 
   // ---- Timeline (feed) ----
@@ -758,6 +792,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     $("clearSel").hidden = !ui.session || ui.layout === "grid";
     // Deleting needs the live hub, so a static export never shows the button
     $("deleteSession").hidden = !ui.session || !!EMBEDDED;
+    $("deleteSession").disabled = deleting.has(ui.session);
   }
 
   function render() {
@@ -1067,14 +1102,13 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
   document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("click", () => setView(b.dataset.view)));
   $("fSession").addEventListener("change", (e) => selectSession(e.target.value));
   $("clearSel").addEventListener("click", () => selectSession(""));
-  $("deleteSession").addEventListener("click", async (ev) => {
-    const sid = ui.session;
-    if (!sid) return;
+  async function deleteSession(sid) {
+    if (!sid || deleting.has(sid)) return;
     let n = 0;
     for (const e of db.events.values()) if (e.session_id === sid) n++;
     if (!confirm(t("sessions.deleteConfirm", { n, name: sessionName(sid) }))) return;
-    const btn = ev.currentTarget;
-    btn.disabled = true;
+    deleting.add(sid);
+    render();
     try {
       const r = await fetch("api/sessions/" + encodeURIComponent(sid), { method: "DELETE", cache: "no-store" });
       if (!r.ok) {
@@ -1087,9 +1121,11 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     } catch (err) {
       alert(t("sessions.deleteFailed", { error: err.message }));
     } finally {
-      btn.disabled = false;
+      deleting.delete(sid);
+      render();
     }
-  });
+  }
+  $("deleteSession").addEventListener("click", () => deleteSession(ui.session));
   let textTimer;
   $("fText").addEventListener("input", (e) => { clearTimeout(textTimer); textTimer = setTimeout(() => { ui.text = e.target.value; render(); }, 150); });
   $("fHeartbeat").addEventListener("change", (e) => { ui.heartbeat = e.target.checked; render(); });
