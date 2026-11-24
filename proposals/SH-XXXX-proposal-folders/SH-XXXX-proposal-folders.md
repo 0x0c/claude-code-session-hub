@@ -7,9 +7,9 @@
 |---|---|
 | Proposal | SH-XXXX |
 | Author | [@0x0c](https://github.com/0x0c) |
-| Status | **In progress** |
+| Status | **Implemented** |
 | Topic | Developer workflow |
-| Implementing PR | — |
+| Implementing PR | [#22](https://github.com/0x0c/claude-code-session-hub/pull/22) |
 | Related | [SH-0001](../SH-0001-merge-time-numbering/SH-0001-merge-time-numbering.md) |
 <!-- /SH-METADATA -->
 
@@ -67,7 +67,7 @@ branch merges, `guard` blocks the numbering of every proposal.
 
 ## Progress
 
-- [ ] Design approved
+- [x] Design approved
 - [x] Implementation with tests
 - [x] Documentation updated (proposals/README.md, AGENTS.md, skills)
 

@@ -7,9 +7,9 @@
 |---|---|
 | 提案 | SH-XXXX |
 | 作者 | [@0x0c](https://github.com/0x0c) |
-| 状態 | **In progress** |
+| 状態 | **Implemented** |
 | トピック | Developer workflow |
-| 実装PR | — |
+| 実装PR | [#22](https://github.com/0x0c/claude-code-session-hub/pull/22) |
 | 関連 | [SH-0001](../SH-0001-merge-time-numbering/SH-0001-merge-time-numbering.md) |
 <!-- /SH-METADATA -->
 
@@ -54,7 +54,7 @@ proposals/
 
 ## 進捗
 
-- [ ] 設計の承認
+- [x] 設計の承認
 - [x] テストを含む実装
 - [x] ドキュメントの更新（proposals/README.md、AGENTS.md、スキル）
 
