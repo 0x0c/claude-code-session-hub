@@ -77,6 +77,7 @@ section.panel { background: var(--panel); border: 1px solid var(--line); border-
 main.grid { grid-template-columns: minmax(0, 1fr); max-width: none; }
 main.grid #sessions { padding: 0 var(--space-14) var(--space-14); }
 main.grid .group-title { padding-left: 0; }
+main.grid .project { margin: var(--space-12) 0; border: 1px solid var(--line); border-radius: var(--radius-lg); }
 main.grid .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); gap: var(--space-12); }
 main.grid .cardwrap { min-width: 0; }
 main.grid .card { border: 1px solid var(--line); border-left-width: 3px; border-radius: var(--radius-lg); height: 100%; }
@@ -94,6 +95,13 @@ main.grid .newbar { top: 48px; }
 .group-title { padding: var(--space-10) var(--space-14) var(--space-6); }
 .group-title > span { display: inline-block; font-size: var(--fs-meta); font-weight: var(--fw-strong); color: var(--on-fill);
   padding: var(--space-1) var(--space-8); border-radius: var(--radius-sm); background: var(--group-color); }
+.project { display: flex; align-items: center; gap: var(--space-8); width: 100%; padding: var(--space-8) var(--space-14); border: 0; text-align: left;
+  border-top: 1px solid var(--line); background: var(--bg); cursor: pointer; font-size: var(--fs-meta); font-weight: var(--fw-strong); }
+.project:hover { background: var(--hover); }
+.project .pname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.project .chev { color: var(--muted); transition: transform .15s; }
+.project[aria-expanded="true"] .chev { transform: rotate(90deg); }
+.project .count { color: var(--muted); font-weight: var(--fw-normal); font-variant-numeric: tabular-nums; }
 .card { padding: var(--space-10) var(--space-14); border-top: 1px solid var(--line); cursor: pointer; border-left: 3px solid transparent; }
 .cardwrap:hover .card { background: var(--hover); }
 .card.selected { background: var(--hover); border-left-color: var(--accent); }
@@ -222,6 +230,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
   <section class="panel" aria-labelledby="sessionsTitle">
     <h2 id="sessionsTitle"><span data-i18n="sessions.title"></span> <span class="chip" id="clearSel" hidden style="cursor:pointer" data-i18n="sessions.clear"></span>
       <button class="iconbtn" id="openPanel" hidden data-i18n="panel.openAll" data-i18n-title="panel.openAllTitle"></button>
+      <button class="iconbtn" id="groupBtn" data-i18n="btn.byProject" data-i18n-title="btn.byProjectTitle"></button>
       <span class="seg" role="group" data-i18n-aria="layout.aria">
         <button data-layout="list" data-i18n="layout.list"></button>
         <button data-layout="grid" data-i18n="layout.grid"></button>
@@ -275,6 +284,8 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       "btn.notify": "Notify", "btn.notifyTitle": "Notify me when a session needs action",
       "btn.theme": "Theme", "btn.themeTitle": "Switch between light and dark",
       "btn.lang": "日本語", "btn.langTitle": "表示を日本語に切り替える",
+      "btn.byProject": "By project", "btn.byProjectTitle": "Group sessions by repository or project; turn off to group by status",
+      "project.none": "No project", "project.action": "{n} need action", "project.action_one": "1 needs action",
       "sessions.title": "Sessions", "sessions.clear": "Clear selection",
       "sessions.delete": "Delete session", "sessions.deleteTitle": "Delete every stored message of this session",
       "sessions.deleteOne": "Delete {name}",
@@ -330,6 +341,8 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       "btn.notify": "通知", "btn.notifyTitle": "要対応になったら通知",
       "btn.theme": "テーマ", "btn.themeTitle": "テーマ切替",
       "btn.lang": "English", "btn.langTitle": "Switch the display to English",
+      "btn.byProject": "プロジェクト別", "btn.byProjectTitle": "リポジトリやプロジェクトごとにまとめます。オフにすると状態別になります",
+      "project.none": "プロジェクトなし", "project.action": "要対応 {n}",
       "sessions.title": "セッション", "sessions.clear": "選択解除",
       "sessions.delete": "セッションを削除", "sessions.deleteTitle": "このセッションの保存済みメッセージをすべて削除",
       "sessions.deleteOne": "{name} を削除",
@@ -464,9 +477,12 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     types: new Set(Object.keys(TYPES).filter((t) => t !== "heartbeat")),
     fresh: new Set(), unseen: 0, notify: false,
     colGroups: {}, showObsolete: false,
+    byProject: true, collapsed: new Set(),
     layout: "list", panelOpen: false, // panelOpen matters in the grid layout alone
   };
   const prevStates = new Map();
+  try { ui.byProject = localStorage.getItem("hub.byProject") !== "0"; } catch (_) {}
+  try { ui.collapsed = new Set(JSON.parse(localStorage.getItem("hub.collapsed") || "[]")); } catch (_) {}
   try { ui.notify = localStorage.getItem("hub.notify") === "1"; } catch (_) {}
   try { if (localStorage.getItem("hub.layout") === "grid") ui.layout = "grid"; } catch (_) {}
 
@@ -500,6 +516,36 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
   const laneColor = (sid) => `hsl(${hue(sid)} 55% 50%)`;
 
   // ---- Session list ----
+  // Sessions by project. The server sorts sessions by urgency, so the first appearance of a project
+  // puts the project with the most urgent session on top; sessions without a project come last.
+  function projectGroups() {
+    const groups = new Map();
+    for (const s of db.sessions) {
+      const key = s.repo || "";
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(s);
+    }
+    return [...groups].sort(([a], [b]) => (a === "") - (b === ""));
+  }
+
+  function projectHeader(key, list) {
+    const open = !ui.collapsed.has(key);
+    const action = list.filter((s) => s.needs_action).length;
+    // A collapsed project hides its cards, so the header carries their glow
+    return el("button", glowProps(open ? [] : list.map((s) => glowKey.session(s.session_id)), {
+      class: "project", type: "button", "aria-expanded": String(open), title: key,
+      onclick: () => {
+        open ? ui.collapsed.add(key) : ui.collapsed.delete(key);
+        try { localStorage.setItem("hub.collapsed", JSON.stringify([...ui.collapsed])); } catch (_) {}
+        renderSessions();
+      },
+    }),
+      el("span", { class: "chev", "aria-hidden": "true" }, "▸"),
+      el("span", { class: "pname" }, key || t("project.none")),
+      action ? el("span", { class: "badge", style: { background: "var(--s-needs)" } }, t("project.action", { n: action })) : null,
+      el("span", { class: "count" }, String(list.length)));
+  }
+
   // Rebuilding the list destroys the focused control, so put the focus back on the same control of
   // the same session, or of the session that took its place after a deletion.
   function renderSessions() {
@@ -508,6 +554,10 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     const wrap = old && old.closest(".cardwrap");
     const at = wrap ? [...box.querySelectorAll(".cardwrap")].indexOf(wrap) : -1;
     rebuildSessions(box);
+    if (old && old.classList.contains("project")) {
+      const head = [...box.querySelectorAll(".project")].find((n) => n.title === old.title);
+      if (head) head.focus({ preventScroll: true });
+    }
     if (!wrap) return;
     const wraps = [...box.querySelectorAll(".cardwrap")];
     const next = wraps.find((w) => w.dataset.sid === wrap.dataset.sid) || wraps[Math.min(at, wraps.length - 1)];
@@ -518,6 +568,13 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     box.replaceChildren();
     if (!db.sessions.length) {
       box.append(el("div", { class: "empty" }, t("sessions.empty")));
+      return;
+    }
+    if (ui.byProject) {
+      for (const [key, list] of projectGroups()) {
+        box.append(projectHeader(key, list));
+        if (!ui.collapsed.has(key)) box.append(el("div", { class: "cards" }, list.map(sessionCard)));
+      }
       return;
     }
     const groups = [[t("group.action"), (s) => s.needs_action, "--g-action"],
@@ -538,6 +595,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     const pr = s.pr || {};
     const u = s.usage || {};
     const meta = [
+      !ui.byProject && s.repo && el("span", {}, s.repo),
       s.task_ref && el("span", {}, s.task_ref),
       p.total ? el("span", {}, t("card.progress", { done: p.done, total: p.total, rem: p.remaining })) : null,
       pr.number ? el("span", {}, `PR#${pr.number}` + (pr.ci ? ` CI:${pr.ci}` : "") + (pr.unresolved_threads != null ? t("card.threads", { n: pr.unresolved_threads }) : "")) : null,
@@ -773,6 +831,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
   }
 
   // ---- Full render ----
+  const sessionOption = (s) => el("option", { value: s.session_id }, s.title || s.session_id);
   function renderHeader() {
     $("kSessions").textContent = db.sessions.length;
     const action = db.sessions.filter((s) => s.needs_action).length;
@@ -785,9 +844,12 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     const sel = $("fSession");
     const cur = sel.value;
     sel.replaceChildren(el("option", { value: "" }, t("filter.allSessions")),
-      ...db.sessions.map((s) => el("option", { value: s.session_id }, s.title || s.session_id)));
+      ...(ui.byProject
+        ? projectGroups().map(([key, list]) => el("optgroup", { label: key || t("project.none") }, list.map(sessionOption)))
+        : db.sessions.map(sessionOption)));
     sel.value = cur;
     $("tlScope").textContent = ui.session ? sessionName(ui.session) : t("tl.all");
+    $("groupBtn").setAttribute("aria-pressed", String(ui.byProject));
     // In the grid layout, closing the panel clears the selection
     $("clearSel").hidden = !ui.session || ui.layout === "grid";
     // Deleting needs the live hub, so a static export never shows the button
@@ -1101,6 +1163,11 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
   // ---- UI events ----
   document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("click", () => setView(b.dataset.view)));
   $("fSession").addEventListener("change", (e) => selectSession(e.target.value));
+  $("groupBtn").addEventListener("click", () => {
+    ui.byProject = !ui.byProject;
+    try { localStorage.setItem("hub.byProject", ui.byProject ? "1" : "0"); } catch (_) {}
+    render();
+  });
   $("clearSel").addEventListener("click", () => selectSession(""));
   async function deleteSession(sid) {
     if (!sid || deleting.has(sid)) return;
