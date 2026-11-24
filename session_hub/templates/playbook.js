@@ -44,13 +44,15 @@
   const pbCollection = (view, items) => ({ description: PB_TEXT.body, label: { en: "Knowledge", ja: "ナレッジ" }, active: items.length, items, view });
 
   // Run a dashboard renderer against sample data and take what it drew out of its container
-  function pbCapture(id, data, draw) {
-    const saved = { ...db }, view = ui.view, session = ui.session;
+  function pbCapture(id, data, draw, settings = {}) {
+    const saved = { ...db }, state = { view: ui.view, session: ui.session, byProject: ui.byProject, collapsed: ui.collapsed };
     Object.assign(db, data);
+    Object.assign(ui, { byProject: false, collapsed: new Set() }, settings);
     try { draw(); return [...$(id).childNodes]; }
-    finally { Object.assign(db, saved); ui.view = view; ui.session = session; }
+    finally { Object.assign(db, saved); Object.assign(ui, state); }
   }
   const pbEvents = (list) => new Map(list.map((e) => [e.id, e]));
+  const pbProjects = () => [pbSession("needs_human", { repo: "api", needs_action: true, attention: pbAsk(true) }), pbSession("working")];
   const pbKnown = () => [pbSession("working"), { ...pbSession("done"), title: pbText("other") }];
   const pbWith = (data, make) => { const saved = { ...db }; Object.assign(db, data); try { return make(); } finally { Object.assign(db, saved); } };
 
@@ -78,6 +80,13 @@
       ["Grid layout", () => el("main", { class: "grid", style: { padding: "0" } }, pbCapture("sessions", { sessions: [
         pbSession("needs_human", { needs_action: true, attention: pbAsk(true) }), pbSession("failed", { needs_action: true }), pbSession("working")] }, renderSessions))],
       ["No sessions", () => pbCapture("sessions", { sessions: [] }, renderSessions), "narrow"],
+    ]],
+    ["ProjectHeading", [
+      ["Expanded", () => pbCapture("sessions", { sessions: pbProjects() }, renderSessions, { byProject: true }), "narrow"],
+      ["Collapsed", () => pbCapture("sessions", { sessions: pbProjects() }, () => {
+        ui.collapsed = new Set(projectGroups().map(([key]) => key));
+        renderSessions();
+      }, { byProject: true }), "narrow"],
     ]],
     ["SessionCard", [
       ...Object.keys(STATE_COLORS).filter((s) => !["stale", "review_pending"].includes(s)).map((s) =>
