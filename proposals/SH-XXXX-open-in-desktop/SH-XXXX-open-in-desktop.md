@@ -7,9 +7,9 @@
 |---|---|
 | Proposal | SH-XXXX |
 | Author | [@0x0c](https://github.com/0x0c) |
-| Status | **In progress** |
+| Status | **Implemented** |
 | Topic | Dashboard |
-| Implementing PR | — |
+| Implementing PR | [#42](https://github.com/0x0c/claude-code-session-hub/pull/42) |
 | Related | [SH-0011](../SH-0011-session-archive/SH-0011-session-archive.md), [SH-0019](../SH-0019-detail-pr-link/SH-0019-detail-pr-link.md) |
 <!-- /SH-METADATA -->
 
@@ -74,8 +74,8 @@ The change adds no text to any model's context.
 ## Progress
 
 - [x] Design approved
-- [ ] Implementation with tests
-- [ ] Documentation updated (README.md, docs/DESIGN.md, skills)
+- [x] Implementation with tests
+- [x] Documentation updated (README.md, docs/DESIGN.md, skills)
 
 ## References
 
