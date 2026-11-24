@@ -2041,8 +2041,12 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       if (!initial && prev !== key && (ESCALATE.has(key) || key === "stale")) notify(s, key);
       prevStates.set(s.session_id, key);
     }
-    // A link such as ./#col:knowledge (from the knowledge summary page) opens that tab on the first snapshot
-    if (initial && location.hash.startsWith("#col:")) setView(location.hash.slice(1));
+    // A link such as ./#col:knowledge (from the knowledge summary page) opens that tab on the first snapshot;
+    // drop the hash so that a reconnect's snapshot does not switch the reader back to that tab
+    if (initial && location.hash.startsWith("#col:")) {
+      setView(location.hash.slice(1));
+      history.replaceState(null, "", location.pathname + location.search);
+    }
   }
 
   function notify(s, key) {

@@ -66,7 +66,10 @@ class KnowledgePageTest(unittest.TestCase):
             self.assertTrue(name.startswith("kn-"), name)
 
     def test_dashboard_opens_the_tab_named_by_the_hash(self):
-        self.assertIn('location.hash.startsWith("#col:")', dashboard_html())
+        page = dashboard_html()
+        self.assertIn('location.hash.startsWith("#col:")', page)
+        # A reconnect's snapshot must not switch the reader back, so the hash is dropped once applied
+        self.assertRegex(page, r'setView\(location\.hash\.slice\(1\)\);\s*history\.replaceState\(')
 
 
 if __name__ == "__main__":

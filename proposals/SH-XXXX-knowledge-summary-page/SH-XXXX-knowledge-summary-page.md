@@ -26,7 +26,7 @@ Once the change ships, one page shows the counts, the findings that several sess
 ## Detailed design
 
 - **Route.** `GET /knowledge` serves the page. It follows the token rules of `/guide`: a `?token=` is accepted once and replaced by the cookie.
-- **Data.** The page reads `api/snapshot` and uses the built-in `knowledge` collection. It reads the snapshot again every 15 seconds and when the language changes. It adds no endpoint and no storage.
+- **Data.** The page reads `api/snapshot` and uses the built-in `knowledge` collection. It reads the snapshot again every 15 seconds and redraws in place when the language changes. It adds no endpoint and no storage.
 - **Page.** The page is the dashboard's script and style with `templates/knowledge.js` and `templates/knowledge.css` added, as the status guide is. Its sections, in order:
   1. **Totals.** The number of active findings, the number of reporting sessions, and one count per kind, colored as the dashboard colors them.
   2. **Open issues.** The active findings of kind `issue`, newest first.
