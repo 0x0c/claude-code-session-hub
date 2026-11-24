@@ -140,6 +140,10 @@ class DashboardTest(unittest.TestCase):
         self.assertIn('project ? el("span", { class: "evproject" }, project) : null', PAGE)
         self.assertIn("!sessionProject(e.session_id).toLowerCase().includes(q)", PAGE)
 
+    def test_card_hides_the_progress_bar_when_done_or_archived(self):
+        card = PAGE[PAGE.index("function sessionCard("):]
+        self.assertIn('p.total && s.state !== "done" && !s.archived ? el("div", { class: "progress"', card)
+
     def test_detail_view_links_the_pull_request(self):
         self.assertRegex(PAGE, r'<a class="pr" id="tlPr" target="_blank" rel="noopener noreferrer" hidden>')
         self.assertIn("link.hidden = !prUrl;", PAGE)

@@ -115,7 +115,7 @@
     ["SessionCard", [
       ...Object.keys(STATE_COLORS).filter((s) => !["stale", "review_pending", "archived"].includes(s)).map((s) =>
         [s, () => sessionCard(pbSession(s, s === "failed" ? { last_error: pbText("error") } : {})), "narrow"]),
-      ["archived", () => sessionCard(pbSession("done", { archived: { since: pbAt(60) } })), "narrow"],
+      ["archived", () => sessionCard(pbSession("abandoned", { archived: { since: pbAt(60) } })), "narrow"],
       ["stale", () => sessionCard(pbSession("working", { stale: true })), "narrow"],
       ["review_pending (gate not met)", () => sessionCard(pbSession("review_ready", {
         gate: ["ci"], gate_codes: [{ code: "ci", value: "unknown" }] })), "narrow"],
