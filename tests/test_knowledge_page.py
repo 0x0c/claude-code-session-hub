@@ -98,7 +98,7 @@ class KnowledgePageTest(unittest.TestCase):
     def test_dashboard_links_to_the_page_in_both_languages(self):
         page = dashboard_html()
         self.assertIn('href="knowledge"', page)
-        for key in ("btn.knowledge", "btn.knowledgeTitle", "kn.title", "kn.sec.shared", "kn.sharedLead"):
+        for key in ("kn.error", "kn.unauthorized", "btn.knowledge", "btn.knowledgeTitle", "kn.title", "kn.sec.shared", "kn.sharedLead"):
             self.assertEqual(len(re.findall(rf'"{re.escape(key)}":', page)), 2, key)  # English and Japanese
 
     def test_guide_page_shows_the_link(self):

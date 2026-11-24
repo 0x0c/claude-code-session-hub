@@ -35,6 +35,7 @@ Once the change ships, one page shows the counts, the findings that several sess
   5. **Tags.** Each tag with its count, most used first (at most 20).
 - **Links.** A finding's title links to the dashboard's knowledge tab (`./#col:knowledge`) so that a reader can open the full card there. The header gains a **Knowledge summary** link next to **Status guide**; an exported file hides it, as it hides the other two.
 - **Empty and obsolete.** With no active findings the page says so and names `session-hub learn`. Obsolete findings are left out of every count.
+- **Failure.** If the first read fails, the page shows the failure instead of "Loading…" (a 401 points to `?token=`). After a first success, a failed read keeps the last page.
 - **Language.** Labels exist in English and Japanese in the dashboard's `MESSAGES` table. Finding text appears as reported.
 - **Out of scope.** Other collections, filters, and editing.
 
@@ -48,7 +49,7 @@ Once the change ships, one page shows the counts, the findings that several sess
 
 - [x] Design approved
 - [x] Implementation with tests
-- [x] Documentation updated (README.md, docs/DESIGN.md, skills)
+- [x] Documentation updated (README.md, docs/DESIGN.md)
 
 ## References
 

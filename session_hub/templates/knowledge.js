@@ -10,6 +10,7 @@
 
   const KN_LISTED = { issues: Infinity, shared: 10, latest: 10, tags: 20 };
   let knCol = null; // the knowledge collection of the last snapshot, or null before the first one
+  let knFailed = null; // why the first read failed (an HTTP status, or 0 for no answer); cleared on success
 
   const knTitle = (it) => it.title || it.summary || it.key;
   const knLink = (it) => el("a", { href: "./#col:knowledge", title: t("kn.open") }, knTitle(it));
@@ -42,7 +43,7 @@
   function knRender() {
     document.title = `${t("kn.title")} - Session Hub`;
     const head = [el("h2", {}, t("kn.title")), el("p", {}, t("kn.intro"))];
-    if (!knCol) return knRoot.replaceChildren(...head, el("div", { class: "empty" }, t("kn.loading")));
+    if (!knCol) return knRoot.replaceChildren(...head, el("div", { class: "empty" }, knFailed === null ? t("kn.loading") : t(knFailed === 401 ? "kn.unauthorized" : "kn.error")));
     const s = knSummarize(knCol);
     if (!s.active.length) return knRoot.replaceChildren(...head, el("div", { class: "empty" }, t("col.empty")));
     const when = (it) => el("span", { class: "kn-meta", "data-ago": it.last_ts }, ago(it.last_ts));
@@ -64,11 +65,16 @@
   async function knLoad() {
     try {
       const r = await fetch("api/snapshot", { cache: "no-store" });
-      if (!r.ok) return;
+      if (!r.ok) throw r.status;
       const snap = await r.json();
       knCol = (snap.collections || {}).knowledge || { items: [] };
+      knFailed = null;
       knRender();
-    } catch (_) {} // keep the last page; the next tick tries again
+    } catch (e) { // keep the last page after a first success; the next tick tries again
+      if (knCol) return;
+      knFailed = typeof e === "number" ? e : 0;
+      knRender();
+    }
   }
   $("langBtn").addEventListener("click", knRender); // after the dashboard's handler, which switches the language
   knRender();
