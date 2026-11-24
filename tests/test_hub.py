@@ -12,7 +12,7 @@ from contextlib import redirect_stdout
 from pathlib import Path
 from unittest import mock
 
-from session_hub import client, collections, core, desktop, hooks, local_state, schema, view
+from session_hub import client, collections, core, desktop, hooks, local_state, project, schema, view
 from session_hub.server import make_server
 from session_hub.deliver import deliver
 from session_hub.store import EventStore
@@ -218,6 +218,95 @@ class LocalizationTest(TmpMixin, unittest.TestCase):
         self.assertTrue((self.store.root / "K.en.md").read_text().startswith("# Knowledge\n"))
         self.assertIn("## Caveats", (self.store.root / "K.en.md").read_text())
         self.assertTrue((self.store.root / "K.ja.md").read_text().startswith("# ナレッジ\n"))
+
+
+class ProjectTest(TmpMixin, unittest.TestCase):
+    def setUp(self):
+        super().setUp()
+        env = {"HUB_STATE_DIR": str(self.dir / "state"), "HUB_STORE": str(self.dir / "store"),
+               "HUB_SESSION_ID": "s1", "HOME": str(self.dir), "GIT_CEILING_DIRECTORIES": str(self.dir.resolve())}
+        patch = mock.patch.dict(os.environ, env)
+        patch.start()
+        self.addCleanup(patch.stop)
+        for k in ("HUB_URL", "HUB_AUTOSTART", "CLAUDE_PROJECT_DIR", "CLAUDE_CODE_REMOTE_SESSION_ID"):
+            os.environ.pop(k, None)
+
+    def git(self, *args, cwd):
+        subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@example.com", *args],
+                       cwd=cwd, check=True, capture_output=True)
+
+    def repo(self, name="app"):
+        path = self.dir / name
+        path.mkdir()
+        self.git("init", cwd=path)
+        return path
+
+    def test_name_from_remote(self):
+        for url, want in {
+            "https://github.com/acme/app.git": "acme/app",
+            "https://user:secret@github.com/acme/app": "acme/app",
+            "git@github.com:acme/app.git": "acme/app",
+            "ssh://git@host:2222/acme/app.git/": "acme/app",
+            "https://gitlab.com/acme/team/app.git": "acme/team/app",
+            "/srv/git/app.git": "app", "file:///srv/git/app.git": "app", "../app": "app",
+            "https://github.com/": None, "https://[broken/app": None,
+        }.items():
+            self.assertEqual(project.name_from_remote(url), want, url)
+
+    def test_detect_remote_worktree_and_plain_folder(self):
+        app = self.repo()
+        self.git("commit", "--allow-empty", "-m", "x", cwd=app)
+        self.git("worktree", "add", str(self.dir / "wt"), cwd=app)
+        (app / "sub").mkdir()
+        for path in (app, app / "sub", self.dir / "wt"):
+            self.assertEqual(project.detect(str(path)), "app")
+        self.git("remote", "add", "origin", "git@github.com:acme/app.git", cwd=app)
+        self.assertEqual(project.detect(str(self.dir / "wt")), "acme/app")
+        (self.dir / "notes").mkdir()
+        self.assertEqual(project.detect(str(self.dir / "notes")), "notes")
+        with mock.patch("session_hub.project.subprocess.run", side_effect=OSError):
+            self.assertEqual(project.detect(str(app)), "app")
+
+    def start(self, *args):
+        from session_hub import cli
+        with redirect_stdout(io.StringIO()):
+            cli.main(["--no-sync", *args])
+
+    def test_start_detects_and_an_explicit_project_wins(self):
+        with mock.patch.object(project, "detect", return_value="acme/app"):
+            self.start("start", "--title", "t")
+            self.assertEqual(schema.fold(self.store.read("s1"))["repo"], "acme/app")
+            self.start("start", "--repo", "other")
+            hooks.stop({})
+            self.assertEqual(schema.fold(self.store.read("s1"))["repo"], "other")
+            self.start("--session", "s2", "start", "--title", "registered by the parent")
+            self.assertIsNone(schema.fold(self.store.read("s2"))["repo"])
+
+    def test_stop_hook_fills_the_project_of_a_running_session(self):
+        core.record(self.store, "s1", {"type": "start", "title": "before the upgrade"})
+        with mock.patch.object(project, "detect", return_value="acme/app"):
+            hooks.stop({})
+        self.assertEqual(schema.fold(self.store.read("s1"))["repo"], "acme/app")
+
+    def test_heartbeat_keeps_a_project_the_local_state_never_saw(self):
+        core.record(self.store, "s1", {"type": "start", "repo": "payments"})
+        with mock.patch.object(project, "detect", return_value="acme/app"):
+            hooks.stop({})
+        events = self.store.read("s1")
+        self.assertEqual(schema.fold(events)["repo"], "payments")
+        self.assertNotIn("repo", events[-1])  # An older hub would apply `repo` unconditionally
+
+    def test_long_project_is_clipped(self):
+        st = core.record(self.store, "s1", {"type": "start", "repo": "x" * 200})["status"]
+        self.assertEqual(len(st["repo"]), schema.LIMITS["repo"])
+
+    def test_session_start_remembers_the_project_folder(self):
+        with mock.patch.object(project, "detect", return_value="acme/app"), \
+                mock.patch.object(hooks, "install_shim", return_value=None):
+            hooks.session_start({})
+        with mock.patch.object(project, "detect", return_value="elsewhere"):
+            self.start("start", "--title", "t")
+        self.assertEqual(schema.fold(self.store.read("s1"))["repo"], "acme/app")
 
 
 class StoreTest(TmpMixin, unittest.TestCase):

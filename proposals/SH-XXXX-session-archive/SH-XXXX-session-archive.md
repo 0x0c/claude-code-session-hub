@@ -91,7 +91,8 @@ as archived, a manual `unarchive` lasts until the next scan. `session-hub status
 
 ### Dashboard
 
-A collapsed **Archived** group follows the other groups. Each card in the group shows the **Archived**
+A collapsed **Archived** group follows the other groups, whether the list groups sessions by state or
+by project, and holds the archived sessions of every project. Each card in the group shows the **Archived**
 badge next to the label of the preserved state, and hides an open question. In the swimlanes, the
 lane of an archived session that is not `done`, `abandoned`, or `failed` ends at the archive time.
 

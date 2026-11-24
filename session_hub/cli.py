@@ -16,7 +16,7 @@ import os
 import sys
 from pathlib import Path
 
-from . import client, collections, core, local_state, schema, view
+from . import client, collections, core, local_state, project, schema, view
 from .deliver import deliver
 from .store import EventStore, current_session_id
 from .usage import usage_from_transcript
@@ -56,6 +56,10 @@ def _record(args, fields: dict, writer: str | None = None, session: str | None =
 # ---- Subcommands ----------------------------------------------------------
 
 def cmd_start(a):
+    sid = _session(a)
+    # Another session's working directory says nothing about this one, so detect for ourselves alone
+    if not a.repo and sid == current_session_id():
+        a.repo = project.for_session(sid)
     f = {"type": "start", "state": a.state, "title": a.title, "task_ref": a.task_ref,
          "parent_id": a.parent, "repo": a.repo, "branch": a.branch, "summary": a.summary}
     if a.task:
@@ -321,7 +325,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     s = sub.add_parser("start", help="record the start of a session")
     s.add_argument("--title", help="shown until the session has a name in Claude Code"); s.add_argument("--task-ref"); s.add_argument("--parent")
-    s.add_argument("--repo"); s.add_argument("--branch"); s.add_argument("--summary")
+    s.add_argument("--repo", help="project to group by (default: the Git remote or the folder name)")
+    s.add_argument("--branch"); s.add_argument("--summary")
     s.add_argument("--state", default="planning", choices=schema.STATES)
     s.add_argument("--task", action="append", metavar="NAME=STATE[:SIZE]")
     s.set_defaults(func=cmd_start)
