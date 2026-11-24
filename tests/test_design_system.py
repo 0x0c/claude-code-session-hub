@@ -1,3 +1,4 @@
+import json
 import sys
 import tempfile
 import unittest
@@ -116,6 +117,11 @@ class DesignSystemTest(unittest.TestCase):
         extra = ("Ghost", "Status", 60, '<b class="ghost">x</b>', "s", "r")
         with mock.patch.object(ds.content, "COMPONENTS", [*ds.content.COMPONENTS, extra]), self.assertRaisesRegex(ds.SyncError, "ghost"):
             ds.build()
+
+    def test_every_color_token_is_a_color(self):
+        for token in json.loads(self.built["project/tokens.json"])["color"]["tokens"]:
+            for value in token["value"].values():
+                self.assertRegex(value, r"^(#[0-9a-fA-F]{6}|rgba\(.*\))$", token["name"])
 
     def test_previews_have_unique_names(self):
         names = [c[0] for c in ds.content.COMPONENTS]

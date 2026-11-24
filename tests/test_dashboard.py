@@ -103,6 +103,13 @@ class DashboardTest(unittest.TestCase):
         self.assertLessEqual({"lanes.col." + c for c in re.findall(r'"(\w+)"', columns)}, messages("ja"))
         self.assertLessEqual({"dur.sec", "dur.min", "dur.hour", "dur.day"}, messages("ja"))
 
+    def test_overview_replaces_the_all_sessions_button(self):
+        self.assertIn('data-view="overview"', PAGE)
+        self.assertRegex(PAGE, r'function renderOverview\(\) \{\n[^\n]*\n\s*tipEl\.style\.display = "none";')
+        self.assertNotIn('id="openPanel"', PAGE)
+        self.assertNotIn("panel.openAll", PAGE)
+        self.assertLessEqual({"tab.overview", "overview.aria", "overview.open", "overview.end"}, messages("ja"))
+
     def test_detail_view_links_the_pull_request(self):
         self.assertRegex(PAGE, r'<a class="pr" id="tlPr" target="_blank" rel="noopener noreferrer" hidden>')
         self.assertIn("link.hidden = !prUrl;", PAGE)
@@ -131,7 +138,7 @@ class DashboardTest(unittest.TestCase):
         self.assertRegex(PAGE, r'id="typesBtn" type="button" aria-expanded="false" aria-controls="fTypes"')
         self.assertRegex(PAGE, r'id="fTypes" popover="manual" role="group" data-i18n-aria="filter.typesAria"')
         self.assertIn('el("input", { type: "checkbox", checked: ui.types.has(type)', PAGE)
-        self.assertIn('if (isCol) closeTypes();\n    $("typesBtn").hidden = isCol;', PAGE)
+        self.assertIn('if (isCol || unfiltered) closeTypes();\n    $("typesBtn").hidden = isCol || unfiltered;', PAGE)
         self.assertIn('if ($("detail").inert) closeTypes();', PAGE)
         escape = re.search(r'!typesOpen\(\)\) return;\n\s+e\.preventDefault\(\);(.*?)\}, true\);', PAGE, re.S)[1]
         for call in ("e.stopPropagation();", "closeTypes();", '$("typesBtn").focus('):
