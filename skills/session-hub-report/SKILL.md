@@ -12,6 +12,8 @@ secrets.
 ## Sent automatically (no action needed)
 
 - A heartbeat and token usage at the end of every turn (Stop hook).
+- The session's name in Claude Code, which the dashboard shows as the title. The `--title` of `start`
+  appears only while the session has no name.
 - The contents of TodoWrite / TaskCreate / TaskUpdate, which become the task list and progress. The
   activeForm of the task in progress becomes the summary. (If you use a task tool, you do not need to
   write `--task` by hand.)

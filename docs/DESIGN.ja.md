@@ -37,6 +37,7 @@
 | グループ | フィールド | 書き手 | 説明 |
 |---|---|---|---|
 | 識別 | `v`, `session_id`, `parent_id`, `title`, `task_ref` | 起動時（親） | `task_ref`はIssue番号かタスク識別子（ID） |
+| | `session_name` | hookまたはコマンド（自動） | トランスクリプトから読み取った、Claude Codeのセッション名。200文字で切り詰めます。この値があれば`title`を置き換えるので、ダッシュボードはセッション名を表示します |
 | 場所 | `repo`, `branch`, `base` | 起動時 / hook | |
 | 状態 | `state` | 子（CLI） | §1.2に挙げる値のいずれか |
 | | `phase` | 子 | `plan` / `implement` / `test` / `fix` / `docs` / `self_review`のような、選択肢の少ない列挙 |
@@ -417,8 +418,9 @@ claude-code-session-hub/
     view.py               ダッシュボード / attention / log / knowledge用のデータ組み立て
     collections.py        コレクションの定義（match / reduce / view / sinks）と投影
     hooks.py              Claude Codeのhook処理（session-start / stop / todo）
-    local_state.py        子のローカル状態（最後に報告した状態、タスクIDの対応）
+    local_state.py        子のローカル状態（最後に報告した状態、タスクIDの対応、トランスクリプトのパス）
     usage.py              トランスクリプトからのトークン集計
+    session_name.py       トランスクリプトからのセッション名の読み取り
     cli.py                session-hubコマンド
     templates/dashboard.html
   bin/session-hub         インストール不要のラッパー
