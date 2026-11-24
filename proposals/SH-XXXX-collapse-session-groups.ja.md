@@ -7,9 +7,9 @@
 |---|---|
 | 提案 | SH-XXXX |
 | 作者 | [@0x0c](https://github.com/0x0c) |
-| 状態 | **In progress** |
+| 状態 | **Implemented** |
 | トピック | Dashboard |
-| 実装PR | — |
+| 実装PR | [#19](https://github.com/0x0c/claude-code-session-hub/pull/19) |
 | 関連 | — |
 <!-- /SH-METADATA -->
 
@@ -43,9 +43,9 @@
 
 ## 進捗
 
-- [ ] 設計の承認
-- [ ] 実装とブラウザーでの確認（テストスイートにはブラウザーの実行環境がない）
-- [ ] ドキュメントの更新（docs/DESIGN.md）
+- [x] 設計の承認
+- [x] 実装とブラウザーでの確認（テストスイートにはブラウザーの実行環境がない）
+- [x] ドキュメントの更新（docs/DESIGN.md）
 
 ## 参考資料
 

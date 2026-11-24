@@ -7,9 +7,9 @@
 |---|---|
 | Proposal | SH-XXXX |
 | Author | [@0x0c](https://github.com/0x0c) |
-| Status | **In progress** |
+| Status | **Implemented** |
 | Topic | Dashboard |
-| Implementing PR | — |
+| Implementing PR | [#19](https://github.com/0x0c/claude-code-session-hub/pull/19) |
 | Related | — |
 <!-- /SH-METADATA -->
 
@@ -57,9 +57,9 @@ session that needs action therefore stays visible in the header even when its gr
 
 ## Progress
 
-- [ ] Design approved
-- [ ] Implementation checked in a browser (the test suite has no browser harness)
-- [ ] Documentation updated (docs/DESIGN.md)
+- [x] Design approved
+- [x] Implementation checked in a browser (the test suite has no browser harness)
+- [x] Documentation updated (docs/DESIGN.md)
 
 ## References
 
