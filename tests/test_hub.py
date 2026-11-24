@@ -369,6 +369,23 @@ class ServerTest(TmpMixin, unittest.TestCase):
                 self.assertRaisesRegex(SystemExit, "older version"):
             cli.main(["stop"])
 
+    def test_stop_reaches_a_hub_that_answers_slowly(self):
+        answers = iter([False, True, False, False, False])  # One timeout, then alive, then gone
+        out = io.StringIO()
+        with mock.patch.object(client, "healthy", side_effect=lambda url: next(answers)), \
+                mock.patch.object(client, "stop_server", return_value=True) as stop, \
+                mock.patch.dict(os.environ, {"HUB_URL": self.url}), redirect_stdout(out):
+            cli.main(["stop"])
+        stop.assert_called_once()
+        self.assertEqual(list(answers), [])
+        self.assertIn("stopped the hub", out.getvalue())
+
+    def test_stop_timeout_is_not_reported_as_stopped(self):
+        with mock.patch("urllib.request.urlopen", side_effect=TimeoutError("timed out")), \
+                mock.patch.dict(os.environ, {"HUB_URL": self.url}), \
+                self.assertRaisesRegex(SystemExit, "unreachable"):
+            cli.main(["stop"])
+
     def test_stop_refuses_a_remote_hub(self):
         with mock.patch.dict(os.environ, {"HUB_URL": "https://hub.example"}), \
                 self.assertRaisesRegex(SystemExit, "not on this machine"):

@@ -179,7 +179,8 @@ project.
   `env` block above, so the launcher reads `HUB_STORE`, `HUB_URL`, and `HUB_TOKEN` from
   `~/.claude/settings.json` when the shell does not set them.
 - To stop the hub however it was started, run `session-hub stop`. With `HUB_AUTOSTART=1`, the next
-  session start launches the hub again.
+  session start launches the hub again. An ordinary terminal does not see the `env` block above, so
+  set `HUB_TOKEN` there if the hub uses a token, and pass `--port` if the hub does not use 8765.
 - While the server is down, messages go straight to the shared store and appear on the dashboard once
   the server starts. No message is lost.
 - To enable Session Hub for one project, put the settings in that project's

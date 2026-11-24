@@ -41,7 +41,8 @@ send it without a preflight request, which the hub does not answer.
 `http://127.0.0.1:8765`. The command refuses a host that is not loopback.
 
 - The hub stops: the command waits until the hub no longer answers, for at most five seconds.
-- No hub answers: the command says so and exits 0.
+- The connection is refused: no hub is running, so the command says so and exits 0.
+- The request times out: the hub may be busy, so the command prints the error and exits 1.
 - The hub is too old to know the request: the command prints how to end the process and exits 1.
 
 ### Launcher

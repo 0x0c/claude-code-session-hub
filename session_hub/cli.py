@@ -221,11 +221,11 @@ def cmd_stop(a):
     url = f"http://127.0.0.1:{a.port}" if a.port else client.hub_url() or "http://127.0.0.1:8765"
     if not client.is_loopback(url):
         sys.exit(f"session-hub: {url} is not on this machine; stop it there")
-    if not client.healthy(url):
-        print(f"session-hub: no hub is running at {url}")
-        return
     try:
         stopping = client.stop_server(url, os.environ.get("HUB_TOKEN"))
+    except client.NotRunning:
+        print(f"session-hub: no hub is running at {url}")
+        return
     except (ValueError, client.PushError) as e:
         sys.exit(f"session-hub: {e}")
     if not stopping:
@@ -233,8 +233,10 @@ def cmd_stop(a):
         sys.exit("session-hub: the running hub is an older version without a stop request; stop its process:\n"
                  f"  kill $(lsof -ti tcp:{port} -sTCP:LISTEN)")
     deadline = time.monotonic() + 5
-    while client.healthy(url):
-        if time.monotonic() > deadline:
+    misses = 0
+    while misses < 3:  # One slow answer does not mean the hub stopped
+        misses = 0 if client.healthy(url) else misses + 1
+        if misses == 0 and time.monotonic() > deadline:
             sys.exit(f"session-hub: the hub at {url} has not stopped after 5 seconds")
         time.sleep(0.1)
     print(f"stopped the hub at {url}")

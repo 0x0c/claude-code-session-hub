@@ -95,6 +95,10 @@ def delete_session(url: str, session_id: str, token: str | None = None) -> dict 
         raise PushError(f"hub server unreachable: {e}") from e
 
 
+class NotRunning(PushError):
+    """Nothing listens at the hub's address."""
+
+
 def stop_server(url: str, token: str | None = None) -> bool:
     """Ask the hub to stop; return False when the hub is too old to know the request."""
     req = urllib.request.Request(url + "/api/server", method="DELETE")
@@ -109,7 +113,9 @@ def stop_server(url: str, token: str | None = None) -> bool:
         body = e.read().decode("utf-8", "replace")[:300]
         raise ValueError(f"hub server rejected ({e.code}): {body}") from e
     except (urllib.error.URLError, TimeoutError, ConnectionError, OSError) as e:
-        raise PushError(f"hub server unreachable: {e}") from e
+        # A timeout may be a busy hub; a refused connection alone proves that none is running
+        refused = isinstance(getattr(e, "reason", e), ConnectionRefusedError)
+        raise (NotRunning if refused else PushError)(f"hub server unreachable: {e}") from e
 
 
 def spool(payload: dict) -> None:
