@@ -89,7 +89,7 @@ The hub takes the parent from three sources, the strongest first:
 
 - [x] Design approved
 - [x] Implementation with tests
-- [x] Documentation updated (README.md, docs/DESIGN.md, skills)
+- [x] Documentation updated (README.md, docs/DESIGN.md, AGENTS.md, the child's system prompt)
 
 ## References
 

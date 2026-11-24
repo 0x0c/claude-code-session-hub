@@ -64,7 +64,7 @@
 
 - [x] 設計の承認
 - [x] テストを含む実装
-- [x] ドキュメントの更新（README、docs/DESIGN.md、スキル）
+- [x] ドキュメントの更新（README、docs/DESIGN.md、AGENTS.md、子のシステムプロンプト）
 
 ## 参考資料
 
