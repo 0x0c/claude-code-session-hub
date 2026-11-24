@@ -19,7 +19,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from session_hub import client  # noqa: E402
+from session_hub import client, schema  # noqa: E402
 from session_hub.store import EventStore  # noqa: E402
 
 # Every piece of sample text, keyed by a short id, in both languages.
@@ -36,6 +36,7 @@ TEXT = {
         "d.title": "Dependency upgrade", "d.s1": "Updating the lockfile",
         "d.err": "npm ci fails with ERESOLVE (peer dependency conflict)",
         "e.title": "Image resizing", "e.s1": "Switching to sharp", "e.s2": "Trying to build sharp",
+        "f.title": "Session timeout fix", "f.s1": "Reproducing the early logout", "f.s2": "Fixed the cookie lifetime",
         "t.design": "Design", "t.mw": "Middleware", "t.tests": "Tests", "t.docs": "Docs", "t.logger": "Replace logger",
         "t.schema": "Schema", "t.batch": "Batch", "t.incr": "Incremental update", "t.api": "API", "t.swap": "Swap library",
         "k.redis": "CI's Redis 6.2 orders SCAN results differently from production (7.x)",
@@ -63,6 +64,7 @@ TEXT = {
         "d.title": "依存パッケージ更新", "d.s1": "lockfile 更新",
         "d.err": "npm ci が ERESOLVE で失敗（peer 依存の衝突）",
         "e.title": "画像リサイズ処理", "e.s1": "sharp への置換", "e.s2": "sharp のビルドを試行中",
+        "f.title": "タイムアウト不具合の修正", "f.s1": "早期ログアウトを再現中", "f.s2": "Cookie の有効期限を修正",
         "t.design": "設計", "t.mw": "ミドルウェア", "t.tests": "テスト", "t.docs": "ドキュメント", "t.logger": "logger置換",
         "t.schema": "スキーマ", "t.batch": "バッチ", "t.incr": "差分更新", "t.api": "API", "t.swap": "置換",
         "k.redis": "CI の Redis は 6.2 で SCAN の順序が本番(7.x)と違う",
@@ -89,8 +91,8 @@ def seed(store: EventStore, lang: str = "ja") -> None:
     x = TEXT[lang]
     now = datetime.now(timezone.utc)
     t = lambda m: iso(now - timedelta(minutes=m))  # noqa: E731
-    A, B, C, D, E = ("session_01RateLimit", "session_02LogFormat", "session_03SearchIdx",
-                     "session_04DepsBump", "session_05ImgResize")
+    A, B, C, D, E, F = ("session_01RateLimit", "session_02LogFormat", "session_03SearchIdx",
+                        "session_04DepsBump", "session_05ImgResize", "session_06Timeout")
     P = "session_00Parent"
 
     def add(sid, minutes_ago, writer=None, **f):
@@ -136,6 +138,11 @@ def seed(store: EventStore, lang: str = "ja") -> None:
     add(E, 140, type="start", title=x["e.title"], parent_id=P, state="working", summary=x["e.s1"],
         tasks=tasks(("t.swap", "doing", "M"), ("t.tests", "todo", "M")))
     add(E, 47, type="report", summary=x["e.s2"])
+
+    # F: done, then archived in the desktop app
+    add(F, 165, type="start", title=x["f.title"], task_ref="#122", parent_id=P, state="working", summary=x["f.s1"])
+    add(F, 135, type="done", summary=x["f.s2"])
+    add(F, 115, writer=schema.DESKTOP_WRITER, type="archive", actor="script")
 
     # Findings learned during work (aggregated into the knowledge collection)
     def learn(sid, minutes_ago, kind, key, body=True, tags=(), scope=None):
