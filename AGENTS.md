@@ -130,6 +130,9 @@ Each note states a fact we verified, why it matters, and what to do about it.
   or the desktop app set), or else the last `ai-title` record. Every send by the session attaches the
   name, and the hub shows it as the title. The name may appear after SessionStart, so we read the
   transcript again on each send.
+- A `pr-link` record in the transcript holds the pull request that Claude Code linked to the session
+  (`prNumber`, `prUrl`). Claude Code repeats the record, and a session can link several pull requests,
+  so we take the last one.
 - Hooks are no-ops unless `HUB_URL` or `HUB_STORE` is set, so the plugin is safe to enable globally.
 
 ### Session identity
