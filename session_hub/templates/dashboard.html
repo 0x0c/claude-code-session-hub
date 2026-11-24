@@ -106,7 +106,7 @@ main.grid .project { margin: var(--space-12) 0; border: 1px solid var(--line); b
 main.grid .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); gap: var(--space-12); }
 main.grid .cardwrap { min-width: 0; }
 main.grid .card { border: 1px solid var(--line); border-left-width: 3px; border-radius: var(--radius-lg); height: 100%; }
-main.grid .card.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), 0 2px 10px var(--shade); }
+main.grid .card.selected { border-color: var(--accent); outline: 1px solid var(--accent); } /* Not box-shadow: the glow animation holds that property */
 main.grid #detail { position: fixed; top: var(--header-h, 0px); right: 0; bottom: 0; z-index: 4; width: var(--detail-w);
   overflow-y: auto; overscroll-behavior: contain; border-width: 0 0 0 1px; border-radius: 0; outline: none;
   transform: translateX(100%); visibility: hidden; }
