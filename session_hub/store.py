@@ -124,7 +124,7 @@ class EventStore:
     def delete_session(self, session_id: str) -> int:
         """Physically delete every file of a session and return how many events they held.
 
-        This is the one exception to append-only writing (SH-0001). It removes the session's own
+        This is the one exception to append-only writing (SH-0002). It removes the session's own
         file and every `<session_id>@<writer>.jsonl` file. A return value of 0 means the store
         held no such session.
         """

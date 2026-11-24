@@ -10,7 +10,7 @@
 | Status | **Implemented** |
 | Topic | Dashboard |
 | Implementing PR | [#13](https://github.com/0x0c/claude-code-session-hub/pull/13) |
-| Related | [SH-0001](SH-0001-delete-session.md) |
+| Related | [SH-0002](SH-0002-delete-session.md) |
 <!-- /SH-METADATA -->
 
 ## Introduction
@@ -71,7 +71,7 @@ behavior. Deleting several sessions in one action is out of scope.
 
 ## Alternatives considered
 
-- **Nest the button inside the card.** SH-0001 rejected this layout because a nested button is not
+- **Nest the button inside the card.** SH-0002 rejected this layout because a nested button is not
   accessible. A sibling button avoids that problem.
 - **Keep the header button alone.** The header button requires a selection, which replaces the
   timeline filter the user was working with.
@@ -88,5 +88,5 @@ behavior. Deleting several sessions in one action is out of scope.
 
 ## References
 
-- [SH-0001](SH-0001-delete-session.md) — the endpoint, the store deletion, and the header button.
+- [SH-0002](SH-0002-delete-session.md) — the endpoint, the store deletion, and the header button.
 - [`session_hub/templates/dashboard.html`](../session_hub/templates/dashboard.html) — the dashboard.

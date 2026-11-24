@@ -1,11 +1,11 @@
-**English** · [日本語](SH-0001-delete-session.ja.md)
+**English** · [日本語](SH-0002-delete-session.ja.md)
 
-# SH-0001 — Delete a session's messages
+# SH-0002 — Delete a session's messages
 
 <!-- SH-METADATA -->
 | Field | Value |
 |---|---|
-| Proposal | SH-0001 |
+| Proposal | SH-0002 |
 | Author | [@0x0c](https://github.com/0x0c) |
 | Status | **In progress** |
 | Topic | Hub server |
