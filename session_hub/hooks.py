@@ -20,7 +20,7 @@ import sys
 import urllib.parse
 from pathlib import Path
 
-from . import client, local_state
+from . import client, local_state, project
 from .deliver import deliver
 from .store import current_session_id
 from .usage import usage_from_transcript
@@ -103,6 +103,8 @@ def session_start(payload: dict) -> str:
     except OSError as exc:
         print(f"session-hub: could not start the server automatically: {exc}", file=sys.stderr)
     sid = current_session_id()
+    if sid:
+        project.remember(sid)
     st = local_state.load(sid) if sid else {}
     cmd = "session-hub"
     if shim and str(shim.parent) not in os.environ.get("PATH", "").split(":"):
@@ -127,7 +129,12 @@ def stop(payload: dict) -> str:
     usage = {}
     if payload.get("transcript_path"):
         usage = usage_from_transcript(payload["transcript_path"])
-    send({"type": "heartbeat", "actor": "hook", "usage": usage})
+    beat = {"type": "heartbeat", "actor": "hook", "usage": usage}
+    project.remember(sid)
+    repo = project.for_session(sid)
+    if repo:
+        beat["repo_hint"] = repo  # Not `repo`: an older hub would let it replace an explicit project
+    send(beat)
 
     if os.environ.get("HUB_STOP_GUARD", "1") == "0" or payload.get("stop_hook_active"):
         return ""
