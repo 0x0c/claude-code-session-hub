@@ -47,5 +47,5 @@
 
 ## 参考資料
 
-- [`session_hub/session_name.py`](../session_hub/session_name.py)：名前の読み取り
-- [`docs/DESIGN.ja.md`](../docs/DESIGN.ja.md)：ステータスレコード
+- [`session_hub/session_name.py`](../../session_hub/session_name.py)：名前の読み取り
+- [`docs/DESIGN.ja.md`](../../docs/DESIGN.ja.md)：ステータスレコード

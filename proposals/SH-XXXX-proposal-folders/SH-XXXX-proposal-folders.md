@@ -54,7 +54,7 @@ repository root gains one `../`.
 
 ### Migration
 
-The two existing proposals move into folders, and every link to them is updated. A branch that still
+The three existing proposals move into folders, and every link to them is updated. A branch that still
 adds a loose pair must move the pair into a folder. Until the move, `lint` fails, and after such a
 branch merges, `guard` blocks the numbering of every proposal.
 
