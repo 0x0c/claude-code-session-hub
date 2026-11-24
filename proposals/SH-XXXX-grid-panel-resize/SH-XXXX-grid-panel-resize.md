@@ -7,9 +7,9 @@
 |---|---|
 | Proposal | SH-XXXX |
 | Author | [@0x0c](https://github.com/0x0c) |
-| Status | **In progress** |
+| Status | **Implemented** |
 | Topic | Dashboard |
-| Implementing PR | — |
+| Implementing PR | [#32](https://github.com/0x0c/claude-code-session-hub/pull/32) |
 | Related | [SH-0005](../SH-0005-session-grid/SH-0005-session-grid.md) |
 <!-- /SH-METADATA -->
 
@@ -61,8 +61,8 @@ panel's inert state stay as SH-0005 defines them.
 ## Progress
 
 - [x] Design approved
-- [ ] Implementation with tests
-- [ ] Documentation updated (docs/DESIGN.md)
+- [x] Implementation with tests
+- [x] Documentation updated (docs/DESIGN.md)
 
 ## References
 
