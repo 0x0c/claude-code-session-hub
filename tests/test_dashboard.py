@@ -266,6 +266,11 @@ class DesignTokenTest(unittest.TestCase):
         used = set(re.findall(r"var\(--([\w-]+)", self.rules))
         self.assertEqual(used - set(self.light) - SET_BY_SCRIPT, set())
 
+    def test_collection_tab_counts_what_the_list_shows(self):
+        tabs = re.search(r"function renderColTabs\(\) \{.*?\n  \}\n", PAGE, re.S).group(0)
+        self.assertIn("collectionItems(", tabs)  # the same filter as the list, not the server's total
+        self.assertNotIn(".active", tabs)
+
     def test_every_status_group_but_archived_has_a_fill(self):
         groups = set(re.findall(r'\bstatus\("(\w+)"\)', PAGE))
         self.assertLessEqual({"action", "active", "done"}, groups)
