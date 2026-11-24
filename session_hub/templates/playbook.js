@@ -288,6 +288,7 @@
     const button = (label, act) => el("button", { class: "iconbtn", onclick: act }, label);
     const nav = el("nav", { class: "pb-nav" }, el("b", {}, "Session Hub playbook"),
       location.protocol === "file:" ? null : el("a", { href: "./" }, "← Session Hub"),
+      DESIGN_SYSTEM_URL ? el("a", { href: DESIGN_SYSTEM_URL, target: "_blank", rel: "noopener noreferrer", title: t("btn.designSystemTitle") }, t("btn.designSystem")) : null,
       el("div", { class: "pb-tools" }, button(t("btn.theme"), () => { $("themeBtn").click(); pbRender(); }),
         button(t("btn.lang"), () => { $("langBtn").click(); pbRender(); })),
       PB.map(([name]) => el("a", { href: "#" + name }, name)));

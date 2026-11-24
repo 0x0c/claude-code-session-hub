@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from importlib import resources
 
-from .server import dashboard_html
+from .server import dashboard_html, with_design_system
 
 SNAPSHOT = "/*__HUB_SNAPSHOT__*/null"
 END = "})();\n</script>"
@@ -28,7 +28,7 @@ def _replace_once(text: str, old: str, new: str) -> str:
 def build_page(script: str, style: str) -> str:
     """The dashboard in static mode, with the named template script and style added."""
     # An embedded snapshot puts the page in static mode, so it never opens a stream to the hub
-    html = _replace_once(dashboard_html(), SNAPSHOT, EMPTY)
+    html = _replace_once(with_design_system(dashboard_html()), SNAPSHOT, EMPTY)
     html = _replace_once(html, END, template(script) + END)
     return _replace_once(html, "</head>", f"<style>\n{template(style)}</style>\n</head>")
 

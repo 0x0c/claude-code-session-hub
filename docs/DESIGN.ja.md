@@ -357,6 +357,7 @@ push型では、子が報告するまでダッシュボードは古いままで�
 | `session-hub export --out dashboard.html` | スナップショットを埋め込んだ単体のHyperText Markup Language（HTML）ファイル（共有と保管用。更新はしません） |
 | `GET /guide`（ヘッダーの **ステータスの説明** リンク） | 各ステータスと状態の意味の一覧 |
 | `GET /playbook`（ヘッダーの **Playbook** リンク） | ダッシュボードのすべての部品を、サンプルデータで状態ごとに一覧 |
+| **デザインシステム** リンク（`HUB_DESIGN_SYSTEM_URL`を設定したとき、ヘッダーとPlaybookのメニューに表示） | デザインシステムのページを新しいタブで表示 |
 | `GET /api/snapshot` | 機械向けのJSON |
 | `session-hub attention` | 親のLLM向け。要対応のセッションだけを1件1行で出します |
 | `session-hub log [<session_id>]` | ターミナルでタイムラインを追います |

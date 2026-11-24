@@ -255,6 +255,7 @@ session-hub stop [--port N]
 | `HUB_STOP_GUARD` | `0`でStop hookの確認を無効化 |
 | `HUB_AUTOSTART` | `1`で、ローカルのハブサーバーが動いていなければセッション開始時に起動（`HUB_URL`が127.0.0.1またはlocalhostを指すときだけ） |
 | `HUB_DESKTOP_SESSIONS` | Claudeデスクトップアプリのセッションファイルのディレクトリー。ハブサーバーがアーカイブの検知とアプリへのリンクのために読む（macOSでの既定は`~/Library/Application Support/Claude/claude-code-sessions`）。`0`で両方を無効化 |
+| `HUB_DESIGN_SYSTEM_URL` | デザインシステムのページのアドレス。ハブサーバーに設定すると、ヘッダーとPlaybookにリンクを表示 |
 | `HUB_OUTBOX` / `HUB_STATE_DIR` | outboxとローカル状態の置き場所（既定は`~/.cache/...`） |
 
 ## テスト
