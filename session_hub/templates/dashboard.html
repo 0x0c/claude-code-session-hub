@@ -85,7 +85,6 @@ section.panel { background: var(--panel); border: 1px solid var(--line); border-
 /* Grid layout: the cards take the full width, and the timeline becomes a panel on the right */
 main.grid { grid-template-columns: minmax(0, 1fr); max-width: none; }
 main.grid #sessions { padding: 0 14px 14px; }
-main.grid .group-title { padding-left: 0; }
 main.grid .project { margin: 12px 0; border: 1px solid var(--line); border-radius: 8px; }
 main.grid .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); gap: 12px; }
 main.grid .cardwrap { min-width: 0; }
@@ -104,14 +103,15 @@ main.grid .newbar { top: 48px; }
 /* Sessions that need action: a section of its own above the other groups */
 .action-section { margin: 10px; border: 1px solid var(--s-needs); border-radius: 8px;
   background: color-mix(in srgb, var(--s-needs) 6%, var(--panel)); }
-.action-section .group-title { color: var(--s-needs); }
+.action-section .project:not(:hover) { background: none; }
+main .action-section .project { margin: 0; border: 0; border-radius: 7px; color: var(--s-needs); }
 main:not(.grid) .action-section .cardwrap:last-child .card { border-radius: 0 0 7px 7px; }
 main.grid .action-section { margin: 14px 0 4px; padding: 0 12px 12px; }
 main.grid .action-section .card:not(.selected):not(:hover) { background: var(--panel); }
-.group-title { font-size: 11px; font-weight: 600; letter-spacing: .04em; color: var(--muted); padding: 10px 14px 4px; }
 .project { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 14px; border: 0; text-align: left;
   border-top: 1px solid var(--line); background: var(--bg); cursor: pointer; font-size: 12px; font-weight: 600; }
 .project:hover { background: var(--hover); }
+.project.selected { box-shadow: inset 3px 0 var(--accent); }
 .project .pname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .project .chev { color: var(--muted); transition: transform .15s; }
 .project[aria-expanded="true"] .chev { transform: rotate(90deg); }
@@ -494,7 +494,7 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     types: new Set(Object.keys(TYPES).filter((t) => t !== "heartbeat")),
     fresh: new Set(), unseen: 0, notify: false,
     colGroups: {}, showObsolete: false,
-    byProject: true, collapsed: new Set(),
+    byProject: true, collapsed: new Set(), // keys of the collapsed groups
     layout: "list", panelOpen: false, // panelOpen matters in the grid layout alone
   };
   const prevStates = new Map();
@@ -548,11 +548,28 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     return [...groups].sort(([a], [b]) => (a === "") - (b === ""));
   }
 
-  function projectHeader(key, list) {
+  const statusOf = (s) => (s.needs_action ? "action" : ["done", "abandoned"].includes(s.state) ? "done" : "active");
+  // The prefix keeps a status key apart from a project of the same name
+  const ACTION_KEY = "status:action";
+  // Sessions that need action form a group of their own in both groupings
+  const groupKey = (s) => (ui.byProject && !s.needs_action ? s.repo || "" : "status:" + statusOf(s));
+
+  // [key, label, sessions] of each non-empty group, in display order
+  function sessionGroups(sessions) {
+    const status = (id) => ["status:" + id, t("group." + id), sessions.filter((s) => statusOf(s) === id)];
+    const rest = ui.byProject
+      ? projectGroups(sessions.filter((s) => !s.needs_action)).map(([key, list]) => [key, key || t("project.none"), list])
+      : [status("active"), status("done")];
+    return [status("action"), ...rest].filter(([, , list]) => list.length);
+  }
+
+  function groupHeader(key, label, list) {
     const open = !ui.collapsed.has(key);
-    // A collapsed project hides its cards, so the header carries their glow
-    return el("button", glowProps(open ? [] : list.map((s) => glowKey.session(s.session_id)), {
-      class: "project", type: "button", "aria-expanded": String(open), title: key,
+    // A collapsed group hides its cards, so the header carries their glow and the selection mark
+    const hidden = open ? [] : list;
+    return el("button", glowProps(hidden.map((s) => glowKey.session(s.session_id)), {
+      class: "project" + (hidden.some((s) => s.session_id === ui.session) ? " selected" : ""),
+      type: "button", "aria-expanded": String(open), title: label, "data-group": key,
       onclick: () => {
         open ? ui.collapsed.add(key) : ui.collapsed.delete(key);
         try { localStorage.setItem("hub.collapsed", JSON.stringify([...ui.collapsed])); } catch (_) {}
@@ -560,7 +577,7 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
       },
     }),
       el("span", { class: "chev", "aria-hidden": "true" }, "▸"),
-      el("span", { class: "pname" }, key || t("project.none")),
+      el("span", { class: "pname" }, label),
       el("span", { class: "count" }, String(list.length)));
   }
 
@@ -572,11 +589,15 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     const wrap = old && old.closest(".cardwrap");
     const at = wrap ? [...box.querySelectorAll(".cardwrap")].indexOf(wrap) : -1;
     rebuildSessions(box);
-    if (old && old.classList.contains("project")) {
-      const head = [...box.querySelectorAll(".project")].find((n) => n.title === old.title);
+    const focusGroup = (key) => {
+      const head = [...box.querySelectorAll(".project")].find((n) => n.dataset.group === key);
       if (head) head.focus({ preventScroll: true });
-    }
+    };
+    if (old && old.classList.contains("project")) return focusGroup(old.dataset.group);
     if (!wrap) return;
+    // A session that moved into a collapsed group has no card: focus its heading, never another session's control
+    const moved = db.sessions.find((s) => s.session_id === wrap.dataset.sid);
+    if (moved && ui.collapsed.has(groupKey(moved))) return focusGroup(groupKey(moved));
     const wraps = [...box.querySelectorAll(".cardwrap")];
     const next = wraps.find((w) => w.dataset.sid === wrap.dataset.sid) || wraps[Math.min(at, wraps.length - 1)];
     if (next) next.querySelector(old.classList.contains("carddel") ? ".carddel" : ".card").focus({ preventScroll: true });
@@ -589,24 +610,10 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
       return;
     }
     const sorted = [...db.sessions].sort(byRecent);
-    const action = sorted.filter((s) => s.needs_action), rest = sorted.filter((s) => !s.needs_action);
-    const group = (title, list, inProject) => [
-      el("div", { class: "group-title" }, `${title} (${list.length})`),
-      el("div", { class: "cards" }, list.map((s) => sessionCard(s, inProject)))];
-    if (action.length) {
-      box.append(el("section", { class: "action-section", "aria-label": t("group.action") },
-        group(t("group.action"), action, false)));
-    }
-    if (ui.byProject) {
-      for (const [key, list] of projectGroups(rest)) {
-        box.append(projectHeader(key, list));
-        if (!ui.collapsed.has(key)) box.append(el("div", { class: "cards" }, list.map((s) => sessionCard(s, true))));
-      }
-      return;
-    }
-    const isDone = (s) => ["done", "abandoned"].includes(s.state);
-    for (const [title, list] of [[t("group.active"), rest.filter((s) => !isDone(s))], [t("group.done"), rest.filter(isDone)]]) {
-      if (list.length) box.append(...group(title, list, false));
+    const cards = (list, inProject) => el("div", { class: "cards" }, list.map((s) => sessionCard(s, inProject)));
+    for (const [key, label, list] of sessionGroups(sorted)) {
+      const parts = [groupHeader(key, label, list), ui.collapsed.has(key) ? null : cards(list, !key.startsWith("status:"))].filter(Boolean);
+      box.append(...(key === ACTION_KEY ? [el("section", { class: "action-section", "aria-label": label }, parts)] : parts));
     }
   }
 

@@ -435,6 +435,9 @@ label, it gives the English label and the Japanese label in parentheses.
     project come last.
   - The **By project** button switches the sessions below "needs action" to grouping by status:
     "working or waiting" (作業中・待機) and "done" (完了).
+  - Clicking any group heading, "needs action" included, collapses or expands that group. A
+    collapsed heading keeps its count, and glows when a hidden session sends a message. The browser
+    remembers the collapsed groups.
   - Each card shows a state badge, a task progress bar (hidden in the `done` state), the remaining work, the PR and CI, the
     tokens and cost, the last update, and any unanswered question (with its options, its default,
     and the command to answer it).
