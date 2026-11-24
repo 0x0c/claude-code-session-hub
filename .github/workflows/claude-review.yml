@@ -25,7 +25,8 @@
 # request's author) is a bot. To review it, a person returns
 # the pull request to draft and marks it ready again, or closes and reopens it, so that a person starts the run.
 #
-# REQUIRED TO RUN, ADVISORY IN CONTENT: `main`'s ruleset requires the `claude review` check. A review
+# REQUIRED TO RUN (PLANNED), ADVISORY IN CONTENT: `main`'s ruleset is to require the `claude review`
+# check once a draft pull request confirms that a success replaces the draft's failure. A review
 # that found issues is a successful review; the job fails on a draft, on
 # a bot's event, or on an infrastructure error, never on a finding. GitHub counts a skipped job as
 # passing, so a `pull_request` run never skips the job, and a comment-triggered run reports under
@@ -69,7 +70,7 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  # main's ruleset requires the check `claude review`, so renaming it blocks every merge. A comment run
+  # main's ruleset is to require the check `claude review`; once it does, renaming it blocks every merge. A comment run
   # needs another name: its skipped job would otherwise pass as the required check.
   review:
     name: ${{ github.event_name == 'pull_request' && 'claude review' || 'claude review (requested)' }}

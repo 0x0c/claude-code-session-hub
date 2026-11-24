@@ -54,7 +54,8 @@ head commit, and the review covers the finished work.
   a proposal its PR number before the review starts.
 - **Rollout.** The ruleset does not list `claude review` while this change is in review. The
   maintainer adds the check after the change merges and a draft PR confirms that the success after
-  `gh pr ready` replaces the failure on the same commit. Until then, the check blocks no merge.
+  `gh pr ready` replaces the failure on the same commit. Until then, the check blocks no merge, and
+  `AGENTS.md` and the workflow describe the requirement as planned.
 - **Limits.** A PR from a fork receives no secrets, and an environment without a credential starts no
   review. In both cases the check of a PR that a person marks ready passes without one, as it did before the
   change. A draft or a bot's event fails even then.

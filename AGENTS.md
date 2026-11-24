@@ -119,12 +119,13 @@ look at the page with demo data, as described under [Field notes](#check-the-das
   and ask the user.
 - Never push to a pull request that is ready. To change one, whether for a review finding, a
   conflict, or a failed check, run `gh pr ready --undo`, push the complete fix, self-review the
-  whole diff, and run `gh pr ready` again. The required `claude review` check counts on the head commit alone, so a push without this
-  cycle leaves the pull request blocked.
+  whole diff, and run `gh pr ready` again. The `claude review` check counts on the head commit
+  alone, so a push without this cycle leaves the new head unreviewed, and blocked once the ruleset
+  requires the check.
 - Claude Code reviews a pull request when it leaves draft, and when one that is not a draft opens or
   reopens (`.github/workflows/claude-review.yml`, against the contract in
-  `.github/claude-review-prompt.md`). The review posts inline comments. `main` requires the review to
-  run, but a finding never fails it. A push alone does not start a review. The required
+  `.github/claude-review-prompt.md`). The review posts inline comments. We plan to require the review to run on
+  `main`; until the ruleset lists `claude review`, the check blocks no merge. A finding never fails it. A push alone does not start a review. The required
   check fails on a pull request that opens or reopens as a draft, so `claude review` stays red there
   until a push or until the pull request is ready. After `gh pr ready --undo`, the earlier result
   stays until you push; the new head commit then has no `claude review` check until `gh pr ready`. A comment of
