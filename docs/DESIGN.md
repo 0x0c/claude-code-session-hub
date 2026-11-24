@@ -475,6 +475,8 @@ label, it gives the English label and the Japanese label in parentheses.
   - Clicking a card slides a detail panel in from the right. The panel is the timeline with its tabs
     and filters, limited to that session. **All sessions** (すべてのセッション) opens the panel without
     the limit.
+  - The open panel takes at most 720px, and at most 55% of the window. The grid narrows beside it, so
+    the panel covers no card. In a window at most 860px wide, the panel covers the whole grid.
   - Clicking the same card, the close button, or Escape closes the panel and clears the selection.
 - **Collection tabs** (right panel): each defined collection adds a tab automatically, for example
   "Knowledge (6)" (ナレッジ (6)).

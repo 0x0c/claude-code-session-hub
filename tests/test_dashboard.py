@@ -42,6 +42,10 @@ class DashboardTest(unittest.TestCase):
         self.assertEqual(re.findall(r'<button data-layout="(\w+)"', PAGE), ["list", "grid"])
         self.assertIn('localStorage.getItem("hub.layout")', PAGE)
 
+    def test_grid_makes_room_for_the_open_panel(self):
+        self.assertIn("main.grid.withpanel { padding-right: calc(var(--detail-w) + var(--space-16)); }", PAGE)
+        self.assertRegex(PAGE, r'classList\.toggle\("withpanel", grid && ui\.panelOpen\)')
+
     def test_closed_grid_panel_is_inert(self):
         self.assertRegex(PAGE, r'\$\("detail"\)\.inert\s*=\s*grid\s*&&\s*!ui\.panelOpen\b')
 
