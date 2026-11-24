@@ -197,7 +197,7 @@ immediately**.
   dashboard's **Delete session** button call `DELETE /api/sessions/<session_id>`, which unlinks every
   file of that session under the files' write locks and pushes the removal to every browser. The
   operation works on whole sessions alone, so the folded state of every other session stays intact
-  ([SH-0002](../proposals/SH-0002-delete-session.md)).
+  ([SH-0002](../proposals/SH-0002-delete-session/SH-0002-delete-session.md)).
 
 ### 3.2 Child → hub (`session-hub report` and related commands)
 
@@ -447,6 +447,13 @@ label, it gives the English label and the Japanese label in parentheses.
   - **Swimlanes**: one horizontal band per session, with state changes drawn as colored spans.
     Dots mark events (question = orange, answer = blue). Hovering shows details, and clicking jumps
     to the matching feed row. A long wait for a human, or a stall, is visible at a glance.
+- **Grid layout**: a toggle in the session list's header switches between the list and a grid, and the
+  browser remembers the choice (`localStorage`, `hub.layout`; the default is the list).
+  - The grid keeps the groups and spreads the cards over the full width.
+  - Clicking a card slides a detail panel in from the right. The panel is the timeline with its tabs
+    and filters, limited to that session. **All sessions** (すべてのセッション) opens the panel without
+    the limit.
+  - Clicking the same card, the close button, or Escape closes the panel and clears the selection.
 - **Collection tabs** (right panel): each defined collection adds a tab automatically, for example
   "Knowledge (6)" (ナレッジ (6)).
   - A `cards` view shows one card per item, grouped (knowledge is grouped by kind). Each card shows
@@ -462,6 +469,9 @@ label, it gives the English label and the Japanese label in parentheses.
   - the matching timeline row
   - the swimlane band
   - the collection item the message landed in
+
+  The halo pulses three times and then fades. A queued, done, or abandoned session, whose state color
+  is grey, glows in the accent color.
 
   A glow survives a redraw and continues where it left off. When messages arrive back to back, the
   latest one restarts the glow. Heartbeats (the hooks' automatic sends) do not glow. With the

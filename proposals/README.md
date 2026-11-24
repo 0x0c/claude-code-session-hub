@@ -3,10 +3,10 @@
 # Proposals
 
 A proposal is a short design document that argues for one change to Session Hub before we build
-it. Every non-trivial change starts as a proposal under this directory. Each proposal is a pair of
-files: the English original and its Japanese mirror. The proposal records the problem, the design
-we chose, and the alternatives we rejected, so a later reader can tell why the code looks the way
-it does.
+it. Every non-trivial change starts as a proposal under this directory. Each proposal has
+its own folder, which holds the English original and its Japanese mirror. The proposal records the
+problem, the design we chose, and the alternatives we rejected, so a later reader can tell why the
+code looks the way it does.
 
 ## The lifecycle of a proposal
 
@@ -42,8 +42,9 @@ python3 scripts/proposals.py new --slug push-retry --title "Retry pushes with ba
   --title-ja "プッシュの再試行" --topic Protocol --author <github-handle>
 ```
 
-The command prints the paths of the two new files, for example `proposals/SH-XXXX-push-retry.md`
-and `proposals/SH-XXXX-push-retry.ja.md`. Fill every `TBD` section of the English file under the
+The command prints the paths of the two new files, for example `SH-XXXX-push-retry.md`
+and `SH-XXXX-push-retry.ja.md` in `proposals/SH-XXXX-push-retry/`. Fill every `TBD` section of the
+English file under the
 [`document-writing`](../.claude/skills/document-writing/SKILL.md) and
 [`english-document-writing`](../.claude/skills/english-document-writing/SKILL.md) skills, then
 write the Japanese mirror under
@@ -55,18 +56,19 @@ A proposal keeps the placeholder `SH-XXXX` through review and the merge itself. 
 branches would race: two branches open at the same time would take the same number. Instead, the
 `proposal-id` workflow (`.github/workflows/proposal-id.yml`) numbers proposals on `main`:
 
-1. A pull request that adds `SH-XXXX-<slug>.md` merges to `main` unchanged.
+1. A pull request that adds the folder `SH-XXXX-<slug>/` merges to `main` unchanged.
 2. The workflow runs `python3 scripts/proposals.py allocate`. The command gives each placeholder pair
-   the next number above every number in use, in slug order, and renames both files with `git mv`.
-   It rewrites the id where the id names the proposal: the file names, the title, and the metadata
-   row. Prose that mentions the placeholder `SH-XXXX` stays as written.
+   the next number above every number in use, in slug order, and renames the folder and both files
+   with `git mv`. It rewrites the id where the id names the proposal: the folder and file names, the
+   title, and the metadata row. Prose that mentions the placeholder `SH-XXXX` stays as written.
 3. `python3 scripts/proposals.py guard` checks the commit: the commit touches `proposals/` alone,
    and every proposal passes the format check. The workflow then pushes the commit to `main` and
    comments the number on the merged pull request.
 
 Numbers therefore follow merge order, and a rejected proposal never uses one up. Two rules follow:
 
-- Link a new proposal from another proposal by its placeholder file name; `allocate` rewrites those
+- Link a new proposal from another proposal by its placeholder path,
+  `../SH-XXXX-<slug>/SH-XXXX-<slug>.md`; `allocate` rewrites those
   links. Do not link it from any other document, this README included, until it has a number. The
   format check reports such a link.
 - The workflow commits to `main` as a GitHub App that may bypass the branch protection. Store its id
@@ -75,16 +77,18 @@ Numbers therefore follow merge order, and a rejected proposal never uses one up.
 
 ## The format of a proposal
 
-A proposal is a pair of Markdown files: `SH-NNNN-<slug>.md` in English and
-`SH-NNNN-<slug>.ja.md` in Japanese. The format check (`python3 scripts/proposals.py lint`) enforces
-the rules below on both files.
+A proposal is a folder `SH-NNNN-<slug>/` with a pair of Markdown files: `SH-NNNN-<slug>.md` in
+English and `SH-NNNN-<slug>.ja.md` in Japanese. The format check (`python3 scripts/proposals.py lint`)
+enforces the rules below on both files.
 
+- **Folder.** The folder and both files share the name `SH-NNNN-<slug>`. A figure or other supporting
+  file goes in the same folder. No proposal sits directly under `proposals/`.
 - **Language switch.** The first line links the other file:
   `**English** · [日本語](SH-NNNN-<slug>.ja.md)` in the English file and
   `[English](SH-NNNN-<slug>.md) · **日本語**` in the Japanese file.
 - **Title.** The first heading is `# SH-NNNN — <Title>`, with an em dash.
-- **Placeholder id.** Before the merge, `SH-XXXX` stands in for `SH-NNNN` in the file names, the
-  title, and the `Proposal` row.
+- **Placeholder id.** Before the merge, `SH-XXXX` stands in for `SH-NNNN` in the folder and file
+  names, the title, and the `Proposal` row.
 - **Metadata table.** The table between `<!-- SH-METADATA -->` and `<!-- /SH-METADATA -->` holds
   six rows in this order: `Proposal`, `Author`, `Status`, `Topic`, `Implementing PR`, and `Related`.
   - `Author` is the author's GitHub handle as a link. Never guess a handle; ask the author.

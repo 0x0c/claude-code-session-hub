@@ -34,11 +34,14 @@ def fill(path: Path, **replace: str) -> None:
 
 def number(en: Path, slug: str, ident: str) -> Path:
     """Give a placeholder pair a number by hand, as allocate() would, and return the English path."""
+    folder = en.parent.with_name(f"{ident}-{slug}")
+    folder.mkdir()
     for src in (en, proposals.mirror_path(en)):
-        dst = src.with_name(src.name.replace(proposals.PLACEHOLDER, ident))
+        dst = folder / src.name.replace(proposals.PLACEHOLDER, ident)
         dst.write_text(proposals._renumber_text(src.read_text(), slug, ident))
         src.unlink()
-    return en.with_name(en.name.replace(proposals.PLACEHOLDER, ident))
+    en.parent.rmdir()
+    return folder / f"{ident}-{slug}.md"
 
 
 class ProposalsTest(unittest.TestCase):
@@ -66,6 +69,7 @@ class ProposalsTest(unittest.TestCase):
         self.new("first-idea")
         en, ja = self.new("second-idea", status="Approved", title_ja="二つ目の案")
         self.assertEqual((en.name, ja.name), ("SH-XXXX-second-idea.md", "SH-XXXX-second-idea.ja.md"))
+        self.assertEqual((en.parent, ja.parent), (self.dir / "SH-XXXX-second-idea",) * 2)
         p, q = proposals.parse(en), proposals.parse(ja)
         self.assertEqual((p.ident, p.number, p.value(0)), ("SH-XXXX", None, "SH-XXXX"))
         self.assertEqual((p.title, p.status, p.value(1)),
@@ -85,8 +89,10 @@ class ProposalsTest(unittest.TestCase):
     def test_lint_catches_format_problems(self):
         en, _ = self.fill_pair("dup-a")
         number(en, "dup-a", "SH-0001")
+        (self.dir / "SH-0001-dup-b").mkdir()
         for suffix in ("", ".ja"):
-            shutil.copy(self.dir / f"SH-0001-dup-a{suffix}.md", self.dir / f"SH-0001-dup-b{suffix}.md")
+            shutil.copy(self.dir / "SH-0001-dup-a" / f"SH-0001-dup-a{suffix}.md",
+                        self.dir / "SH-0001-dup-b" / f"SH-0001-dup-b{suffix}.md")
         en, _ = self.fill_pair("bad-status")
         fill(en, **{"**Proposed**": "**Maybe**"})
         self.fill_pair("placeholder", author="handle")
@@ -105,10 +111,26 @@ class ProposalsTest(unittest.TestCase):
         ja.unlink()
         self.assertIn("missing Japanese mirror", "\n".join(proposals.lint(self.dir)))
         en.unlink()
-        (self.dir / "SH-0009-orphan.ja.md").write_text("x")
-        (self.dir / "SH-XXXX-orphan.ja.md").write_text("x")
+        for ident in ("SH-0009", "SH-XXXX"):
+            (self.dir / f"{ident}-orphan").mkdir()
+            (self.dir / f"{ident}-orphan" / f"{ident}-orphan.ja.md").write_text("x")
         self.assertIn("SH-XXXX-orphan.ja.md: Japanese mirror without", "\n".join(proposals.lint(self.dir)))
         self.assertIn("without an English original", "\n".join(proposals.lint(self.dir)))
+
+    def test_every_proposal_lives_in_a_folder_of_its_own_name(self):
+        en, _ = self.fill_pair("idea")
+        (en.parent / "figure.svg").write_text("<svg/>")
+        (en.parent / "notes.md").write_text("Supporting files are free-form.")
+        self.assertEqual(proposals.lint(self.dir), [])
+        (self.dir / "SH-XXXX-loose.md").write_text("x")
+        (en.parent / "SH-XXXX-other.md").write_text("x")
+        (self.dir / "SH-0001-empty").mkdir()
+        (self.dir / "SH-1-Bad").mkdir()
+        errors = proposals.lint(self.dir)
+        self.assertIn("SH-XXXX-loose.md: must live in its own folder, proposals/SH-NNNN-<slug>/", errors)
+        self.assertIn("SH-XXXX-other.md: file name must match its folder, SH-XXXX-idea", errors)
+        self.assertIn("SH-0001-empty/: missing SH-0001-empty.md", errors)
+        self.assertIn("SH-1-Bad/: folder name must match SH-NNNN-<lowercase-slug>", errors)
 
     def test_implemented_needs_pr_and_ticked_boxes(self):
         en, ja = self.fill_pair("done", status="Implemented")
@@ -157,52 +179,56 @@ class AllocateTest(unittest.TestCase):
     def test_allocates_in_slug_order_above_every_used_number(self):
         number(self.pair("taken"), "taken", "SH-0003")
         self.pair("beta")
-        self.pair("alpha", extra=" See [beta](SH-XXXX-beta.md).")
+        self.pair("alpha", extra=" See [beta](../SH-XXXX-beta/SH-XXXX-beta.md).")
+        (self.dir / "SH-XXXX-alpha" / "figure.svg").write_text("<svg/>")
         self.git("add", "-A")
         self.git("commit", "-qm", "seed")
 
         self.assertEqual(proposals.allocate(self.dir, ref="HEAD"), [("alpha", "SH-0004"), ("beta", "SH-0005")])
-        self.assertEqual(sorted(p.name for p in self.dir.glob("SH-*.md")), [
+        self.assertEqual(sorted(p.name for p in self.dir.glob("SH-*/*.md")), [
             "SH-0003-taken.ja.md", "SH-0003-taken.md", "SH-0004-alpha.ja.md", "SH-0004-alpha.md",
             "SH-0005-beta.ja.md", "SH-0005-beta.md"])
-        alpha = (self.dir / "SH-0004-alpha.md").read_text()
+        alpha = (self.dir / "SH-0004-alpha" / "SH-0004-alpha.md").read_text()
         self.assertTrue(alpha.startswith("**English** · [日本語](SH-0004-alpha.ja.md)"))
         self.assertIn("# SH-0004 — A title", alpha)
         self.assertIn("| Proposal | SH-0004 |", alpha)
-        self.assertIn("[beta](SH-0005-beta.md)", alpha)  # A link to another new proposal follows it
+        self.assertIn("[beta](../SH-0005-beta/SH-0005-beta.md)", alpha)  # A link to another new proposal follows it
         self.assertIn("look like SH-XXXX.", alpha)  # Prose about the placeholder stays as written
-        self.assertIn("| 提案 | SH-0004 |", (self.dir / "SH-0004-alpha.ja.md").read_text())
+        self.assertIn("| 提案 | SH-0004 |", (self.dir / "SH-0004-alpha" / "SH-0004-alpha.ja.md").read_text())
         self.assertEqual(proposals.lint(self.dir), [])
-        self.assertIn("proposals/SH-XXXX-alpha.md -> proposals/SH-0004-alpha.md", self.git("status", "--short"))
+        self.assertIn("proposals/SH-XXXX-alpha/SH-XXXX-alpha.md -> proposals/SH-0004-alpha/SH-0004-alpha.md",
+                      self.git("status", "--short"))
+        self.assertTrue((self.dir / "SH-0004-alpha" / "figure.svg").exists())  # Supporting files move along
+        self.assertFalse(list(self.dir.glob("SH-XXXX-*")))
         self.assertEqual(proposals.allocate(self.dir, ref="HEAD"), [])  # A second run is a no-op
 
     def test_a_slug_that_extends_another_slug_keeps_its_own_links(self):
-        self.pair("beta", extra=" See [two](SH-XXXX-beta-two.md).")
-        self.pair("beta-two", extra=" See [one](SH-XXXX-beta.md).")
+        self.pair("beta", extra=" See [two](../SH-XXXX-beta-two/SH-XXXX-beta-two.md).")
+        self.pair("beta-two", extra=" See [one](../SH-XXXX-beta/SH-XXXX-beta.md).")
         self.git("add", "-A")
         self.assertEqual(proposals.allocate(self.dir, ref="HEAD"), [("beta", "SH-0001"), ("beta-two", "SH-0002")])
         self.assertEqual(proposals.lint(self.dir), [])
-        self.assertIn("[two](SH-0002-beta-two.md)", (self.dir / "SH-0001-beta.md").read_text())
+        self.assertIn("[two](../SH-0002-beta-two/SH-0002-beta-two.md)",
+                      (self.dir / "SH-0001-beta" / "SH-0001-beta.md").read_text())
 
     def test_skips_numbers_used_on_the_ref(self):
         number(self.pair("merged"), "merged", "SH-0007")
         self.git("add", "-A")
         self.git("commit", "-qm", "main")
-        for path in self.dir.glob("SH-0007-*"):  # This checkout lags behind main
-            path.unlink()
+        shutil.rmtree(self.dir / "SH-0007-merged")  # This checkout lags behind main
         self.pair("late")
         self.git("add", "-A")
         self.assertEqual(proposals.allocate(self.dir, ref="HEAD"), [("late", "SH-0008")])
 
     def test_guard_confines_the_commit_to_proposals(self):
-        self.assertEqual(proposals.guard_problems(["proposals/SH-0001-a.md"], self.dir), [])
+        self.assertEqual(proposals.guard_problems(["proposals/SH-0001-a/SH-0001-a.md"], self.dir), [])
         self.assertEqual(proposals.guard_problems(["proposals-notes.md", "README.md"], self.dir),
                          ["outside proposals/: proposals-notes.md", "outside proposals/: README.md"])
 
     def test_links_to_a_placeholder_outside_proposals_are_reported(self):
-        (self.root / "README.md").write_text("See [it](proposals/SH-XXXX-alpha.md). The id SH-XXXX is fine.\n")
-        (self.root / "OK.md").write_text("Placeholders look like `proposals/SH-XXXX-alpha.md`.\n")
-        (self.dir / "README.md").write_text("See [x](SH-XXXX-alpha.md).\n")
+        (self.root / "README.md").write_text("See [it](proposals/SH-XXXX-alpha/SH-XXXX-alpha.md). The id SH-XXXX is fine.\n")
+        (self.root / "OK.md").write_text("Placeholders look like `proposals/SH-XXXX-alpha/SH-XXXX-alpha.md`.\n")
+        (self.dir / "README.md").write_text("See [x](SH-XXXX-alpha/SH-XXXX-alpha.md).\n")
         self.git("add", "-A")
         problems = proposals.placeholder_links(self.root)
         self.assertEqual([x.split(":")[0] for x in problems], ["README.md", "proposals/README.md"])

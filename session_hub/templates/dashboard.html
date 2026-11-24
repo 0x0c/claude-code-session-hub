@@ -51,6 +51,35 @@ main { display: grid; grid-template-columns: minmax(300px, 380px) 1fr; gap: 16px
 section.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; min-width: 0; }
 .panel > h2 { font-size: 13px; margin: 0; padding: 10px 14px; border-bottom: 1px solid var(--line);
   display: flex; align-items: center; gap: 8px; }
+/* Layout toggle */
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; margin-left: auto; }
+.seg button { border: 0; background: none; padding: 2px 10px; cursor: pointer; font-size: 12px; font-weight: 400; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+.panel > h2 .iconbtn { font-weight: 400; white-space: nowrap; }
+.panel > h2 > span:first-child { white-space: nowrap; }
+.seg { white-space: nowrap; }
+#sessionsTitle { flex-wrap: wrap; }
+#tlScope { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+#closePanel { margin-left: auto; }
+.iconbtn.danger:not([hidden]) + #closePanel { margin-left: 0; }
+/* Grid layout: the cards take the full width, and the timeline becomes a panel on the right */
+main.grid { grid-template-columns: minmax(0, 1fr); max-width: none; }
+main.grid #sessions { padding: 0 14px 14px; }
+main.grid .group-title { padding-left: 0; }
+main.grid .project { margin: 12px 0; border: 1px solid var(--line); border-radius: 8px; }
+main.grid .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); gap: 12px; }
+main.grid .card { border: 1px solid var(--line); border-left-width: 3px; border-radius: 8px; min-width: 0; }
+main.grid .card.selected { border-color: var(--accent); }
+main.grid #detail { position: fixed; top: var(--header-h, 0px); right: 0; bottom: 0; z-index: 4; width: min(720px, 100%);
+  overflow-y: auto; overscroll-behavior: contain; border-width: 0 0 0 1px; border-radius: 0; outline: none;
+  transform: translateX(100%); visibility: hidden; }
+/* Slide when the panel opens or closes, never when the page loads or the layout changes */
+main.grid #detail.slide { transition: transform .2s ease-out, visibility .2s; }
+main.grid #detail.slide.open { transition: transform .2s ease-out; } /* A hidden panel cannot take focus */
+main.grid #detail.open { transform: none; visibility: visible; box-shadow: -8px 0 24px rgb(0 0 0 / .18); }
+main.grid #detail > h2 { position: sticky; top: 0; z-index: 4; background: var(--panel); }
+main.grid .newbar { top: 48px; }
+@media (prefers-reduced-motion: reduce) { main.grid #detail.slide, main.grid #detail.slide.open { transition: none; } }
 .group-title { font-size: 11px; font-weight: 600; letter-spacing: .04em; color: var(--muted); padding: 10px 14px 4px; }
 .project { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 14px; border: 0; text-align: left;
   border-top: 1px solid var(--line); background: var(--bg); cursor: pointer; font-size: 12px; font-weight: 600; }
@@ -99,18 +128,20 @@ section.panel { background: var(--panel); border: 1px solid var(--line); border-
 .ev.flash { animation: flash 2.5s ease-out; }
 @keyframes flash { from { background: var(--flash); } to { background: transparent; } }
 /* Glow on message receipt. --glow is the color of the new state; keep the duration in sync with GLOW_MS in the JS */
-.glow { --glow: var(--accent); animation: glow var(--glow-ms, 6s) ease-out both; position: relative; z-index: 1; }
+.glow { --glow: var(--accent); animation: glow var(--glow-ms, 6s) ease-in-out both; position: relative; z-index: 1; border-radius: 8px; }
+/* Breathe: three bright peaks, each falling back to a faint halo, then fade out. The halo itself pulses;
+   a constant outline would read as a static highlight. */
 @keyframes glow {
-  0%   { box-shadow: 0 0 0 2px var(--glow), 0 0 22px 6px color-mix(in srgb, var(--glow) 55%, transparent); }
-  15%  { box-shadow: 0 0 0 2px var(--glow), 0 0 14px 3px color-mix(in srgb, var(--glow) 40%, transparent); }
-  30%  { box-shadow: 0 0 0 2px var(--glow), 0 0 22px 6px color-mix(in srgb, var(--glow) 55%, transparent); }
-  75%  { box-shadow: 0 0 0 1px color-mix(in srgb, var(--glow) 60%, transparent), 0 0 10px 2px color-mix(in srgb, var(--glow) 25%, transparent); }
-  100% { box-shadow: 0 0 0 0 transparent, 0 0 0 0 transparent; }
+  0%, 30%, 60% { box-shadow: 0 0 0 1.5px var(--glow), 0 0 14px 4px color-mix(in srgb, var(--glow) 75%, transparent),
+    0 0 36px 12px color-mix(in srgb, var(--glow) 45%, transparent), inset 0 0 22px color-mix(in srgb, var(--glow) 30%, transparent); }
+  15%, 45%, 75% { box-shadow: 0 0 0 1px color-mix(in srgb, var(--glow) 30%, transparent), 0 0 6px 1px color-mix(in srgb, var(--glow) 25%, transparent),
+    0 0 12px 2px color-mix(in srgb, var(--glow) 12%, transparent), inset 0 0 8px color-mix(in srgb, var(--glow) 8%, transparent); }
+  100% { box-shadow: 0 0 0 0 transparent, 0 0 0 0 transparent, 0 0 0 0 transparent, inset 0 0 0 transparent; }
 }
-.ev.glow { border-radius: 6px; background: color-mix(in srgb, var(--glow) 8%, transparent); }
-.lanes .laneglow { animation: laneglow var(--glow-ms, 6s) ease-out both; pointer-events: none; }
-@keyframes laneglow { 0%, 30% { opacity: .35; } 100% { opacity: 0; } }
+.lanes .laneglow { animation: laneglow var(--glow-ms, 6s) ease-in-out both; pointer-events: none; }
+@keyframes laneglow { 0%, 30%, 60% { opacity: .45; } 15%, 45%, 75% { opacity: .12; } 100% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) {
+  @keyframes laneglow { 0%, 30% { opacity: .35; } 100% { opacity: 0; } }
   @keyframes glow { 0%, 75% { box-shadow: 0 0 0 2px var(--glow); } 100% { box-shadow: 0 0 0 0 transparent; } }
 }
 .ev time { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; padding-top: 1px; }
@@ -171,16 +202,22 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
   <button class="iconbtn" id="themeBtn" data-i18n="btn.theme" data-i18n-title="btn.themeTitle"></button>
 </header>
 
-<main>
+<main id="main">
   <section class="panel" aria-labelledby="sessionsTitle">
     <h2 id="sessionsTitle"><span data-i18n="sessions.title"></span> <span class="chip" id="clearSel" hidden style="cursor:pointer" data-i18n="sessions.clear"></span>
-      <button class="iconbtn" id="groupBtn" style="margin-left:auto;font-weight:400" data-i18n="btn.byProject" data-i18n-title="btn.byProjectTitle"></button></h2>
+      <button class="iconbtn" id="openPanel" hidden data-i18n="panel.openAll" data-i18n-title="panel.openAllTitle"></button>
+      <button class="iconbtn" id="groupBtn" data-i18n="btn.byProject" data-i18n-title="btn.byProjectTitle"></button>
+      <span class="seg" role="group" data-i18n-aria="layout.aria">
+        <button data-layout="list" data-i18n="layout.list"></button>
+        <button data-layout="grid" data-i18n="layout.grid"></button>
+      </span></h2>
     <div id="sessions"></div>
   </section>
 
-  <section class="panel" aria-labelledby="tlTitle">
+  <section class="panel" id="detail" tabindex="-1" aria-labelledby="tlTitle">
     <h2 id="tlTitle"><span id="tlName"></span> <span class="chip" id="tlScope"></span>
-      <button class="iconbtn danger" id="deleteSession" hidden data-i18n="sessions.delete" data-i18n-title="sessions.deleteTitle"></button></h2>
+      <button class="iconbtn danger" id="deleteSession" hidden data-i18n="sessions.delete" data-i18n-title="sessions.deleteTitle"></button>
+      <button class="iconbtn" id="closePanel" hidden data-i18n-aria="panel.close" data-i18n-title="panel.close">✕</button></h2>
     <div class="toolbar">
       <div class="tabs" role="tablist">
         <button role="tab" aria-selected="true" data-view="feed" data-i18n="tab.feed"></button>
@@ -230,6 +267,9 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
       "sessions.deleteConfirm": "Delete all {n} messages of \"{name}\"? This cannot be undone.",
       "sessions.deleteConfirm_one": "Delete the 1 message of \"{name}\"? This cannot be undone.",
       "sessions.deleteFailed": "Could not delete the session: {error}",
+      "layout.aria": "Layout of the session list", "layout.list": "List", "layout.grid": "Grid",
+      "panel.openAll": "All sessions", "panel.openAllTitle": "Open the timeline of every session",
+      "panel.close": "Close the panel (Esc)",
       "tl.title": "Timeline", "tl.all": "All", "tab.feed": "Feed", "tab.lanes": "Swimlanes",
       "filter.sessionAria": "Filter by session", "filter.allSessions": "All sessions",
       "filter.searchAria": "Search", "filter.textFeed": "Search summaries, questions, and answers",
@@ -282,6 +322,9 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
       "sessions.delete": "セッションを削除", "sessions.deleteTitle": "このセッションの保存済みメッセージをすべて削除",
       "sessions.deleteConfirm": "「{name}」のメッセージ {n} 件をすべて削除しますか？この操作は取り消せません。",
       "sessions.deleteFailed": "セッションを削除できませんでした: {error}",
+      "layout.aria": "セッション一覧の表示形式", "layout.list": "リスト", "layout.grid": "グリッド",
+      "panel.openAll": "すべてのセッション", "panel.openAllTitle": "すべてのセッションのタイムラインを開く",
+      "panel.close": "パネルを閉じる（Esc）",
       "tl.title": "タイムライン", "tl.all": "すべて", "tab.feed": "フィード", "tab.lanes": "スイムレーン",
       "filter.sessionAria": "セッションで絞り込み", "filter.allSessions": "すべてのセッション",
       "filter.searchAria": "検索", "filter.textFeed": "要約・質問・回答を検索",
@@ -409,11 +452,13 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     fresh: new Set(), unseen: 0, notify: false,
     colGroups: {}, showObsolete: false,
     byProject: true, collapsed: new Set(),
+    layout: "list", panelOpen: false, // panelOpen matters in the grid layout alone
   };
   const prevStates = new Map();
   try { ui.byProject = localStorage.getItem("hub.byProject") !== "0"; } catch (_) {}
   try { ui.collapsed = new Set(JSON.parse(localStorage.getItem("hub.collapsed") || "[]")); } catch (_) {}
   try { ui.notify = localStorage.getItem("hub.notify") === "1"; } catch (_) {}
+  try { if (localStorage.getItem("hub.layout") === "grid") ui.layout = "grid"; } catch (_) {}
 
   // ---- Display utilities ----
   // States in which a child session is doing work (excludes pure waiting, such as waiting for CI)
@@ -485,7 +530,7 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     if (ui.byProject) {
       for (const [key, list] of projectGroups()) {
         box.append(projectHeader(key, list));
-        if (!ui.collapsed.has(key)) for (const s of list) box.append(sessionCard(s));
+        if (!ui.collapsed.has(key)) box.append(el("div", { class: "cards" }, list.map(sessionCard)));
       }
       return;
     }
@@ -496,7 +541,7 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
       const list = db.sessions.filter(pred);
       if (!list.length) continue;
       box.append(el("div", { class: "group-title" }, `${title} (${list.length})`));
-      for (const s of list) box.append(sessionCard(s));
+      box.append(el("div", { class: "cards" }, list.map(sessionCard)));
     }
   }
 
@@ -516,9 +561,9 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
       el("span", { "data-ago": s.heartbeat }, ago(s.heartbeat)),
     ];
     const card = el("div", glowProps([glowKey.session(s.session_id)], {
-      class: "card" + (ui.session === s.session_id ? " selected" : ""), tabindex: "0", role: "button",
+      class: "card" + (ui.session === s.session_id ? " selected" : ""), tabindex: "0", role: "button", "data-sid": s.session_id,
       "aria-label": t("card.showTimeline", { name: s.title || s.session_id }),
-      onclick: () => selectSession(ui.session === s.session_id ? "" : s.session_id),
+      onclick: () => toggleCard(s.session_id),
       onkeydown: (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); card.click(); } },
     }),
       el("div", { class: "row1" },
@@ -643,6 +688,7 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
   // ---- Timeline (swimlanes) ----
   function renderLanes() {
     const box = $("lanes");
+    const boxW = box.clientWidth; // Measure before clearing, or the layout of the empty box resets the scroll
     box.replaceChildren();
     const sessions = db.sessions.filter((s) => !ui.session || s.session_id === ui.session);
     const all = [...db.events.values()];
@@ -650,7 +696,7 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     const times = all.map((e) => Date.parse(e.ts));
     const t0 = Math.min(...times), t1 = Math.max(Date.now(), Math.max(...times));
     const labelW = 160, laneH = 30, top = 22;
-    const width = Math.max(560, box.clientWidth - 4);
+    const width = Math.max(560, boxW - 4);
     const plotW = width - labelW - 10;
     const x = (t) => labelW + ((t - t0) / Math.max(1, t1 - t0)) * plotW;
     const NS = "http://www.w3.org/2000/svg";
@@ -754,7 +800,8 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     sel.value = cur;
     $("tlScope").textContent = ui.session ? sessionName(ui.session) : t("tl.all");
     $("groupBtn").setAttribute("aria-pressed", String(ui.byProject));
-    $("clearSel").hidden = !ui.session;
+    // In the grid layout, closing the panel clears the selection
+    $("clearSel").hidden = !ui.session || ui.layout === "grid";
     // Deleting needs the live hub, so a static export never shows the button
     $("deleteSession").hidden = !ui.session || !!EMBEDDED;
   }
@@ -773,6 +820,59 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     $("fSession").value = sid;
     render();
   }
+
+  // ---- Layout (list or grid) and the detail panel of the grid ----
+  function toggleCard(sid) {
+    const same = ui.session === sid;
+    if (ui.layout !== "grid") return selectSession(same ? "" : sid);
+    if (same && ui.panelOpen) return closePanel();
+    openPanel(sid);
+  }
+
+  function openPanel(sid) {
+    ui.panelOpen = true;
+    $("detail").classList.add("slide");
+    clearUnseen();
+    applyLayout();
+    selectSession(sid);
+    $("detail").scrollTop = 0;
+    $("detail").focus({ preventScroll: true });
+  }
+
+  function closePanel() {
+    const sid = ui.session;
+    ui.panelOpen = false;
+    $("detail").classList.add("slide");
+    clearUnseen();
+    applyLayout();
+    selectSession("");
+    const card = [...document.querySelectorAll(".card")].find((c) => c.dataset.sid === sid);
+    (card || $("openPanel")).focus({ preventScroll: true });
+  }
+
+  function applyLayout() {
+    const grid = ui.layout === "grid";
+    $("main").classList.toggle("grid", grid);
+    $("detail").classList.toggle("open", grid && ui.panelOpen);
+    $("detail").inert = grid && !ui.panelOpen;
+    $("openPanel").hidden = $("closePanel").hidden = !grid;
+    document.querySelectorAll("[data-layout]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.layout === ui.layout)));
+  }
+
+  function setLayout(layout) {
+    ui.layout = layout;
+    $("detail").classList.remove("slide");
+    ui.panelOpen = layout === "grid" && !!ui.session; // Keep showing the selected session
+    try { localStorage.setItem("hub.layout", layout); } catch (_) {}
+    clearUnseen();
+    applyLayout();
+    render();
+  }
+
+  // The panel scrolls on its own in the grid layout; the window scrolls in the list layout.
+  const scrollPos = () => (ui.layout === "grid" ? $("detail").scrollTop : window.scrollY);
+  const timelineShown = () => ui.layout !== "grid" || ui.panelOpen;
+  function clearUnseen() { ui.unseen = 0; $("newbar").classList.remove("show"); }
 
   function setView(v) {
     if (v.startsWith("col:") && !db.collections[v.slice(4)]) v = "feed";
@@ -921,14 +1021,16 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     ui.fresh = new Set(fresh.map((e) => e.id));
     for (const e of fresh) {
       if (e.type === "heartbeat") continue; // Do not glow for automatic hook sends
-      const color = css((STATE[e.state_after] || [0, "--accent"])[1]) || css("--accent");
+      // The grey of a queued or done session reads as a plain shadow, so those glow in the accent color
+      const name = (STATE[e.state_after] || [0, "--accent"])[1];
+      const color = css(["--s-queue", "--s-done"].includes(name) ? "--accent" : name) || css("--accent");
       markGlow(glowKey.event(e.id), color);
       markGlow(glowKey.session(e.session_id), color);
     }
     applySessions(u, false);
     // While the reader is scrolled down, announce new items in the new-items bar instead of moving the view
     const visible = fresh.filter((e) => e.type !== "heartbeat" || ui.heartbeat);
-    if (visible.length && window.scrollY > 200 && !ui.asc) {
+    if (visible.length && timelineShown() && scrollPos() > 200 && !ui.asc) {
       ui.unseen += visible.length;
       $("newbarText").textContent = t("newbar", { n: ui.unseen });
       $("newbar").classList.add("show");
@@ -941,7 +1043,15 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     const live = new Set(db.sessions.map((s) => s.session_id));
     for (const sid of [...prevStates.keys()]) if (!live.has(sid)) prevStates.delete(sid);
     // Another viewer may delete the selected session; fall back to showing every session
-    if (ui.session && !live.has(ui.session)) { ui.session = ""; $("fSession").value = ""; }
+    if (ui.session && !live.has(ui.session)) {
+      ui.session = ""; $("fSession").value = "";
+      // The focus is on <body> when the delete button, disabled during its request, held it
+      const focused = document.activeElement;
+      const refocus = ui.layout === "grid" && ui.panelOpen && (focused === document.body || $("detail").contains(focused));
+      ui.panelOpen = false;
+      applyLayout();
+      if (refocus) $("openPanel").focus({ preventScroll: true });
+    }
     db.total = snap.total || {};
     if (snap.collections) db.collections = snap.collections;
     db.generated_at = snap.generated_at;
@@ -1024,7 +1134,7 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
         throw new Error(msg);
       }
       // The update message that follows removes the session's events, card, and collection entries
-      selectSession("");
+      if (ui.session === sid) { if (ui.layout === "grid") closePanel(); else selectSession(""); }
     } catch (err) {
       alert(t("sessions.deleteFailed", { error: err.message }));
     } finally {
@@ -1076,9 +1186,31 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
   applyStaticText();
   renderTypeFilters();
   $("newbar").addEventListener("click", () => {
-    ui.unseen = 0; $("newbar").classList.remove("show"); window.scrollTo({ top: 0, behavior: "smooth" });
+    clearUnseen();
+    (ui.layout === "grid" ? $("detail") : window).scrollTo({ top: 0, behavior: "smooth" });
   });
-  window.addEventListener("scroll", () => { if (window.scrollY < 100 && ui.unseen) { ui.unseen = 0; $("newbar").classList.remove("show"); } });
+  for (const target of [window, $("detail")]) {
+    target.addEventListener("scroll", () => { if (scrollPos() < 100 && ui.unseen) clearUnseen(); });
+  }
+  document.querySelectorAll("[data-layout]").forEach((b) => b.addEventListener("click", () => setLayout(b.dataset.layout)));
+  $("openPanel").addEventListener("click", () => openPanel(""));
+  $("closePanel").addEventListener("click", closePanel);
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape" || e.isComposing || ui.layout !== "grid" || !ui.panelOpen) return;
+    if (e.target === $("fText") && e.target.value) { // Clear the search field first; not every browser does it
+      e.preventDefault();
+      clearTimeout(textTimer);
+      e.target.value = ui.text = "";
+      render();
+      return;
+    }
+    closePanel();
+  });
+  // The panel starts below the sticky header, whose height changes when it wraps
+  const measureHeader = () => document.documentElement.style.setProperty("--header-h", document.querySelector("header").offsetHeight + "px");
+  measureHeader();
+  if ("ResizeObserver" in window) new ResizeObserver(measureHeader).observe(document.querySelector("header"));
+  applyLayout();
   $("notifyBtn").setAttribute("aria-pressed", String(ui.notify));
   $("notifyBtn").addEventListener("click", async () => {
     if (!ui.notify && "Notification" in window && Notification.permission !== "granted") {
