@@ -92,5 +92,5 @@ stay unchanged. The new labels live in the `MESSAGES` table in English and Japan
 
 ## References
 
-- [`session_hub/templates/dashboard.html`](../session_hub/templates/dashboard.html) — the dashboard.
-- [`docs/DESIGN.md`](../docs/DESIGN.md) §5.2 — the screen layout.
+- [`session_hub/templates/dashboard.html`](../../session_hub/templates/dashboard.html) — the dashboard.
+- [`docs/DESIGN.md`](../../docs/DESIGN.md) §5.2 — the screen layout.
