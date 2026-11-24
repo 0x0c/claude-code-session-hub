@@ -7,9 +7,9 @@
 |---|---|
 | Proposal | SH-XXXX |
 | Author | [@0x0c](https://github.com/0x0c) |
-| Status | **In progress** |
+| Status | **Implemented** |
 | Topic | Developer workflow |
-| Implementing PR | — |
+| Implementing PR | [#46](https://github.com/0x0c/claude-code-session-hub/pull/46) |
 | Related | — |
 <!-- /SH-METADATA -->
 
@@ -107,7 +107,7 @@ The job reports a secret after the push, so a secret that bypassed the hooks mus
 
 ## Progress
 
-- [ ] Design approved
+- [x] Design approved
 - [x] Implementation with tests
 - [x] Documentation updated (README.md, AGENTS.md)
 
