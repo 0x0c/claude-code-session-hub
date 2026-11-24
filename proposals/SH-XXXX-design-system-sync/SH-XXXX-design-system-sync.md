@@ -48,7 +48,7 @@ A script cannot reach the artifact, so an agent reads the page into the live fol
 
 A conflict stops the plan with exit code 2. `--overwrite <path>` resolves it in favor of the repository. Files that we never published are left alone. The page's index changes with a publish alone, and keeps every key but `lastChange`.
 
-The build contains no time stamp and stops with an error in three cases: a token has no description or a description has no token, a preview uses a class that the dashboard does not have, or the stylesheet changed shape. The test suite runs the build, so a change to the dashboard that breaks the sync fails the gate.
+The build contains no time stamp and stops with an error in four cases: a token has no description or a description has no token, a type style uses a font size that the stylesheet does not define or leaves one out, a preview uses a class that the dashboard does not have, or the stylesheet changed shape. The test suite runs the build, so a change to the dashboard that breaks the sync fails the gate.
 
 ## Alternatives considered
 
