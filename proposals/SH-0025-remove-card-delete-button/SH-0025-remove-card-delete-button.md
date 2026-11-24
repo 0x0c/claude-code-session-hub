@@ -1,11 +1,11 @@
-**English** · [日本語](SH-XXXX-remove-card-delete-button.ja.md)
+**English** · [日本語](SH-0025-remove-card-delete-button.ja.md)
 
-# SH-XXXX — Remove the delete button from session cards
+# SH-0025 — Remove the delete button from session cards
 
 <!-- SH-METADATA -->
 | Field | Value |
 |---|---|
-| Proposal | SH-XXXX |
+| Proposal | SH-0025 |
 | Author | [@0x0c](https://github.com/0x0c) |
 | Status | **Implemented** |
 | Topic | Dashboard |
