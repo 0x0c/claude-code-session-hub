@@ -1,11 +1,11 @@
-[English](SH-XXXX-archived-by-project.md) · **日本語**
+[English](SH-0028-archived-by-project.md) · **日本語**
 
-# SH-XXXX — アーカイブ済みのセッションのプロジェクト別のグルーピング
+# SH-0028 — アーカイブ済みのセッションのプロジェクト別のグルーピング
 
 <!-- SH-METADATA -->
 | 項目 | 値 |
 |---|---|
-| 提案 | SH-XXXX |
+| 提案 | SH-0028 |
 | 作者 | [@0x0c](https://github.com/0x0c) |
 | 状態 | **Implemented** |
 | トピック | Dashboard |

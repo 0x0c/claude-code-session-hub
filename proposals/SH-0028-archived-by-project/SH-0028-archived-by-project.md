@@ -1,11 +1,11 @@
-**English** · [日本語](SH-XXXX-archived-by-project.ja.md)
+**English** · [日本語](SH-0028-archived-by-project.ja.md)
 
-# SH-XXXX — Group archived sessions by project
+# SH-0028 — Group archived sessions by project
 
 <!-- SH-METADATA -->
 | Field | Value |
 |---|---|
-| Proposal | SH-XXXX |
+| Proposal | SH-0028 |
 | Author | [@0x0c](https://github.com/0x0c) |
 | Status | **Implemented** |
 | Topic | Dashboard |
