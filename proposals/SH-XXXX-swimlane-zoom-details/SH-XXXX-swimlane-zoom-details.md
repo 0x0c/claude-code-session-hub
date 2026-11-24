@@ -7,9 +7,9 @@
 |---|---|
 | Proposal | SH-XXXX |
 | Author | [@0x0c](https://github.com/0x0c) |
-| Status | **In progress** |
+| Status | **Implemented** |
 | Topic | Dashboard |
-| Implementing PR | — |
+| Implementing PR | [#33](https://github.com/0x0c/claude-code-session-hub/pull/33) |
 | Related | — |
 <!-- /SH-METADATA -->
 
@@ -70,8 +70,8 @@ The change touches the dashboard page and its playbook alone. It adds no event a
 ## Progress
 
 - [x] Design approved
-- [ ] Implementation with tests, checked in a browser
-- [ ] Documentation updated (docs/DESIGN.md)
+- [x] Implementation with tests, checked in a browser
+- [x] Documentation updated (docs/DESIGN.md)
 
 ## References
 
