@@ -85,6 +85,16 @@ class DashboardTest(unittest.TestCase):
         self.assertIn('if (openRows.has(row.id)) row.querySelector("details").open = true;', after)
         self.assertNotIn("ontoggle", PAGE)  # a toggle event fires late, even for a replaced row
 
+    def test_type_filter_is_a_popover_with_its_own_escape(self):
+        self.assertRegex(PAGE, r'id="typesBtn" type="button" aria-expanded="false" aria-controls="fTypes"')
+        self.assertRegex(PAGE, r'id="fTypes" popover="manual" role="group" data-i18n-aria="filter.typesAria"')
+        self.assertIn('el("input", { type: "checkbox", checked: ui.types.has(type)', PAGE)
+        self.assertIn('if (isCol) closeTypes();\n    $("typesBtn").hidden = isCol;', PAGE)
+        self.assertIn('if ($("detail").inert) closeTypes();', PAGE)
+        escape = re.search(r'!typesOpen\(\)\) return;\n\s+e\.preventDefault\(\);(.*?)\}, true\);', PAGE, re.S)[1]
+        for call in ("e.stopPropagation();", "closeTypes();", '$("typesBtn").focus('):
+            self.assertIn(call, escape)
+
 
 class DesignTokenTest(unittest.TestCase):
     def setUp(self):
