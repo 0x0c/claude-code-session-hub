@@ -33,11 +33,13 @@ PY
 [ -n "$HUB_TOKEN" ] && export HUB_TOKEN
 HUB_STORE="${HUB_STORE:-$HOME/.session-hub}"
 export HUB_STORE
-PORT="$(printf '%s' "${HUB_URL:-http://127.0.0.1:8765}" | sed -nE 's#^[a-z]+://[^/:]+:([0-9]+).*#\1#p')"
+# Parse the port the way the hooks do (urllib), so IPv6 hosts and uppercase schemes work too.
+PORT="$(python3 -c 'import sys, urllib.parse; print(urllib.parse.urlsplit(sys.argv[1]).port or "")' "${HUB_URL:-http://127.0.0.1:8765}" 2>/dev/null)"
 PORT="${PORT:-8765}"
 BASE="http://127.0.0.1:$PORT"
 PAGE="$BASE/"
-[ -n "$HUB_TOKEN" ] && PAGE="$BASE/?token=$HUB_TOKEN"
+# Percent-encode the token: the server decodes it with parse_qs, where "+" means a space.
+[ -n "$HUB_TOKEN" ] && PAGE="$BASE/?token=$(python3 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=""))' "$HUB_TOKEN")"
 
 healthy() { curl -fsS -m 1 "$BASE/healthz" >/dev/null 2>&1; }
 
