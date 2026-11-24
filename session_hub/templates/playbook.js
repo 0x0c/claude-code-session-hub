@@ -87,6 +87,13 @@
         gate: ["ci"], gate_codes: [{ code: "ci", value: "unknown" }] })), "narrow"],
       ["Blocking question", () => sessionCard(pbSession("needs_human", { attention: pbAsk(true) })), "narrow"],
       ["Non-blocking question", () => sessionCard(pbSession("working", { attention: pbAsk(false) })), "narrow"],
+      // The static page omits the delete button, so the story adds it
+      ["Delete button", () => {
+        const wrap = sessionCard(pbSession("working"));
+        wrap.classList.add("deletable");
+        wrap.append(el("button", { class: "carddel", type: "button", "aria-label": t("sessions.delete") }, "×"));
+        return wrap;
+      }, "narrow"],
       ["Pull request", () => sessionCard(pbSession("waiting_ci", { pr: { number: 45, ci: "pending", unresolved_threads: 2 } })), "narrow"],
       ["Long title", () => sessionCard(pbSession("working", { title: pbText("long") })), "narrow"],
       ["Minimal", () => sessionCard({ session_id: "pb-minimal", state: "queued", heartbeat: pbAt(1) }), "narrow"],
@@ -162,8 +169,9 @@
     ["Glow", [
       ["On a card (restarts when the page redraws)", () => {
         const card = sessionCard(pbSession("needs_human"));
-        card.classList.add("glow");
-        card.style.setProperty("--glow", css("--s-needs"));
+        const body = card.querySelector(".card");
+        body.classList.add("glow");
+        body.style.setProperty("--glow", css("--s-needs"));
         return card;
       }, "narrow"],
       ["On a timeline row", () => pbWith({ sessions: pbKnown() }, () => {
