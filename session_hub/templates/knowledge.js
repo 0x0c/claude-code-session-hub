@@ -67,9 +67,11 @@
       const r = await fetch("api/snapshot", { cache: "no-store" });
       if (!r.ok) throw r.status;
       const snap = await r.json();
-      knCol = (snap.collections || {}).knowledge || { items: [] };
+      const col = (snap.collections || {}).knowledge || { items: [] };
+      const same = knCol !== null && JSON.stringify(col) === JSON.stringify(knCol);
+      knCol = col;
       knFailed = null;
-      knRender();
+      if (!same) knRender(); // a redraw would drop the reader's focus and selection; the ago labels refresh on their own
     } catch (e) { // keep the last page after a first success; the next tick tries again
       if (knCol) return;
       knFailed = typeof e === "number" ? e : 0;
