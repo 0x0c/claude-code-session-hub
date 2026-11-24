@@ -21,7 +21,7 @@ The hub serves a page at `/knowledge` that summarizes the knowledge collection: 
 
 The dashboard's knowledge tab lists every finding as a card. It answers "what do we know?" item by item, but a reader who wants the shape of the knowledge base has to scroll through all of it. The cards also share the screen with the session list and the timeline, so the tab suits working beside the sessions, not reading.
 
-Once the change ships, one page shows the counts, the findings that several sessions reported, the open issues, and the latest additions, and every finding links back to the dashboard.
+Once the change ships, one page shows the counts, the findings that several sessions reported, the open issues, and the most recently reported findings, and every finding links back to the dashboard.
 
 ## Detailed design
 
