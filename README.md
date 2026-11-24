@@ -77,7 +77,9 @@ flowchart LR
    escalation notice for four transitions alone: needs a human, ready for review, failed, or done.
 
 The knowledge tab gathers what sub-sessions learned. When two sessions report the same caveat, the
-dashboard shows one card that lists both reporters.
+dashboard shows one card that lists both reporters. The **Knowledge summary** page (`/knowledge`, linked
+from the header) counts the items by kind and lists the open issues, the items that several sessions
+reported, the latest items, and the tags.
 
 ![The knowledge tab: findings grouped into caveats, open issues, decisions, how-tos, and insights](docs/images/knowledge-en.png)
 

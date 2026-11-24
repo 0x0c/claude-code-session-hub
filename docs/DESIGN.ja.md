@@ -357,6 +357,7 @@ push型では、子が報告するまでダッシュボードは古いままで�
 | `session-hub serve`のダッシュボード | 人間向け。pushを受けるたびに反映します（SSE） |
 | `session-hub export --out dashboard.html` | スナップショットを埋め込んだ単体のHyperText Markup Language（HTML）ファイル（共有と保管用。更新はしません） |
 | `GET /guide`（ヘッダーの **ステータスの説明** リンク） | 各ステータスと状態の意味の一覧 |
+| `GET /knowledge`（ヘッダーの **ナレッジのまとめ** リンク） | ナレッジコレクションの種別ごとの件数、未解決の問題、複数のセッションが報告した項目、最新の項目、タグ |
 | `GET /playbook`（ヘッダーの **Playbook** リンク） | ダッシュボードのすべての部品を、サンプルデータで状態ごとに一覧 |
 | **デザインシステム** リンク（`HUB_DESIGN_SYSTEM_URL`を設定したとき、ヘッダーとPlaybookのメニューに表示） | デザインシステムのページを新しいタブで表示 |
 | `GET /api/snapshot` | 機械向けのJSON |
@@ -449,12 +450,14 @@ claude-code-session-hub/
     usage.py              トランスクリプトからのトークン集計
     playbook.py           Playbookのページ
     guide.py              ステータスの説明のページ
+    knowledge.py          ナレッジのまとめのページ
     session_name.py       トランスクリプトからのセッション名の読み取り
     pr_link.py            トランスクリプトからのPRの読み取り
     cli.py                session-hubコマンド
     templates/dashboard.html
     templates/playbook.{js,css}
     templates/guide.{js,css}
+    templates/knowledge.{js,css}
   bin/session-hub         インストール不要のラッパー
   .claude-plugin/         Claude Codeのプラグイン定義（plugin.json, marketplace.json）
   apm.yml                 APM用のメタデータのみ（.apm/も依存も置かないので、APMはプラグインの構成をそのまま配布する）

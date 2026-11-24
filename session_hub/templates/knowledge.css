@@ -1,0 +1,19 @@
+/* The knowledge summary page's own layout. Every class starts with kn-. */
+/* The dashboard's split layout fixes the page to the window; this page scrolls */
+body { height: auto !important; display: block !important; overflow: auto !important; }
+header h1 { margin-right: auto; }
+.kn-home { color: inherit; text-decoration: none; }
+.kn-home:hover { color: var(--accent); }
+.kn-main { max-width: 900px; margin: 0 auto; padding: var(--space-16); display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-16); }
+.kn-main > h2 { font-size: var(--fs-title); margin: 0; }
+.kn-totals { display: flex; flex-wrap: wrap; gap: var(--space-10); }
+.kn-total { border: 1px solid var(--line); border-left: 4px solid var(--kn-c, var(--s-queue)); border-radius: var(--radius-lg); padding: var(--space-8) var(--space-14); background: var(--panel); }
+.kn-total b { display: block; font-size: var(--fs-title); }
+.kn-total span { font-size: var(--fs-meta); color: var(--muted); }
+.kn-list { list-style: none; margin: 0; padding: var(--space-8) var(--space-14); display: grid; gap: var(--space-8); }
+.kn-list li { display: flex; flex-wrap: wrap; gap: var(--space-8); align-items: baseline; }
+.kn-list a { color: inherit; font-weight: var(--fw-strong); overflow-wrap: anywhere; }
+.kn-list a:hover { color: var(--accent); }
+.kn-meta { font-size: var(--fs-meta); color: var(--muted); }
+.kn-tags { display: flex; flex-wrap: wrap; gap: var(--space-6); padding: var(--space-8) var(--space-14); }
+.kn-empty { padding: var(--space-8) var(--space-14); color: var(--muted); }

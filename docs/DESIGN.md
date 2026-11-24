@@ -433,6 +433,7 @@ label, it gives the English label and the Japanese label in parentheses.
 | The dashboard of `session-hub serve` | For humans. Reflects each push as it arrives (SSE) |
 | `session-hub export --out dashboard.html` | A standalone HyperText Markup Language (HTML) file with an embedded snapshot (for sharing and archiving; does not update) |
 | `GET /guide` (the **Status guide** link in the header) | What each status and state means |
+| `GET /knowledge` (the **Knowledge summary** link in the header) | Counts of the knowledge collection by kind, open issues, items that several sessions reported, the latest items, and tags |
 | `GET /playbook` (the **Playbook** link in the header) | Every dashboard component in every state, drawn from sample data |
 | The **Design system** link (in the header and the Playbook's menu, when `HUB_DESIGN_SYSTEM_URL` is set) | The design system page, in a new tab |
 | `GET /api/snapshot` | JSON for machines |
@@ -579,12 +580,14 @@ claude-code-session-hub/
     usage.py              Token totals from the transcript
     playbook.py           The playbook page
     guide.py              The status guide page
+    knowledge.py          The knowledge summary page
     session_name.py       The session's name from the transcript
     pr_link.py            The session's linked PR from the transcript
     cli.py                The session-hub command
     templates/dashboard.html
     templates/playbook.{js,css}
     templates/guide.{js,css}
+    templates/knowledge.{js,css}
   bin/session-hub         Wrapper that needs no installation
   .claude-plugin/         Claude Code plugin definition (plugin.json, marketplace.json)
   apm.yml                 APM metadata alone (no .apm/ or dependencies, so APM distributes the plugin layout as is)
