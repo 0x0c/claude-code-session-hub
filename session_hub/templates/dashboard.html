@@ -1003,7 +1003,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
         help("state." + stateKey(s))),
       el("div", { class: "meta" }, meta),
       s.summary ? el("div", { class: "summary" }, s.summary) : null,
-      p.total && s.state !== "done" ? el("div", { class: "progress", "aria-hidden": "true" }, el("i", { style: { width: pct + "%" } })) : null,
+      p.total && s.state !== "done" && !s.archived ? el("div", { class: "progress", "aria-hidden": "true" }, el("i", { style: { width: pct + "%" } })) : null,
     );
     const a = s.attention;
     if (a && !s.archived) {

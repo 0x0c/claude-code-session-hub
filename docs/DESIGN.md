@@ -464,7 +464,7 @@ label, it gives the English label and the Japanese label in parentheses.
     sub-session's card links to its parent (↳). A parent's card shows the number of its sub-sessions.
   - A `?` icon follows each status label in a group heading and the state badge on each card. Hovering
     over the icon, or tapping it, shows what the label means.
-  - Each card shows a state badge, a task progress bar (hidden in the `done` state), the remaining work, the PR and CI, the
+  - Each card shows a state badge, a task progress bar (hidden in the `done` state and on archived sessions), the remaining work, the PR and CI, the
     tokens and cost, the last update, and any unanswered question (with its options, its default,
     and the command to answer it). The PR number on the card, in the title of the selected session's
     timeline, and on the timeline's PR/CI rows links to the PR when its address is known.
