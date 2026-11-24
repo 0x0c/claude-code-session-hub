@@ -1,11 +1,11 @@
-**English** · [日本語](SH-XXXX-swimlane-zoom-details.ja.md)
+**English** · [日本語](SH-0020-swimlane-zoom-details.ja.md)
 
-# SH-XXXX — Zoom the swimlanes and list their details in a table
+# SH-0020 — Zoom the swimlanes and list their details in a table
 
 <!-- SH-METADATA -->
 | Field | Value |
 |---|---|
-| Proposal | SH-XXXX |
+| Proposal | SH-0020 |
 | Author | [@0x0c](https://github.com/0x0c) |
 | Status | **Implemented** |
 | Topic | Dashboard |

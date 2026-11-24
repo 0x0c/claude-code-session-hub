@@ -1,11 +1,11 @@
-[English](SH-XXXX-swimlane-zoom-details.md) · **日本語**
+[English](SH-0020-swimlane-zoom-details.md) · **日本語**
 
-# SH-XXXX — スイムレーンの拡大縮小と詳細の表
+# SH-0020 — スイムレーンの拡大縮小と詳細の表
 
 <!-- SH-METADATA -->
 | 項目 | 値 |
 |---|---|
-| 提案 | SH-XXXX |
+| 提案 | SH-0020 |
 | 作者 | [@0x0c](https://github.com/0x0c) |
 | 状態 | **Implemented** |
 | トピック | Dashboard |
