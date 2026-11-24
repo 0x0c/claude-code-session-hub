@@ -7,9 +7,9 @@
 |---|---|
 | Proposal | SH-XXXX |
 | Author | [@0x0c](https://github.com/0x0c) |
-| Status | **In progress** |
+| Status | **Implemented** |
 | Topic | Developer workflow |
-| Implementing PR | — |
+| Implementing PR | [#27](https://github.com/0x0c/claude-code-session-hub/pull/27) |
 | Related | — |
 <!-- /SH-METADATA -->
 
@@ -57,7 +57,7 @@ The stories for states and event types iterate over the dashboard's own `STATE_C
 
 ## Progress
 
-- [ ] Design approved
+- [x] Design approved
 - [x] Implementation with tests
 - [x] Documentation updated (AGENTS.md, docs/DESIGN.md)
 

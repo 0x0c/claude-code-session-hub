@@ -52,7 +52,7 @@
     finally { Object.assign(db, saved); Object.assign(ui, state); }
   }
   const pbEvents = (list) => new Map(list.map((e) => [e.id, e]));
-  const pbProjects = () => [pbSession("needs_human", { repo: "api", needs_action: true, attention: pbAsk(true) }), pbSession("working")];
+  const pbProjects = () => [pbSession("needs_human", { needs_action: true, attention: pbAsk(true) }), pbSession("planning", { repo: "api" }), pbSession("working")];
   const pbKnown = () => [pbSession("working"), { ...pbSession("done"), title: pbText("other") }];
   const pbWith = (data, make) => { const saved = { ...db }; Object.assign(db, data); try { return make(); } finally { Object.assign(db, saved); } };
 
@@ -84,7 +84,7 @@
     ["ProjectHeading", [
       ["Expanded", () => pbCapture("sessions", { sessions: pbProjects() }, renderSessions, { byProject: true }), "narrow"],
       ["Collapsed", () => pbCapture("sessions", { sessions: pbProjects() }, () => {
-        ui.collapsed = new Set(projectGroups().map(([key]) => key));
+        ui.collapsed = new Set(projectGroups(db.sessions).map(([key]) => key));
         renderSessions();
       }, { byProject: true }), "narrow"],
     ]],
