@@ -48,6 +48,8 @@ Two event types join the protocol: `archive` and `unarchive`. The folded status 
 - A child's report clears the flag of a session archived by hand, because a hidden question would be
   lost. Heartbeats and hook reports do not clear the flag. A child's report never clears a flag that
   the app set; the app alone decides when such a session comes back.
+- While the flag is set, no event prints a `[HUB/1]` line for the parent. A question that a child asks
+  after the app archived its session stays recorded, and appears once the user unarchives the session.
 
 The view treats an archived session as neither stale nor in need of action, and sorts it last. An
 earlier version of the hub skips lines with the new event types and shows such a session as before.

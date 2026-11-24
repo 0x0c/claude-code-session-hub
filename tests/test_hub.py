@@ -101,6 +101,17 @@ class ArchiveTest(TmpMixin, unittest.TestCase):
         self.assertTrue(after["needs_action"])
         self.assertEqual(after["attention"], before["attention"])
 
+    def test_archived_session_does_not_wake_the_parent(self):
+        ask = {"type": "ask", "attention": {"kind": "decision", "question": "?"}}
+        for writer, escalates in (("desktop", False), ("parent", True)):
+            self.store.delete_session("s")
+            self.store.append("s", {"type": "start", "state": "working"})
+            self.store.append("s", {"type": "archive"}, writer=writer)
+            res = core.record(self.store, "s", ask)
+            self.assertEqual(bool(res["escalate"]), escalates)  # The ask reopens a manual archive
+            self.assertEqual("archived" in res["message"], not escalates)
+            self.assertEqual(self.status()["needs_action"], escalates)
+
     def test_archived_session_is_never_stale(self):
         self.store.append("s", {"type": "start", "state": "working"})
         self.store.append("s", {"type": "archive"}, writer="parent")
