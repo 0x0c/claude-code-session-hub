@@ -37,7 +37,7 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import resources
 
-from . import collections, core, desktop, schema, view
+from . import client, collections, core, desktop, schema, view
 from .store import EventStore
 
 MAX_BODY = 64 * 1024
@@ -236,6 +236,13 @@ def dashboard_html() -> str:
     return resources.files("session_hub").joinpath("templates/dashboard.html").read_text(encoding="utf-8")
 
 
+def _is_local_host(host: str) -> bool:
+    try:
+        return client.is_loopback("//" + host)
+    except ValueError:  # Malformed, such as an unclosed "["
+        return False
+
+
 def make_handler(hub: Hub, token: str | None):
     class Handler(BaseHTTPRequestHandler):
         protocol_version = "HTTP/1.1"
@@ -251,6 +258,21 @@ def make_handler(hub: Hub, token: str | None):
             self.send_header("Cache-Control", "no-store")
             self.end_headers()
             self.wfile.write(data)
+
+        def parse_request(self) -> bool:
+            """Refuse a request for a foreign host name, whatever its method or path.
+
+            A page that points its own name at 127.0.0.1 (DNS rebinding) is same-origin with the hub, but
+            its requests still carry that name in Host. A token already keeps such a page out, and a hub
+            with a token may be reached under any name, so the check applies to a hub without one.
+            """
+            if not super().parse_request():
+                return False
+            if token or _is_local_host(self.headers.get("Host", "")):
+                return True
+            self.close_connection = True  # The unread body must not be parsed as the next request
+            self._send(403, _dumps({"error": "open the hub at 127.0.0.1 or localhost, or set HUB_TOKEN"}))
+            return False
 
         def _authorized(self) -> bool:
             """Authenticate by the Authorization header, a cookie, or ?token= (always allowed without a token)."""

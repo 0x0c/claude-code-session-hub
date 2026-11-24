@@ -42,6 +42,10 @@ class DashboardTest(unittest.TestCase):
         self.assertEqual(re.findall(r'<button data-layout="(\w+)"', PAGE), ["list", "grid"])
         self.assertIn('localStorage.getItem("hub.layout")', PAGE)
 
+    def test_grid_makes_room_for_the_open_panel(self):
+        self.assertIn("main.grid.withpanel { padding-right: calc(var(--detail-w) + var(--space-16)); }", PAGE)
+        self.assertRegex(PAGE, r'classList\.toggle\("withpanel", grid && ui\.panelOpen\)')
+
     def test_closed_grid_panel_is_inert(self):
         self.assertRegex(PAGE, r'\$\("detail"\)\.inert\s*=\s*grid\s*&&\s*!ui\.panelOpen\b')
 
@@ -56,6 +60,15 @@ class DashboardTest(unittest.TestCase):
         columns = re.search(r'\[([^\]]*)\]\.map\(\(c\) => el\("th", \{ scope: "col" \}', PAGE)[1]
         self.assertLessEqual({"lanes.col." + c for c in re.findall(r'"(\w+)"', columns)}, messages("ja"))
         self.assertLessEqual({"dur.sec", "dur.min", "dur.hour", "dur.day"}, messages("ja"))
+
+    def test_detail_view_links_the_pull_request(self):
+        self.assertRegex(PAGE, r'<a class="pr" id="tlPr" target="_blank" rel="noopener noreferrer" hidden>')
+        self.assertIn("link.hidden = !prUrl;", PAGE)
+        self.assertIn("const body = eventBody(e);", PAGE)
+        self.assertIn('el("div", { class: "text" }, body)', PAGE)
+        self.assertIn("p.url || (p.number && p.number === known.number ? known.url : null)", PAGE)
+        self.assertIn("if (!prWebUrl(pr)) return text;", PAGE)
+        self.assertIn('onkeydown: (e) => { if (e.key === "Enter" || e.key === " ") e.stopPropagation(); }', PAGE)
 
 
 class DesignTokenTest(unittest.TestCase):

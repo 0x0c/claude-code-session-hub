@@ -88,6 +88,12 @@
         ui.collapsed = new Set(sessionGroups(db.sessions).map(([key]) => key));
         renderSessions();
       }, { byProject: true }), "narrow"],
+      ["Status group collapsed", () => pbCapture("sessions", { sessions: [pbSession("working", { repo: "acme/app" }), pbSession("done", { repo: "acme/app" })] }, () => {
+        ui.collapsed = new Set([subKey("acme/app", "done")]);
+        renderSessions();
+      }, { byProject: true }), "narrow"],
+      ["Grid layout", () => el("main", { class: "grid", style: { padding: "0" } }, pbCapture("sessions", { sessions: [
+        pbSession("working", { repo: "acme/app" }), pbSession("done", { repo: "acme/app" })] }, renderSessions, { byProject: true }))],
     ]],
     ["SessionCard", [
       ...Object.keys(STATE_COLORS).filter((s) => !["stale", "review_pending", "archived"].includes(s)).map((s) =>

@@ -14,7 +14,7 @@ them on a browser dashboard.
   top: waiting for a human, failed, ready for review, or stalled. A spinner marks a session that is working. A
   **timeline** (a feed or swimlanes) replays every report in order.
 - **Grouped by project.** The session list gathers the other sessions by repository or project, the most
-  recently updated first. The
+  recently updated first, and splits each project into "Working and waiting" and "Done". The
   name comes from the Git remote or the folder; `session-hub start --repo <name>` overrides it. The
   **By project** button switches to grouping by status.
 - **A few lines for the parent.** The parent session reads no transcripts. It decides from the few
@@ -29,7 +29,7 @@ them on a browser dashboard.
   automatically, and they ask for a report when a session tries to stop while still marked as
   working. The dashboard shows each session under its name in Claude Code; the `--title` of
   `session-hub start` appears only until the session has a name. When a session opens a pull
-  request, its card links to that pull request.
+  request, its card and the detail panel link to that pull request.
 
 [docs/DESIGN.md](docs/DESIGN.md) covers the design rationale and the protocol, and its
 [glossary](docs/DESIGN.md#appendix-a-glossary) defines the terms.
@@ -371,7 +371,9 @@ the dashboard.
 - **Stalls are inferred.** A working session counts as stalled after 30 minutes without a message.
   Confirm a stall before you act on it, because a long build can stay silent that long.
 - **Open to local processes by default.** Without `HUB_TOKEN`, any process on the machine can read
-  the dashboard and push messages. Set a token if other users share the machine.
+  the dashboard and push messages. Set a token if other users share the machine. A hub without a
+  token answers only requests addressed to `127.0.0.1`, `localhost`, or `::1`, so a custom host name
+  also needs a token.
 - **Built for thousands of events.** The hub rebuilds its snapshot from the whole store on every
   message. A store that grows far beyond that needs incremental updates first.
 
