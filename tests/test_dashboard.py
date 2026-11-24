@@ -9,7 +9,8 @@ SET_BY_SCRIPT = {"glow", "glow-ms", "kc", "group-color"}
 SIZED = re.compile(r"(?<![\w-])(font|font-size|border(?:-\w+)*-radius|(?:row-|column-)?gap|(?:padding|margin)(?:-\w+)*):\s*([^;}]+)")
 WEIGHT = re.compile(r"font-weight:(?!\s*(?:var\(|inherit))[^;}]+")
 COLOR = re.compile(r"#[0-9a-fA-F]{3,8}\b|\b(?:rgb|hsl)a?\(")
-PAINT = re.compile(r"(?<![\w-])(?:color|background|background-color|border-color):\s*([^;}]+)")
+PAINT = re.compile(r"(?<![\w-])(?:color|background(?:-color)?|border(?:-\w+)*-color|outline-color|fill|stroke):\s*([^;}]+)")
+OUTLINE = re.compile(r"(?<![\w-])(?:border(?:-(?:top|right|bottom|left))?|outline):\s*([^;}]+)")
 PAINT_VALUE = re.compile(r"var\(--|color-mix\(|(?:transparent|inherit|currentColor|none)\s*$")
 
 
@@ -34,6 +35,9 @@ class DesignTokenTest(unittest.TestCase):
                 self.assertNotRegex(value, r"\d(?:px|rem|em|pt)\b")
                 if prop == "font-size":
                     self.assertRegex(value.strip(), r"^var\(--fs-[\w-]+\)$")
+        for value in OUTLINE.findall(self.rules):
+            with self.subTest(outline=value):
+                self.assertRegex(value, r"^(?:0|none)\s*$|var\(--|\btransparent\b")
         for value in PAINT.findall(self.rules):
             with self.subTest(paint=value):
                 self.assertRegex(value, r"^(?:" + PAINT_VALUE.pattern + ")")
