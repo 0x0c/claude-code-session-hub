@@ -7,9 +7,9 @@
 |---|---|
 | Proposal | SH-XXXX |
 | Author | [@0x0c](https://github.com/0x0c) |
-| Status | **In progress** |
+| Status | **Implemented** |
 | Topic | Hub server |
-| Implementing PR | — |
+| Implementing PR | [#29](https://github.com/0x0c/claude-code-session-hub/pull/29) |
 | Related | — |
 <!-- /SH-METADATA -->
 
@@ -57,7 +57,7 @@ That request is not DNS rebinding, and this proposal does not cover it.
 
 ## Progress
 
-- [ ] Design approved
+- [x] Design approved
 - [x] Implementation with tests
 - [x] Documentation updated (README.md, docs/DESIGN.md)
 

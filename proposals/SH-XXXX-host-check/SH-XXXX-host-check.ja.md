@@ -7,9 +7,9 @@
 |---|---|
 | 提案 | SH-XXXX |
 | 作者 | [@0x0c](https://github.com/0x0c) |
-| 状態 | **In progress** |
+| 状態 | **Implemented** |
 | トピック | Hub server |
-| 実装PR | — |
+| 実装PR | [#29](https://github.com/0x0c/claude-code-session-hub/pull/29) |
 | 関連 | — |
 <!-- /SH-METADATA -->
 
@@ -42,7 +42,7 @@ DNSリバインディングでは、まず`http://evil.example:8765`のページ
 
 ## 進捗
 
-- [ ] 設計の承認
+- [x] 設計の承認
 - [x] テストを含む実装
 - [x] ドキュメントの更新（README、docs/DESIGN.md）
 
