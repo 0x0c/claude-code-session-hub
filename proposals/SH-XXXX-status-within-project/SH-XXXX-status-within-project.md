@@ -35,8 +35,11 @@ The change touches `session_hub/templates/dashboard.html` alone. Grouping by sta
   last update. A group without sessions is not shown.
 - **Sections outside the projects.** "Needs action" stays at the top of the list and "Archived" stays
   at the bottom, for the sessions of every project.
-- **Heading.** A status heading is an indented version of the project heading. The heading shows the
-  badge that the grouping by status uses for the group, and the group's count.
+- **Heading.** A status heading is a project heading without the filled background. The heading shows
+  the badge that the grouping by status uses for the group, and the group's count.
+- **Alignment.** Project names, status badges, and the contents of the cards share one left edge. The
+  arrows of the headings stand in a column to the left of the edge. In the grid layout, the frames of
+  the cards start at the edge.
   The labels are the existing ones, so the `MESSAGES` table needs no new label.
 - **State.** Every status group inside a project starts expanded. The browser stores a collapsed one in
   `hub.collapsed` under the JavaScript Object Notation (JSON) array of project and status, such as

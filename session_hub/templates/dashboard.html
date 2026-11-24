@@ -99,7 +99,7 @@ main.grid #sessions { padding: 0 var(--space-14) var(--space-14); }
 main.grid .project { margin: var(--space-12) 0; border: 1px solid var(--line); border-radius: var(--radius-lg); }
 main.grid .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); gap: var(--space-12); }
 main.grid .cardwrap { min-width: 0; }
-main.grid .card { border: 1px solid var(--line); border-left-width: 3px; border-radius: var(--radius-lg); height: 100%; }
+main.grid .card { padding-left: var(--space-14); border: 1px solid var(--line); border-left-width: 3px; border-radius: var(--radius-lg); height: 100%; }
 main.grid .card.selected { border-color: var(--accent); }
 main.grid #detail { position: fixed; top: var(--header-h, 0px); right: 0; bottom: 0; z-index: 4; width: min(720px, 100%);
   overflow-y: auto; overscroll-behavior: contain; border-width: 0 0 0 1px; border-radius: 0; outline: none;
@@ -117,7 +117,7 @@ main.grid .newbar { top: 48px; }
 .action-section .project:not(:hover) { background: none; }
 main .action-section .project { margin: 0; border: 0; border-radius: calc(var(--radius-lg) - 1px); }
 main:not(.grid) .action-section .cardwrap:last-child .card { border-radius: 0 0 calc(var(--radius-lg) - 1px) calc(var(--radius-lg) - 1px); }
-main.grid .action-section { margin: var(--space-14) 0 var(--space-4); padding: 0 var(--space-12) var(--space-12); }
+main.grid .action-section { margin: var(--space-14) 0 var(--space-4); padding: 0 var(--space-12) var(--space-12) 0; }
 main.grid .action-section .card:not(.selected):not(:hover) { background: var(--panel); }
 .project { display: flex; align-items: center; gap: var(--space-8); width: 100%; padding: var(--space-8) var(--space-14); border: 0; text-align: left;
   border-top: 1px solid var(--line); background: var(--bg); cursor: pointer; font-size: var(--fs-meta); font-weight: var(--fw-strong); }
@@ -125,15 +125,22 @@ main.grid .action-section .card:not(.selected):not(:hover) { background: var(--p
 .project.selected { box-shadow: inset 3px 0 var(--accent); }
 .project .pname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .group-badge { padding: var(--space-1) var(--space-8); border-radius: var(--radius-sm); color: var(--on-fill); background: var(--group-color); }
-.project .chev { color: var(--muted); transition: transform .15s; }
+/* One left edge: every heading's label and the cards under it start after the arrow column (14 + 10 + 8) */
+.project .chev { flex: none; width: var(--space-10); text-align: center; color: var(--muted); transition: transform .15s; }
 .project[aria-expanded="true"] .chev { transform: rotate(90deg); }
 /* The status groups inside a project */
-main .project.sub { margin: 0; padding: var(--space-6) var(--space-14) var(--space-6) var(--space-24); border-width: 1px 0 0; border-radius: 0; background: none; }
+main .project.sub { margin: 0; padding: var(--space-6) var(--space-14); border-width: 1px 0 0; border-radius: 0; background: none; }
 main .project.sub:hover { background: var(--hover); }
-main.grid .project.sub { border: 0; border-radius: var(--radius-lg); }
-main.grid .subcards { padding: var(--space-4) 0 var(--space-8) var(--space-24); }
+main.grid .project.sub, main.grid .action-section .project { border: 1px solid transparent; border-radius: var(--radius-lg); }
+main.grid .subcards { padding: var(--space-4) 0 var(--space-8); }
+main.grid .cards { padding-left: calc(var(--space-14) + var(--space-10) + var(--space-8) + 1px); }
+/* The frame's margin and border already take part of the space to the left edge */
+main.grid .action-section .project { border-width: 1px 0; }
+main.grid .action-section .cards { padding-left: calc(var(--space-14) + var(--space-10) + var(--space-8)); }
+main:not(.grid) .action-section .project { padding-left: calc(var(--space-14) - var(--space-10) - 1px); }
+main:not(.grid) .action-section .card { padding-left: calc(var(--space-14) + var(--space-8) - 1px - 3px); }
 .project .count { color: var(--muted); font-weight: var(--fw-normal); font-variant-numeric: tabular-nums; }
-.card { padding: var(--space-10) var(--space-14); border-top: 1px solid var(--line); cursor: pointer; border-left: 3px solid transparent; }
+.card { padding: var(--space-10) var(--space-14) var(--space-10) calc(var(--space-14) + var(--space-10) + var(--space-8) - 3px); border-top: 1px solid var(--line); cursor: pointer; border-left: 3px solid transparent; }
 .cardwrap:hover .card { background: var(--hover); }
 .card.selected { background: var(--hover); border-left-color: var(--accent); }
 .cardwrap { position: relative; }
