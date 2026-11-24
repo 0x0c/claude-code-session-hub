@@ -63,8 +63,8 @@ complete review.
 A separate implement pass applies the fix instructions as given, without re-judging them. A fresh
 reviewer then reviews the updated diff, with the earlier dismissed findings and their rationale in
 its prompt, so the reviewer does not raise them again. Stop when a review comes back empty, or after
-three review rounds. If the third round still reports findings, or a round reports an escalation, the
-pull request stays in draft and the author asks the user.
+three review rounds. If the third round still reports findings, or a round reports an escalation, stop
+and ask the user; a pull request, if one exists, stays in draft until the user decides.
 
 When no subagent is available, the author cannot act as a cold reviewer of their own draft. Run the
 review in a separate pass from the edits, and tell the user that the review ran without a cold
