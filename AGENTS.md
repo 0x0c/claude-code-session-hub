@@ -107,14 +107,23 @@ look at the page with demo data, as described under [Field notes](#check-the-das
 - The Git hooks block a commit whose change or message holds a secret. Do not bypass them with
   `--no-verify`: remove the secret, or scope an allowlist in `.gitleaks.toml` to the false positive.
   Assemble a fake secret in a test at run time.
-- Open a pull request only when the user asks for one.
-- Claude Code reviews a pull request when it opens (`.github/workflows/claude-review.yml`, against
-  the contract in `.github/claude-review-prompt.md`). The review posts inline comments and never
-  blocks a merge. After you push fixes, ask for another pass by commenting `@claude review` on the
-  pull request; a push alone does not start one. Only a comment from an owner, member, or
+- Open a pull request only when the user asks for one, and always open it as a draft:
+  `gh pr create --draft`. Push every commit to the draft. When the work is complete and
+  `scripts/check.sh` passes on the pushed commit, mark it ready with `gh pr ready`. Do not ask the
+  user again; the request for the pull request covers this step.
+- Never push to a pull request that is ready. To change one, whether for a review finding, a
+  conflict, or a failed check, run `gh pr ready --undo`, push the complete fix, and run `gh pr ready`
+  again. The required `claude review` check counts on the head commit alone, so a push without this
+  cycle leaves the pull request blocked.
+- Claude Code reviews a pull request when it leaves draft, and when one that is not a draft opens or
+  reopens (`.github/workflows/claude-review.yml`, against the contract in
+  `.github/claude-review-prompt.md`). The review posts inline comments. `main` requires the review to
+  run, but a finding never fails it. A push alone does not start a review. A comment of
+  `@claude review` asks for one, on a draft too, but GitHub records the run of a top-level comment on `main`, so such a
+  comment does not satisfy the required check. Only a comment from an owner, member, or
   collaborator of the repository starts a pass. Anyone else's request completes green with the
   `claude review` job skipped, so check that the job ran. When a bot opens or reopens a pull
-  request, such as a Renovate update, the automatic review is skipped, because the action refuses a
+  request or marks it ready, such as a Renovate update, the automatic review is skipped, because the action refuses a
   bot as the triggering actor; comment `@claude review` to ask for one.
 
 ## Field notes

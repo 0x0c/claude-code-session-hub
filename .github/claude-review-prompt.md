@@ -6,7 +6,8 @@ concrete, mechanical fix fits. Post each finding with the
 `mcp__github_inline_comment__create_inline_comment` tool, on the exact line it refers to.
 
 **Do not post a top-level summary comment.** This job runs several times over a pull request's life:
-once when it opens, and again whenever a maintainer requests a pass. A fresh overview from each run
+each time the pull request leaves draft (or opens or reopens outside draft), and whenever a
+maintainer requests a pass. A fresh overview from each run
 leaves stale, contradictory summaries on the pull request. Post inline findings alone: no wrap-up, no
 verdict, no roll-up comment.
 

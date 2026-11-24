@@ -5,10 +5,12 @@
 # norms) and posts inline, line-level comments alone. It posts no top-level summary, because a fresh
 # summary from each of a pull request's runs would leave stale, contradictory overviews on it.
 #
-# WHEN IT RUNS: automatically when a person (not a bot) opens or reopens a pull request, and after
-# that only when a trusted person (OWNER, MEMBER, or COLLABORATOR) writes `@claude review` on it. It
-# does not re-review every push (`synchronize` is not a trigger): a per-push review can post a
+# WHEN IT RUNS: automatically when a person (not a bot) marks a draft pull request ready for review,
+# or opens or reopens one that is not a draft. A draft is skipped: its author is still working. A
+# trusted person (OWNER, MEMBER, or COLLABORATOR) can also ask by writing `@claude review`, on a draft
+# too. A push does not start a review (`synchronize` is not a trigger): a per-push review can post a
 # finding on the fix for its own previous finding, so the fix-push-review cycle need never converge.
+# To review later pushes, return the pull request to draft, push, and mark it ready again.
 #
 # Every run reads the full diff, so no changed line goes unreviewed, and also receives every finding
 # already posted on the pull request, with an instruction never to re-post one. The review dedupes by
@@ -17,13 +19,17 @@
 # skipped. A requester confirms that the job actually started rather than reading silence as a clean
 # review.
 #
-# When a bot opens or reopens a pull request (such as a Renovate dependency update), the automatic
+# When a bot opens or reopens a pull request, or marks it ready (such as a Renovate dependency update), the automatic
 # review is skipped: claude-code-action refuses a run whose actor (the event's sender, not the pull
 # request's author) is a bot, and would fail the job. A maintainer who wants a review comments
 # `@claude review`, or reopens the pull request, so that a person starts the run.
 #
-# ADVISORY ONLY: do not add this job to `main`'s required status checks. A review that found issues
-# is a successful review; the job fails only on an infrastructure error, never on a finding.
+# REQUIRED TO RUN, ADVISORY IN CONTENT: `main`'s ruleset requires the `claude review` check. A review
+# that found issues is a successful review; the job fails only on an infrastructure error, never on a
+# finding. GitHub records the check on the pull request's head commit for a `pull_request` run, but on
+# the default branch for an `issue_comment` run, so a top-level `@claude review`
+# comment never satisfies the requirement.
+# GitHub counts a skipped job as passing.
 #
 # AUTH: the `claude-review` Environment holds the credential, picked at run time (the gate step):
 # - a Claude Code subscription, through the `CLAUDE_CODE_OAUTH_TOKEN` secret (from `claude
@@ -38,7 +44,7 @@ name: Claude review
 
 on:
   pull_request:
-    types: [opened, reopened]
+    types: [opened, reopened, ready_for_review]
   issue_comment:
     types: [created]
   pull_request_review_comment:
@@ -51,7 +57,8 @@ permissions:
   pull-requests: write
   id-token: write
 
-# One group per pull request and event type. A reopen cancels a still-running review from the open,
+# One group per pull request and event type. A reopen, or a pull request marked ready again, cancels a
+# still-running automatic review,
 # while comment-triggered runs stay independent: a comment posted mid-review (even `@claude review`
 # itself) would otherwise cancel a pass someone asked for. Two quick requests therefore run side by
 # side, and each reads the prior findings before the other posts its own, so an overlap can post
@@ -61,7 +68,7 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  # Keep this job off main's required status checks: the review is advisory.
+  # main's ruleset requires this job's name as a status check, so renaming the job blocks every merge.
   review:
     name: claude review
     runs-on: ubuntu-latest
@@ -73,9 +80,9 @@ jobs:
     # request, so the association check is what stops an untrusted commenter from starting a
     # credentialed run.
     # A `pull_request` run needs a human actor: claude-code-action checks `github.actor`, which is the
-    # sender of the open or reopen event, not the pull request's author.
+    # sender of the event, not the pull request's author. A draft is not reviewed.
     if: >-
-      (github.event_name == 'pull_request' && github.event.sender.type != 'Bot') ||
+      (github.event_name == 'pull_request' && !github.event.pull_request.draft && github.event.sender.type != 'Bot') ||
       (
         (
           (github.event_name == 'issue_comment' && github.event.issue.pull_request) ||

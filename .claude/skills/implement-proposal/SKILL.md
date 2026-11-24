@@ -72,7 +72,8 @@ In the last commit of the branch, set `Status` to `Implemented` and tick every *
 both language files. The
 format check requires the `Implementing PR` row for an `Implemented` proposal, so fill it as soon as
 the pull request exists: `[#N](https://github.com/0x0c/claude-code-session-hub/pull/N)`. Open the
-pull request only when the user asks for one; until then, leave `Status` at `In progress` and say in
+pull request only when the user asks for one, as a draft: fill the row and push while it is a draft,
+then mark it ready (the Git section of [`AGENTS.md`](../../../AGENTS.md)). Until then, leave `Status` at `In progress` and say in
 your reply that the promotion waits for the pull request number.
 
 ## References
