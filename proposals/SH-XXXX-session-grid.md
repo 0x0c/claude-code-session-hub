@@ -60,7 +60,8 @@ narrow window the panel covers the full width below the page header.
 | The selected session disappears (deleted here or by another viewer) | Closes the panel |
 
 The panel is not modal: the visible part of the grid stays usable while the panel is open. Opening
-the panel moves the keyboard focus to it, and closing it returns the focus to the card. A closed
+the panel moves the keyboard focus to it, and closing it returns the focus to the
+card, or to **All sessions** when the card is gone. A closed
 panel is inert, so neither the Tab key nor a screen reader reaches it. With the reduced-motion setting
 (`prefers-reduced-motion`), the panel appears without sliding.
 

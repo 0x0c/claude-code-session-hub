@@ -30,7 +30,7 @@ class DashboardTest(unittest.TestCase):
         self.assertIn('localStorage.getItem("hub.layout")', PAGE)
 
     def test_closed_grid_panel_is_inert(self):
-        self.assertIn('$("detail").inert = grid && !ui.panelOpen;', PAGE)
+        self.assertRegex(PAGE, r'\$\("detail"\)\.inert\s*=\s*grid\s*&&\s*!ui\.panelOpen\b')
 
 
 if __name__ == "__main__":

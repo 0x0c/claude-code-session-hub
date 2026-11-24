@@ -981,8 +981,12 @@ table.ctable th { font-size: 11px; color: var(--muted); font-weight: 600; }
     // Another viewer may delete the selected session; fall back to showing every session
     if (ui.session && !live.has(ui.session)) {
       ui.session = ""; $("fSession").value = "";
+      // The focus is on <body> when the delete button, disabled during its request, held it
+      const focused = document.activeElement;
+      const refocus = ui.layout === "grid" && ui.panelOpen && (focused === document.body || $("detail").contains(focused));
       ui.panelOpen = false;
       applyLayout();
+      if (refocus) $("openPanel").focus({ preventScroll: true });
     }
     db.total = snap.total || {};
     if (snap.collections) db.collections = snap.collections;
