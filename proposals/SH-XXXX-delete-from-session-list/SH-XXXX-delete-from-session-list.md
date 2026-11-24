@@ -10,7 +10,7 @@
 | Status | **Implemented** |
 | Topic | Dashboard |
 | Implementing PR | [#13](https://github.com/0x0c/claude-code-session-hub/pull/13) |
-| Related | [SH-0002](SH-0002-delete-session.md) |
+| Related | [SH-0002](../SH-0002-delete-session/SH-0002-delete-session.md) |
 <!-- /SH-METADATA -->
 
 ## Introduction
@@ -88,5 +88,5 @@ behavior. Deleting several sessions in one action is out of scope.
 
 ## References
 
-- [SH-0002](SH-0002-delete-session.md) — the endpoint, the store deletion, and the header button.
-- [`session_hub/templates/dashboard.html`](../session_hub/templates/dashboard.html) — the dashboard.
+- [SH-0002](../SH-0002-delete-session/SH-0002-delete-session.md) — the endpoint, the store deletion, and the header button.
+- [`session_hub/templates/dashboard.html`](../../session_hub/templates/dashboard.html) — the dashboard.

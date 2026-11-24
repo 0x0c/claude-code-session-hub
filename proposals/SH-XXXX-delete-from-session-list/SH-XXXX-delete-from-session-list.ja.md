@@ -10,7 +10,7 @@
 | 状態 | **Implemented** |
 | トピック | Dashboard |
 | 実装PR | [#13](https://github.com/0x0c/claude-code-session-hub/pull/13) |
-| 関連 | [SH-0002](SH-0002-delete-session.md) |
+| 関連 | [SH-0002](../SH-0002-delete-session/SH-0002-delete-session.md) |
 <!-- /SH-METADATA -->
 
 ## はじめに
@@ -63,5 +63,5 @@
 
 ## 参考資料
 
-- [SH-0002](SH-0002-delete-session.ja.md) — エンドポイント、ストアからの削除、見出しのボタン。
-- [`session_hub/templates/dashboard.html`](../session_hub/templates/dashboard.html) — ダッシュボード。
+- [SH-0002](../SH-0002-delete-session/SH-0002-delete-session.ja.md) — エンドポイント、ストアからの削除、見出しのボタン。
+- [`session_hub/templates/dashboard.html`](../../session_hub/templates/dashboard.html) — ダッシュボード。
