@@ -1,11 +1,11 @@
-[English](SH-XXXX-split-scroll-link.md) · **日本語**
+[English](SH-0008-split-scroll-link.md) · **日本語**
 
-# SH-XXXX — パネルの独立スクロールと選択の接続線
+# SH-0008 — パネルの独立スクロールと選択の接続線
 
 <!-- SH-METADATA -->
 | 項目 | 値 |
 |---|---|
-| 提案 | SH-XXXX |
+| 提案 | SH-0008 |
 | 作者 | [@0x0c](https://github.com/0x0c) |
 | 状態 | **Implemented** |
 | トピック | Dashboard |

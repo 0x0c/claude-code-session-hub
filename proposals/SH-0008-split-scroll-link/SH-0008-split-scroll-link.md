@@ -1,11 +1,11 @@
-**English** · [日本語](SH-XXXX-split-scroll-link.ja.md)
+**English** · [日本語](SH-0008-split-scroll-link.ja.md)
 
-# SH-XXXX — Scroll the panels apart and link the selection
+# SH-0008 — Scroll the panels apart and link the selection
 
 <!-- SH-METADATA -->
 | Field | Value |
 |---|---|
-| Proposal | SH-XXXX |
+| Proposal | SH-0008 |
 | Author | [@0x0c](https://github.com/0x0c) |
 | Status | **Implemented** |
 | Topic | Dashboard |
