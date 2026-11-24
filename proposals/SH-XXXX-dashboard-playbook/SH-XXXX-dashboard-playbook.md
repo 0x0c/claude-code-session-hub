@@ -23,7 +23,7 @@ The page runs the render functions of `session_hub/templates/dashboard.html` its
 
 A contributor checks a dashboard change today by seeding demo data and looking at the whole page. The demo data reaches few states: no demo session is blocked, abandoned, or done, for example. A change can therefore break a state that nobody looks at.
 
-After this change, one page shows all 14 session states, all 11 event types, and the empty states, in both themes and both languages. Its last section names each dashboard class that no story shows, except the two that place the grid layout's detail panel over the page.
+After this change, one page shows all 14 session states, all 11 event types, and the empty states, in both themes and both languages. Its last section names each dashboard class that no story shows, except those that lay out the whole page.
 
 ## Detailed design
 

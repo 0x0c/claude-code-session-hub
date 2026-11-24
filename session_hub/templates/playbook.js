@@ -84,7 +84,7 @@
     ["ProjectHeading", [
       ["Expanded", () => pbCapture("sessions", { sessions: pbProjects() }, renderSessions, { byProject: true }), "narrow"],
       ["Collapsed", () => pbCapture("sessions", { sessions: pbProjects() }, () => {
-        ui.collapsed = new Set(projectGroups(db.sessions).map(([key]) => key));
+        ui.collapsed = new Set(sessionGroups(db.sessions).map(([key]) => key));
         renderSessions();
       }, { byProject: true }), "narrow"],
     ]],
@@ -206,14 +206,14 @@
   const pbRoot = el("div", { class: "pb-layout" });
   document.body.prepend(pbPage, pbRoot);
 
-  // Only the fixed detail panel of the grid layout carries these, and it would cover the page
-  const PB_OVERLAY = new Set(["open", "slide"]);
+  // Page layout, not components: the window-high split, its connector, and the grid's fixed detail panel
+  const PB_LAYOUT = new Set(["open", "slide", "gridlayout", "scroll", "linked", "off"]);
   // The dashboard's classes that no story shows
   function pbMissing() {
     const own = [...document.styleSheets][0], names = new Set();
     const walk = (rules) => { for (const r of rules) { if (r.selectorText) for (const m of r.selectorText.matchAll(/\.([a-z][\w-]*)/gi)) names.add(m[1]); if (r.cssRules) walk(r.cssRules); } };
     walk(own.cssRules);
-    return [...names].filter((n) => !PB_OVERLAY.has(n) && !pbRoot.querySelector("." + n)).sort();
+    return [...names].filter((n) => !PB_LAYOUT.has(n) && !pbRoot.querySelector("." + n)).sort();
   }
 
   function pbRender() {

@@ -1,4 +1,6 @@
 /* The playbook's own frame around the stories. Every class starts with pb-. */
+/* The dashboard's split layout fixes the page to the window; the playbook scrolls */
+body { height: auto !important; display: block !important; overflow: auto !important; }
 .pb-layout { display: grid; grid-template-columns: 200px minmax(0, 1fr); align-items: start; }
 .pb-nav { position: sticky; top: 0; max-height: 100vh; overflow-y: auto; padding: var(--space-16); display: grid; gap: var(--space-4); font-size: var(--fs-body-sm); }
 .pb-nav a { color: var(--ink); text-decoration: none; }
