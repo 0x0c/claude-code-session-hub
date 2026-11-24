@@ -263,6 +263,17 @@ Both ask for a confirmation. On a device with a pointer, the **×** button appea
 the session or focus it with the keyboard. A session that reports again after the deletion reappears
 with its new messages alone.
 
+When you archive a session in the Claude desktop app on macOS, the hub notices within seconds and
+moves the session into the dashboard's **Archived** group. An archived session keeps its history and its last state, and
+no longer asks for attention; unarchiving it in the app brings it back. For a session outside the app:
+
+```bash
+session-hub archive <session_id>
+session-hub unarchive <session_id>
+```
+
+A session archived with the command also comes back when it reports again.
+
 To record and look up findings and caveats:
 
 ```bash
@@ -320,6 +331,7 @@ alone to the parent with `send_message`.
 | `HUB_PARENT_SESSION_ID` | The parent's session ID (where a child sends `[HUB/1]` lines) |
 | `HUB_STOP_GUARD` | `0` disables the Stop hook's prompt |
 | `HUB_AUTOSTART` | `1` starts the local hub server at session start if it is not running (only when `HUB_URL` points to 127.0.0.1 or localhost) |
+| `HUB_DESKTOP_SESSIONS` | The directory of the Claude desktop app's session files, which the hub server reads to detect archived sessions (default on macOS: `~/Library/Application Support/Claude/claude-code-sessions`); `0` turns detection off |
 | `HUB_OUTBOX` / `HUB_STATE_DIR` | Where the outbox and local state live (default `~/.cache/...`) |
 
 ## Tests
