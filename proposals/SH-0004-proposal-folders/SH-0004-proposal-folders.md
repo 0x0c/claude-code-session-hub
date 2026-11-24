@@ -1,11 +1,11 @@
-**English** · [日本語](SH-XXXX-proposal-folders.ja.md)
+**English** · [日本語](SH-0004-proposal-folders.ja.md)
 
-# SH-XXXX — Give each proposal its own folder
+# SH-0004 — Give each proposal its own folder
 
 <!-- SH-METADATA -->
 | Field | Value |
 |---|---|
-| Proposal | SH-XXXX |
+| Proposal | SH-0004 |
 | Author | [@0x0c](https://github.com/0x0c) |
 | Status | **Implemented** |
 | Topic | Developer workflow |

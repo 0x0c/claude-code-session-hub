@@ -54,7 +54,8 @@ The timeline header button and the list buttons share one function, `deleteSessi
 2. On confirmation, send `DELETE api/sessions/<session_id>`. While the request runs, every delete
    button of that session is disabled, including after a re-render.
 3. On success, clear the selection if the deleted session is the selected one. Otherwise, keep the
-   selection. The `update` message that follows removes the card.
+   selection. In the grid layout, clearing the selection also closes the detail panel. The `update`
+   message that follows removes the card.
 4. On a failure, show the server's error in an alert and keep everything.
 
 Every update rebuilds the list, which would drop the keyboard focus. After a rebuild, the page puts

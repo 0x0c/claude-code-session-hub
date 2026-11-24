@@ -1,11 +1,11 @@
-[English](SH-XXXX-proposal-folders.md) · **日本語**
+[English](SH-0004-proposal-folders.md) · **日本語**
 
-# SH-XXXX — プロポーザルごとにフォルダーを分ける
+# SH-0004 — プロポーザルごとにフォルダーを分ける
 
 <!-- SH-METADATA -->
 | 項目 | 値 |
 |---|---|
-| 提案 | SH-XXXX |
+| 提案 | SH-0004 |
 | 作者 | [@0x0c](https://github.com/0x0c) |
 | 状態 | **Implemented** |
 | トピック | Developer workflow |
