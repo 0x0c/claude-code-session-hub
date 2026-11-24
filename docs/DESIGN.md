@@ -465,13 +465,16 @@ label, it gives the English label and the Japanese label in parentheses.
   and the detail panel on the right scroll separately. A smaller window scrolls as one page.
 - **Connector line**: in the same layout, a line joins the selected session's card to the detail
   panel. The line turns dashed while the card is scrolled out of the list.
-- **Timeline** (right): traces the reports from children in time order, in two forms.
+- **Timeline** (right): traces the reports from children in time order, in three forms.
   - **Feed**: events grouped by date. Each row shows the time, the session, the type, the text, and
     what the event changed (state A→B, phase, task count, a resolved question).
     "Details" (詳細) opens the raw event JSON. New events are highlighted. While the reader is
     scrolled down, a "N new" bar (新着 N 件) announces new events instead of moving the screen.
     Filters: session, event type, full-text search, heartbeat display (consecutive heartbeats
     collapse into one row), and newest or oldest first.
+  - **Overview**: one thin band per session over the whole history, with state colors alone: no dots,
+    no zoom, no table. It shows every session's lifespan and where each waited, on one screen.
+    Hovering shows the state and its period, and clicking a session's name selects it.
   - **Swimlanes**: one horizontal band per session, with state changes drawn as colored spans.
     Dots mark events (question = orange, answer = blue). Hovering shows details, and clicking jumps
     to the matching feed row. A long wait for a human, or a stall, is visible at a glance.
@@ -483,8 +486,7 @@ label, it gives the English label and the Japanese label in parentheses.
   browser remembers the choice (`localStorage`, `hub.layout`; the default is the list).
   - The grid keeps the groups and spreads the cards over the full width.
   - Clicking a card slides a detail panel in from the right. The panel is the timeline with its tabs
-    and filters, limited to that session. **All sessions** (すべてのセッション) opens the panel without
-    the limit.
+    and filters, limited to that session. The **Overview** tab (俯瞰) still shows every session.
   - The open panel takes at most 720px by default, and at most 55% of the window. The grid narrows
     beside it, so the panel covers no card. Dragging the panel's left edge, or the arrow keys on that
     handle, change the width. A double-click on the handle restores the default, and the browser
@@ -676,6 +678,7 @@ claude-code-session-hub/
 | Priority | The order of `session-hub attention` (§4.3). A human wait that blocks the child ranks highest |
 | Spinner | The rotating icon that marks a child as active (planning, working, or addressing changes) |
 | Feed | One form of the timeline: events listed in time order |
+| Overview | One form of the timeline: one thin band per session over the whole history, with state colors alone |
 | Swimlanes | One form of the timeline: one horizontal band per session, with state changes shown in color |
 
 ### Communication and mechanisms
