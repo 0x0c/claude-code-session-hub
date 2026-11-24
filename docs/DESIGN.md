@@ -211,6 +211,9 @@ immediately**.
   from `HUB_PARENT_SESSION_ID`, or else from the desktop app's session files. `parent_source` names the
   source (`reported`, `environment`, or `desktop`). In the third case, the hub's scan records a `parent`
   event in `events/<session_id>@desktop.jsonl`, once the hub knows the parent session.
+- **Opening a session in the desktop app**: the same scan reads the app's own session id. The hub adds
+  the id to the snapshot as `desktop_id` and stores no event, because the id means nothing on another
+  machine. The detail panel links to `claude://code/continue?session=<desktop_id>`.
 
 ### 3.2 Child → hub (`session-hub report` and related commands)
 
@@ -478,7 +481,9 @@ label, it gives the English label and the Japanese label in parentheses.
     "Details" (詳細) opens the raw event JSON. New events are highlighted. While the reader is
     scrolled down, a "N new" bar (新着 N 件) announces new events instead of moving the screen.
     Filters: session, event type, full-text search, heartbeat display (consecutive heartbeats
-    collapse into one row), and newest or oldest first.
+    collapse into one row), and newest or oldest first. The event types are checkboxes in a popover that
+    the **Event types** (種別) button opens; the button shows the number of shown types and the total.
+    Escape, an outside click, or a second press closes the popover.
   - **Overview**: one thin band per session over the whole history, with state colors alone: no dots,
     no zoom, no table. It shows every session's lifespan and where each waited, on one screen.
     Hovering shows the state and its period, and clicking a session's name selects it.

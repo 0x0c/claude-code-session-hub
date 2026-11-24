@@ -205,6 +205,8 @@ def cmd_log(a):
 def cmd_export(a):
     from .server import dashboard_html
     snap = _snap(a)
+    for s in snap["sessions"]:
+        s.pop("desktop_id", None)  # The id means nothing on another machine
     data = json.dumps(snap, ensure_ascii=False).replace("</", "<\\/")
     html = dashboard_html().replace("/*__HUB_SNAPSHOT__*/null", data)
     Path(a.out).write_text(html, encoding="utf-8")

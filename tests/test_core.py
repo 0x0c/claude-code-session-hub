@@ -519,7 +519,7 @@ class TranscriptTest(TmpCase):
                            ('{"cliSessionId": "s", "isArchived": true}', {"s": True}), ("{", {"s": True}),
                            ('{"cliSessionId": "s", "isArchived": false}', {"s": False})):
             path.write_text(text)
-            self.assertEqual(scan(), want, text)
+            self.assertEqual({sid: found.archived for sid, found in scan().items()}, want, text)
         path.unlink()
         self.assertEqual(scan(), {})
 
