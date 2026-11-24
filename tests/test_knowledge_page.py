@@ -1,9 +1,13 @@
 """The knowledge summary page served at /knowledge."""
 
+import json
 import re
+import shutil
+import subprocess
 import tempfile
 import threading
 import unittest
+import http.client
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -45,6 +49,51 @@ class KnowledgePageTest(unittest.TestCase):
                 hub.stop()
                 server.shutdown()
                 server.server_close()
+
+    def test_token_in_the_url_becomes_a_cookie_and_the_page_stays(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            server, hub, _ = serve(tmp, token="secret")
+            try:
+                conn = http.client.HTTPConnection("127.0.0.1", server.server_address[1], timeout=5)
+                conn.request("GET", "/knowledge?token=secret")
+                res = conn.getresponse()
+                self.assertEqual(res.status, 303)
+                self.assertEqual(res.getheader("Location"), "/knowledge")
+                self.assertTrue(res.getheader("Set-Cookie").startswith("hub_token="))
+                conn.close()
+            finally:
+                hub.stop()
+                server.shutdown()
+                server.server_close()
+
+    @unittest.skipUnless(shutil.which("node"), "needs Node.js")
+    def test_page_script_parses(self):
+        script = re.search(r"<script>\n(.*)</script>", knowledge_html(), re.S)[1]
+        check = subprocess.run(["node", "--check", "-"], input=script, text=True, encoding="utf-8", capture_output=True)
+        self.assertEqual(check.returncode, 0, check.stderr)
+
+    @unittest.skipUnless(shutil.which("node"), "needs Node.js")
+    def test_summary_counts_active_items_and_orders_them(self):
+        js = template("knowledge.js")
+        code = re.search(r"  const KN_LISTED.*?\n(?=  let knCol)", js, re.S)[0] + re.search(r"  function knSummarize.*?\n  }\n", js, re.S)[0]
+        issue = lambda i: {"kind": "issue", "title": f"i{i}", "last_ts": f"2026-01-{i:02d}", "reporters": ["a"], "tags": ["x"], "key": f"i{i}"}
+        col = {"view": {"order": ["issue", "caveat"]}, "items": [issue(i) for i in range(1, 13)] + [
+            {"kind": "caveat", "title": "old", "status": "obsolete", "last_ts": "2026-02-01", "reporters": ["a", "b"], "tags": ["x"]},
+            {"kind": "caveat", "title": "two", "last_ts": "2026-02-02", "reporters": ["a", "b"], "tags": ["y"]},
+            {"kind": "caveat", "title": "three", "last_ts": "2026-02-03", "reporters": ["a", "b", "c"], "tags": []}]}
+        out = subprocess.run(["node", "-e", code + f"const s = knSummarize({json.dumps(col)});"
+                              "console.log(JSON.stringify({active: s.active.length, reporters: s.reporters, kinds: [...s.kinds],"
+                              "order: s.order, issues: s.issues.length, first: s.issues[0].title, shared: s.shared.map((i) => i.title),"
+                              "latest: s.latest.length, tags: s.tags}))"], capture_output=True, text=True, check=True).stdout
+        got = json.loads(out)
+        self.assertEqual(got["active"], 14)  # the obsolete item is left out
+        self.assertEqual(got["reporters"], 3)
+        self.assertEqual(got["kinds"], [["issue", 12], ["caveat", 2]])
+        self.assertEqual(got["order"], ["issue", "caveat"])
+        self.assertEqual((got["issues"], got["first"]), (12, "i12"))  # every open issue, newest first
+        self.assertEqual(got["shared"], ["three", "two"])  # most reporters first
+        self.assertEqual(got["latest"], 10)
+        self.assertEqual(got["tags"][0], ["x", 12])
 
     def test_dashboard_links_to_the_page_in_both_languages(self):
         page = dashboard_html()

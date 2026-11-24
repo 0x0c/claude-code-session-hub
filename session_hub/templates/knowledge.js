@@ -8,7 +8,7 @@
   $("knowledgeLink").setAttribute("aria-current", "page");
   knHeader.after(knRoot);
 
-  const KN_LISTED = { issues: 10, shared: 10, latest: 10, tags: 20 };
+  const KN_LISTED = { issues: Infinity, shared: 10, latest: 10, tags: 20 };
   let knCol = null; // the knowledge collection of the last snapshot, or null before the first one
 
   const knTitle = (it) => it.title || it.summary || it.key;
