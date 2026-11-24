@@ -7,9 +7,9 @@
 |---|---|
 | 提案 | SH-XXXX |
 | 作者 | [@0x0c](https://github.com/0x0c) |
-| 状態 | **In progress** |
+| 状態 | **Implemented** |
 | トピック | Hooks and skills |
-| 実装PR | — |
+| 実装PR | [#26](https://github.com/0x0c/claude-code-session-hub/pull/26) |
 | 関連 | — |
 <!-- /SH-METADATA -->
 
