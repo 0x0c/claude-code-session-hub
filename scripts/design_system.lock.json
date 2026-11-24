@@ -16,7 +16,7 @@
  "project/components/EventRow/README.md": "18f1bc7a5649f751a3ab78c6b1e98bb4b2d2cded5eab93d3731eaadea372d7fc",
  "project/components/EventRow/preview.html": "f80e19bb942dc064bedf2f79c0dc8517381abda83ac6dbf13aab873630ff8d03",
  "project/components/GroupHeading/README.md": "ea9ba8beb9261bc3430cd0efb8e1349ee553be59f8558c047b0775f7560170b4",
- "project/components/GroupHeading/preview.html": "ee1eb176f55df385b388b4628d27695b1ee7052fddae7bcfdba5283756884b99",
+ "project/components/GroupHeading/preview.html": "1d4967e8907a3815a5881b561981e6ffd5337ee22b47a0d8bc9151cdc4ebb6e4",
  "project/components/KnowledgeCard/README.md": "d66dc684492acb1639d95a1465ef533b27ea84c72dfe7196ccaf12f14a763cad",
  "project/components/KnowledgeCard/preview.html": "9bb8485804fa636cfd3e7e3369bd8e343e7efb23c853883481e67f0e7c592b46",
  "project/components/LayoutToggle/README.md": "d1853181a79312e95ab0d4df6da206addbb253f436580b992a4e4192281c2069",
@@ -33,6 +33,6 @@
  "project/components/Tabs/preview.html": "230d3dd732a10fd2f2d619f91d569ce12cb3f068b5c9572f61185bafd071b854",
  "project/components/TypeFilter/README.md": "9b7b11b41e02e8669c65ffc9bea860ee0afb177d8121f869d3a2ce45f2caf35f",
  "project/components/TypeFilter/preview.html": "4b5a2807b999f4ea6f0a9553463db4517279ba5f5822c388c5c373f0fb656abb",
- "project/components/bundle.css": "80bbcfd360a15f726942f04c47d17e0e9888fc1394978ea131c195f92236abf3",
- "project/tokens.json": "fc4977e391b935969402f72f9426edfc54805ca50425544d4c2000d1d1f9f07d"
+ "project/components/bundle.css": "8005e22d4dc73dc2de64971eacea7db77b9afc53ee784c0eb40b42ff7b263da9",
+ "project/tokens.json": "d35a174bdcb6aa0e680981167a91b6b70aaac989c2f00fa31f011657e0208602"
 }

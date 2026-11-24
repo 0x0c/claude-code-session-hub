@@ -25,6 +25,7 @@ USAGE = {'bg': 'ページの地。コードブロックと検索欄の地にも�
  'g-action': 'グループ見出し「要対応」の塗り。',
  'g-active': 'グループ見出し「作業中・待機」の塗り。',
  'g-done': 'グループ見出し「完了」の塗り。',
+ 'g-archived': 'グループ見出し「アーカイブ済み」の塗り。',
  'on-fill': '塗り（s-*・g-*・accent）の上の文字。',
  'shade': 'グリッドの詳細パネルが落とす影。',
  'space-1': 'バッジの上下。',
@@ -54,13 +55,15 @@ USAGE = {'bg': 'ページの地。コードブロックと検索欄の地にも�
 # (name, group, preview height, markup, what it is and what to pass, rules)
 COMPONENTS = [('GroupHeading',
   'Sessions',
-  170,
+  210,
   '<button class="project" type="button" aria-expanded="true"><span class="chev" aria-hidden="true">▸</span><span class="pname"><span '
   'class="group-badge" style="--group-color:var(--g-action)">要対応</span></span><span class="count">4</span></button><button class="project" '
   'type="button" aria-expanded="true"><span class="chev" aria-hidden="true">▸</span><span class="pname"><span class="group-badge" '
   'style="--group-color:var(--g-active)">作業中・待機</span></span><span class="count">1</span></button><button class="project" type="button" '
   'aria-expanded="false"><span class="chev" aria-hidden="true">▸</span><span class="pname"><span class="group-badge" '
-  'style="--group-color:var(--g-done)">完了</span></span><span class="count">2</span></button>',
+  'style="--group-color:var(--g-done)">完了</span></span><span class="count">2</span></button><button class="project" type="button" '
+  'aria-expanded="false"><span class="chev" aria-hidden="true">▸</span><span class="pname"><span class="group-badge" '
+  'style="--group-color:var(--g-archived)">アーカイブ済み</span></span><span class="count">3</span></button>',
   'セッション一覧の状態別の見出しで、全体が開閉ボタンです。文言、件数、`g-*`、開閉状態を渡します。',
   'ラベルだけを `g-*` で塗り、白文字を載せます。配下のセッション名より大きくしません。空のグループは出しません。'),
  ('ProjectHeading',
