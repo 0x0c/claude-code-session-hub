@@ -51,7 +51,7 @@ Each session has one status record, a JSON object. The field `v` holds the schem
 | Group | Field | Writer | Description |
 |---|---|---|---|
 | Identity | `v`, `session_id`, `parent_id`, `title`, `task_ref` | At launch (parent) | `task_ref` is an issue number or a task identifier (ID) |
-| Location | `repo`, `branch`, `base` | At launch / hook | |
+| Location | `repo`, `branch`, `base` | At launch / hook | `repo` names the project: `--repo`, or the path of the Git remote, or the folder name |
 | State | `state` | Child (CLI) | One of the values listed in §1.2 |
 | | `phase` | Child | A narrow enumeration such as `plan` / `implement` / `test` / `fix` / `docs` / `self_review` |
 | | `summary` | Child | What the child is doing now. **≤ 80 characters** |
@@ -423,8 +423,11 @@ label, it gives the English label and the Japanese label in parentheses.
   - The tab title also shows the "needs action" count, as in `(3) Session Hub`.
   - Optional browser notifications announce transitions to waiting for a human, ready for review,
     failed, done, and stale.
-- **Session list** (left): split into "needs action" (要対応), "working or waiting"
-  (作業中・待機), and "done" (完了), each sorted by the priority in §4.3.
+- **Session list** (left): one collapsible section per project (`repo`), sorted by the priority in
+  §4.3. The section that holds the most urgent session comes first, and its header counts the
+  sessions that need action. Sessions without a project come last.
+  - The **By project** button switches to grouping by status: "needs action" (要対応), "working or
+    waiting" (作業中・待機), and "done" (完了), each sorted by the same priority.
   - Each card shows a state badge, a task progress bar, the remaining work, the PR and CI, the
     tokens and cost, the last update, and any unanswered question (with its options, its default,
     and the command to answer it).

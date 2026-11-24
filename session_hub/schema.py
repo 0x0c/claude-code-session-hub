@@ -45,7 +45,7 @@ FINDING_STATUS = ("active", "obsolete")
 LIMITS = {
     "summary": 80, "next": 80, "note": 200, "question": 200, "last_error": 120,
     "title": 80, "task": 40, "option": 40, "value": 200,
-    "body": 600, "tag": 30, "scope": 120, "key": 80,
+    "body": 600, "tag": 30, "scope": 120, "key": 80, "repo": 120,
 }
 
 
@@ -105,7 +105,7 @@ def normalize_event(ev: dict) -> dict:
     if not isinstance(ev["seq"], int) or ev["seq"] < 1:
         raise SchemaError("seq must be an integer of 1 or more")
 
-    for key in ("summary", "next", "note", "last_error", "title"):
+    for key in ("summary", "next", "note", "last_error", "title", "repo"):
         if key in ev:
             ev[key] = clip(ev[key], key)
 
@@ -176,6 +176,8 @@ def apply_event(status: dict, ev: dict) -> dict:
 
     for key in ("title", "parent_id", "task_ref", "repo", "branch", "phase",
                 "summary", "next", "confidence", "last_error"):
+        if key == "repo" and ev["type"] == "heartbeat" and st["repo"]:
+            continue  # A hook's detected project only fills a gap; it never replaces a reported one
         if ev.get(key) is not None:
             st[key] = ev[key]
     if "tasks" in ev:
