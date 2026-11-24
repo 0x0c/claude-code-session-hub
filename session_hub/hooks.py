@@ -179,9 +179,10 @@ def todo(payload: dict) -> str:
         tasks, summary = [], None
         for t in inp["todos"]:
             s = TODO_MAP.get(t.get("status"), "todo")
-            if s == "-":
+            name = _clean(t.get("content", ""))
+            if s == "-" or not name:  # The hub refuses a task without a name, and the whole update with it
                 continue
-            tasks.append({"t": _clean(t.get("content", "")), "s": s, "size": "M"})
+            tasks.append({"t": name, "s": s, "size": "M"})
             if s == "doing" and t.get("activeForm"):
                 summary = t["activeForm"]
         fields["tasks"] = tasks

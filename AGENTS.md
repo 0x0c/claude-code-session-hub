@@ -70,6 +70,11 @@ origin of its content.
 
 ## Verify your work
 
+Add tests in the same change as the code. A new feature gets a test for each behavior it adds,
+including its failure paths. A fix gets a test that fails without the fix. Put the test in the file
+under `tests/` that covers the module, or add a file there. If a change cannot be tested, say why in
+the pull request.
+
 Run the gate before you call a change done, and again before you push:
 
 ```bash
@@ -78,7 +83,8 @@ scripts/check.sh
 
 The script runs the test suite, the proposal format check (`scripts/proposals.py lint`), the
 bilingual-docs check (`scripts/check_docs.py`), and the acronym check (`scripts/acronyms.py`). All
-four must pass. For a dashboard change, also
+four must pass. GitHub Actions runs the same script on every pull request and on every push to `main`
+(`.github/workflows/test.yml`). For a dashboard change, also
 look at the page with demo data, as described under [Field notes](#check-the-dashboard-in-a-real-browser).
 
 ## Git
