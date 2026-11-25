@@ -114,13 +114,16 @@ class KnowledgePageTest(unittest.TestCase):
 
         def run(flt):
             return self.helpers(f"(() => {{ const f = {{...knDefaults(), ...{flt}}}; const c = knControls(knStats({json.dumps(col)}, f), f); "
-                                "return {tags: c.tags.map((t) => t.join(':')), scopes: c.scopes}; })()")
+                                "return {kinds: c.kinds, tags: c.tags.map((t) => t.join(':')), scopes: c.scopes}; })()")
         got = run("{}")
         self.assertEqual(len(got["tags"]), 20)  # the top chips only
         self.assertEqual(got["scopes"], ["a/"])
         rare = [t for t in run("{tag: 't24'}")["tags"] if t.startswith("t24")]
         self.assertEqual(rare, ["t24:1"])  # below the top 20 but in the pool: its real count, not 0
         self.assertEqual([t for t in run("{tag: 'gone'}")["tags"] if t.startswith("gone")], ["gone:0"])  # obsolete item hidden
+        self.assertEqual(run("{}")["kinds"], ["caveat"])
+        self.assertEqual(run("{kind: 'decision'}")["kinds"], ["caveat", "decision"])  # no item has it, yet it can be cleared
+        self.assertEqual(run("{kind: 'caveat'}")["kinds"], ["caveat"])  # listed once
         self.assertEqual(run("{scope: 'old/'}")["scopes"], ["a/", "old/"])
         self.assertEqual(run("{obsolete: true, scope: 'old/'}")["scopes"], ["a/", "old/"])  # listed once
 

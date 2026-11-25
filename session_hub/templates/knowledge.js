@@ -78,6 +78,7 @@
   // so that a filter that narrows the list always has a control that shows and undoes it
   function knControls(s, f) {
     return {
+      kinds: f.kind && !s.order.includes(f.kind) ? [...s.order, f.kind] : s.order,
       tags: f.tag && !s.tags.some(([tag]) => tag === f.tag) ? [...s.tags, [f.tag, s.tagCounts.get(f.tag) || 0]] : s.tags,
       scopes: f.scope && !s.scopes.includes(f.scope) ? [...s.scopes, f.scope] : s.scopes,
     };
@@ -179,10 +180,10 @@
     knSummary.replaceChildren(
       el("div", { class: "kn-total" }, el("b", {}, String(s.total)), el("span", {}, t("kn.active"))),
       el("div", { class: "kn-total" }, el("b", {}, String(s.reporters)), el("span", {}, t("kn.reporters"))));
+    const { kinds: kindList, tags: tagList, scopes: scopeList } = knControls(s, f);
     knKindChips.replaceChildren(el("button", { class: "iconbtn", "aria-pressed": String(!f.kind), onclick: () => knSet({ kind: "" }) }, `${t("kn.allKinds")} ${s.total}`),
-      ...s.order.map((k) => el("button", { class: "iconbtn", "aria-pressed": String(f.kind === k), style: { "--kn-c": knKindColor(k) },
-        onclick: () => knSet({ kind: f.kind === k ? "" : k }) }, `${L(s.groups[k]) || k} ${s.kinds.get(k)}`)));
-    const { tags: tagList, scopes: scopeList } = knControls(s, f);
+      ...kindList.map((k) => el("button", { class: "iconbtn", "aria-pressed": String(f.kind === k), style: { "--kn-c": knKindColor(k) },
+        onclick: () => knSet({ kind: f.kind === k ? "" : k }) }, `${L(s.groups[k]) || k} ${s.kinds.get(k) || 0}`)));
     knTagChips.replaceChildren(...tagList.map(([tag, n]) => el("button", { class: "chip kn-chip", "aria-pressed": String(f.tag === tag),
       onclick: () => knSet({ tag: f.tag === tag ? "" : tag }) }, `#${tag} ${n}`)));
 
