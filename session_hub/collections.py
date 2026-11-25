@@ -211,9 +211,8 @@ def project(defn: dict, events: list[dict]) -> list[dict]:
         items[key] = merged
     out = log if r["type"] == "log" else list(items.values())
     for it in out:
-        if r["type"] == "aggregate":
-            it["entry"] = entry_id(it["key"])
-        else:
+        it["entry"] = entry_id(it["key"])  # every item can be opened on the knowledge page
+        if r["type"] != "aggregate":
             it.pop("history", None)
         it["reporters"] = sorted({s["session_id"] for s in it["sources"]})
         if it.get("scope") and "scopes" not in it:

@@ -279,6 +279,16 @@ class KnowledgeStoreTest(unittest.TestCase):
         snap = view.store_snapshot(self.store, defs=[collections._validate(d) for d in defs])
         self.assertEqual(snap["collections"]["decisions"]["items"][0]["body"], "120 per minute")
 
+    def test_every_reduce_type_names_its_items_so_the_page_can_open_them(self):
+        self.learn("a", kind="decision", title="Limit", body="120 per minute")
+        for reduce in ("log", "latest", "aggregate"):
+            d = {"name": "k", "match": {"type": ["finding"]}, "view": {"type": "table"},
+                 "reduce": {"type": reduce, "payload": "finding"}}
+            snap = view.store_snapshot(self.store, defs=[collections._validate(d)])
+            (item,) = snap["collections"]["k"]["items"]
+            self.assertTrue(item["entry"], reduce)
+            self.assertEqual("history" in item, reduce == "aggregate", reduce)
+
     def test_the_hub_publishes_a_record_that_lands_after_its_notice(self):
         from session_hub.server import Hub
         hub = Hub(self.store)
