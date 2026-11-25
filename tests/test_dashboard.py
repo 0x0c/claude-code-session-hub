@@ -10,7 +10,7 @@ from pathlib import Path
 PAGE = (Path(__file__).resolve().parent.parent / "session_hub/templates/dashboard.html").read_text(encoding="utf-8")
 
 # Custom properties that the script sets on an element at run time
-SET_BY_SCRIPT = {"glow", "glow-ms", "kc", "group-color", "header-h"}
+SET_BY_SCRIPT = {"glow", "glow-ms", "kc", "group-color", "header-h", "title-h"}
 SIZED = re.compile(r"(?<![\w-])(font|font-size|border(?:-\w+)*-radius|(?:row-|column-)?gap|(?:padding|margin)(?:-\w+)*):\s*([^;}]+)")
 WEIGHT = re.compile(r"font-weight:(?!\s*(?:var\(|inherit))[^;}]+")
 COLOR = re.compile(r"#[0-9a-fA-F]{3,8}\b|\b(?:rgb|hsl)a?\(")
@@ -36,6 +36,17 @@ class DashboardTest(unittest.TestCase):
     def test_static_labels_are_defined(self):
         used = set(re.findall(r'data-i18n(?:-title|-aria)?="([^"]+)"', PAGE))
         self.assertLessEqual(used, messages("en"))
+
+    def test_panel_titles_stay_below_the_sticky_header_when_the_page_scrolls(self):
+        rule = re.search(r"^\.panel > h2 \{(.*?)\}\n", PAGE, re.M | re.S).group(1)
+        self.assertIn("position: sticky", rule)
+        self.assertIn("top: var(--header-h", rule)
+
+    def test_new_messages_button_sits_below_the_sticky_titles(self):
+        rule = re.search(r"^\.newbar \{(.*?)\}?\n", PAGE, re.M | re.S).group(1)
+        self.assertIn("var(--header-h", rule)
+        self.assertIn("var(--title-h", rule)
+        self.assertIn('$("sessionsTitle").getBoundingClientRect().bottom', PAGE)
 
     def test_script_ids_exist_in_the_page(self):
         used = set(re.findall(r'\$\("(\w+)"\)', PAGE))
