@@ -25,6 +25,7 @@ from .store import EventStore, _check_id
 
 # Permission and shape errors do not heal by themselves; a full disk or a busy file table may
 UNWRITABLE_ERRNOS = {errno.EACCES, errno.EPERM, errno.EROFS, errno.ENOTDIR, errno.EISDIR, errno.EEXIST}
+MIN_FREE_BYTES = 64 * 1024  # below this the check refuses, so that a full disk fails before a notice exists
 MIGRATED = "migrated"  # the writer name of the file that holds the copied legacy events
 FIELDS = ("kind", "title", "body", "tags", "scope", "key", "status")
 NOTICE_FIELDS = ("kind", "title", "key", "status")  # what the timeline event keeps
@@ -95,13 +96,17 @@ class KnowledgeStore:
 
     def ensure_writable(self, session_id: str, writer: str | None = None) -> None:
         """Raise OSError when the store cannot take a record from this writer, so that a writer fails
-        before it puts a notice on the timeline whose text it could not keep. A full disk is beyond
-        the check."""
+        before it puts a notice on the timeline whose text it could not keep. A disk with less than
+        MIN_FREE_BYTES free fails with ENOSPC, which may heal; a disk that fills after the check is beyond
+        it."""
         try:
             self.dir.mkdir(parents=True, exist_ok=True)
             if not os.access(self.dir, os.W_OK):
                 raise PermissionError(f"the knowledge store is not writable: {self.dir}")
             open(self._path(session_id, writer), "a", encoding="utf-8").close()  # the writer's own file, too
+            st = os.statvfs(self.dir)
+            if st.f_bavail * st.f_frsize < MIN_FREE_BYTES:
+                raise OSError(errno.ENOSPC, f"the disk of the knowledge store is full: {self.dir}")
         except PermissionError as e:
             raise Unwritable(str(e)) from e
         except OSError as e:

@@ -177,6 +177,16 @@ class KnowledgeStoreTest(unittest.TestCase):
                 client.post(url, {"session_id": "a", "fields": {"type": "report", "summary": "x"}})
         self.assertIn("500", str(cm.exception))
 
+    def test_a_nearly_full_disk_fails_before_the_notice_and_stays_retryable(self):
+        import errno
+        full = mock.Mock(f_bavail=1, f_frsize=4096)
+        with mock.patch("os.statvfs", return_value=full):
+            with self.assertRaises(OSError) as cm:
+                self.learn("a", kind="caveat", title="t", body="b")
+        self.assertEqual(cm.exception.errno, errno.ENOSPC)
+        self.assertNotIsInstance(cm.exception, knowledge_store.Unwritable)
+        self.assertEqual(self.store.read_all(), {})  # no notice, so a retry leaves no orphan
+
     def test_a_full_disk_in_the_preflight_stays_retryable(self):
         import errno
         with mock.patch.object(Path, "mkdir", side_effect=OSError(errno.ENOSPC, "No space left on device")):
