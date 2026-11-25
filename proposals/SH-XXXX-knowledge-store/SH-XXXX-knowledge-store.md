@@ -23,7 +23,7 @@ Knowledge is today a projection of `finding` events. The projection keeps no ent
 
 Once the change ships, a reader opens one entry from the page and reads its full text, its reporters, and its revisions at a stable address, and narrows a long list by kind, tag, scope, or text without leaving the page.
 
-This proposal reverses a recorded decision. [`AGENTS.md`](../../AGENTS.md) states that knowledge is a collection with no storage of its own, and ground rule 3 makes the event store the single source of truth. The change below keeps the event store the source of truth for everything except knowledge entries, and replaces the first decision.
+This proposal reverses a recorded decision. [`AGENTS.md`](../../AGENTS.md) states that knowledge is a collection with no storage of its own, and ground rule 3 makes the event store the single source of truth. The change below keeps the event store the source of truth for everything except the full text of findings, and replaces the first decision.
 
 ## Detailed design
 
