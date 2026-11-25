@@ -175,6 +175,13 @@ class KnowledgeStoreTest(unittest.TestCase):
                 client.post(url, {"session_id": "a", "fields": {"type": "report", "summary": "x"}})
         self.assertIn("500", str(cm.exception))
 
+    def test_a_full_disk_in_the_preflight_stays_retryable(self):
+        import errno
+        with mock.patch.object(Path, "mkdir", side_effect=OSError(errno.ENOSPC, "No space left on device")):
+            with self.assertRaises(OSError) as cm:
+                self.ks.ensure_writable("a")
+        self.assertNotIsInstance(cm.exception, knowledge_store.Unwritable)  # the hub answers 500, not 507
+
     def test_a_hook_survives_a_store_that_cannot_take_an_event(self):
         import io
         from contextlib import redirect_stderr

@@ -14,6 +14,7 @@ title when no key is given), so two sessions that report the same caveat append 
 
 from __future__ import annotations
 
+import errno
 import fcntl
 import json
 import os
@@ -22,6 +23,8 @@ from pathlib import Path
 from . import collections
 from .store import EventStore, _check_id
 
+# Permission and shape errors do not heal by themselves; a full disk or a busy file table may
+UNWRITABLE_ERRNOS = {errno.EACCES, errno.EPERM, errno.EROFS, errno.ENOTDIR, errno.EISDIR, errno.EEXIST}
 MIGRATED = "migrated"  # the writer name of the file that holds the copied legacy events
 FIELDS = ("kind", "title", "body", "tags", "scope", "key", "status")
 NOTICE_FIELDS = ("kind", "title", "key", "status")  # what the timeline event keeps
@@ -99,8 +102,12 @@ class KnowledgeStore:
             if not os.access(self.dir, os.W_OK):
                 raise PermissionError(f"the knowledge store is not writable: {self.dir}")
             open(self._path(session_id, writer), "a", encoding="utf-8").close()  # the writer's own file, too
-        except OSError as e:
+        except PermissionError as e:
             raise Unwritable(str(e)) from e
+        except OSError as e:
+            if e.errno in UNWRITABLE_ERRNOS:
+                raise Unwritable(str(e)) from e
+            raise  # a full disk and the like may heal: the hub answers 500 and the client retries
 
     def read(self) -> list[dict]:
         """Return every revision record in time order; a corrupt line is skipped."""
