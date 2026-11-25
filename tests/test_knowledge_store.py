@@ -161,6 +161,19 @@ class KnowledgeStoreTest(unittest.TestCase):
         self.assertIn("507", str(cm.exception.code))
         self.assertEqual(len(outbox.read_text().splitlines()), 1)  # the live event was not spooled behind it
 
+    def test_a_hook_survives_a_store_that_cannot_take_an_event(self):
+        import io
+        from contextlib import redirect_stderr
+        from session_hub import client, hooks
+        with mock.patch.object(hooks, "current_session_id", return_value="a"):
+            with mock.patch.object(hooks, "deliver", side_effect=client.StoreError("507")):
+                self.assertIsNone(hooks.send({"type": "report"}))
+        with mock.patch.object(hooks, "_read_payload", return_value={}), \
+                mock.patch.dict(hooks.HANDLERS, {"stop": mock.Mock(side_effect=PermissionError("read-only"))}), \
+                redirect_stderr(io.StringIO()) as err:
+            hooks.run("stop")  # prints to stderr and returns; the session is not stopped
+        self.assertIn("read-only", err.getvalue())
+
     def test_a_record_survives_a_deletion_that_ran_while_it_waited_for_the_lock(self):
         ev = self.learn("a", kind="caveat", title="first", body="b")
         path = self.store.root / "knowledge" / "a.jsonl"
