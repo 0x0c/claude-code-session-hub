@@ -184,6 +184,21 @@ class KnowledgeStoreTest(unittest.TestCase):
                 self.ks.ensure_writable("a")
         self.assertNotIsInstance(cm.exception, knowledge_store.Unwritable)  # the hub answers 500, not 507
 
+    def test_a_failure_after_the_notice_fails_loudly_through_the_hub(self):
+        import errno, threading
+        from session_hub import client
+        from session_hub.server import make_server
+        srv, _ = make_server(self.store, port=0)
+        self.addCleanup(srv.server_close)
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        self.addCleanup(srv.shutdown)
+        url = f"http://127.0.0.1:{srv.server_address[1]}"
+        full = OSError(errno.ENOSPC, "No space left on device")
+        with mock.patch.object(knowledge_store.KnowledgeStore, "append", side_effect=full):
+            with self.assertRaises(client.StoreError) as cm:  # not PushError: no quiet outbox, no duplicate notice
+                client.post(url, {"session_id": "a", "fields": {"type": "finding", "finding": {"kind": "caveat", "title": "t", "body": "b"}}})
+        self.assertIn("could not be stored", str(cm.exception))
+
     def test_a_hook_survives_a_store_that_cannot_take_an_event(self):
         import io
         from contextlib import redirect_stderr

@@ -70,7 +70,12 @@ def record(store: EventStore, session_id: str, fields: dict, writer: str | None 
         knowledge_store.KnowledgeStore(store.root).ensure_writable(session_id, writer)  # fail before the notice exists
     ev = store.append(session_id, fields, writer=writer)
     if finding:
-        knowledge_store.KnowledgeStore(store.root).append(ev, finding)
+        try:
+            knowledge_store.KnowledgeStore(store.root).append(ev, finding)
+        except OSError as e:
+            # The notice is already on the timeline; fail loudly (the hub answers 507, which no client
+            # retries), so that the writer sends the finding again instead of an outbox resending it
+            raise knowledge_store.Unwritable(f"the text of the finding could not be stored: {e}") from e
     after = schema.fold(store.read(session_id))
 
     escalate = None
