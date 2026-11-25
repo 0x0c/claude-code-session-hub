@@ -274,7 +274,8 @@ To remove a finished session and every stored message of it, from the hub and th
 session-hub delete <session_id>
 ```
 
-The deletion cannot be undone. The dashboard offers the same operation: once you select a session,
+The deletion removes the session's events and the knowledge it recorded (its files under `events/` and
+`knowledge/`), and it cannot be undone. Other sessions' reports of the same knowledge item stay. The dashboard offers the same operation: once you select a session,
 **Delete session** appears in the timeline header and asks for a confirmation. A session that reports
 again after the deletion reappears with its new messages alone.
 

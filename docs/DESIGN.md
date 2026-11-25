@@ -198,8 +198,8 @@ immediately**.
   loopback interface alone. A hub that a hook started in the background stops the same way.
 - **Deleting a session**: the one exception to append-only writing. `session-hub delete` and the
   dashboard's delete button (in the timeline header) call
-  `DELETE /api/sessions/<session_id>`, which unlinks every file of that session under the files' write
-  locks and pushes the removal to every browser. The operation works on whole sessions alone, so the
+  `DELETE /api/sessions/<session_id>`, which unlinks every file of that session, in `events/` and in `knowledge/`, under the files' write
+  locks (the knowledge it recorded goes with it; other sessions' reports of the same item stay) and pushes the removal to every browser. The operation works on whole sessions alone, so the
   folded state of every other session stays intact
   ([SH-0002](../proposals/SH-0002-delete-session/SH-0002-delete-session.md)).
 - **Archiving a session**: `archive` and `unarchive` events set and clear the status field `archived`,

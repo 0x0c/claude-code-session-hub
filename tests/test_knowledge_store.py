@@ -130,11 +130,20 @@ class KnowledgeStoreTest(unittest.TestCase):
             self.ks.append({"id": "x", "session_id": "../evil", "ts": "2026-01-01T00:00:00.000Z"}, {"title": "t"})
         self.assertFalse((self.store.root.parent / "evil.jsonl").exists())
 
-    def test_the_knowledge_survives_deleting_the_session(self):
-        self.learn("a", kind="caveat", title="t", body="b")
-        self.store.delete_session("a")
+    def test_deleting_a_session_deletes_the_knowledge_it_recorded(self):
+        self.learn("a", kind="caveat", title="Shared", body="from a")
+        self.learn("a", kind="insight", title="Mine", body="secret text", writer="parent")
+        self.learn("b", kind="caveat", title="Shared", body="from b")
+        self.assertGreater(self.store.delete_session("a"), 0)
+        self.assertEqual(sorted(p.name for p in (self.store.root / "knowledge").glob("*.jsonl")), ["b.jsonl"])
         (item,) = self.items()
-        self.assertEqual(item["body"], "b")
+        self.assertEqual((item["title"], item["body"], item["reporters"]), ("Shared", "from b", ["b"]))
+
+    def test_deleting_a_session_with_only_knowledge_files_reports_them(self):
+        ev = self.learn("a", kind="caveat", title="t", body="b")
+        (self.store.root / "events" / "a.jsonl").unlink()
+        self.assertEqual(self.store.delete_session("a"), 1)
+        self.assertFalse((self.store.root / "knowledge" / "a.jsonl").exists())
 
     def test_the_cli_reads_the_text_from_the_store(self):
         self.learn("a", kind="caveat", title="Redis SCAN", body="cursor restarts", tags=["redis"])
