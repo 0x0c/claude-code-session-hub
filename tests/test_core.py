@@ -105,7 +105,7 @@ class CoreTest(TmpCase):
 
 class ViewTest(TmpCase):
     def snap(self, **kw):
-        return view.snapshot(self.store.read_all(), **kw)
+        return view.store_snapshot(self.store, **kw)
 
     def later(self, minutes):
         return datetime.now(timezone.utc) + timedelta(minutes=minutes, seconds=1)
@@ -287,7 +287,7 @@ class StoreTest(TmpCase):
                 f.write(json.dumps({"session_id": "a", "seq": seq, "ts": "2026-01-01T00:00:00Z", "type": "report",
                                     **fields}) + "\n")
         self.store.append("b", {"type": "start"})
-        self.assertEqual([s["session_id"] for s in view.snapshot(self.store.read_all())["sessions"]], ["a", "b"])
+        self.assertEqual([s["session_id"] for s in view.store_snapshot(self.store)["sessions"]], ["a", "b"])
         self.assertEqual([e["seq"] for e in self.store.read("a")], [1])
 
     def test_concurrent_writers_get_distinct_numbers_and_times(self):

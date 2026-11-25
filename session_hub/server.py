@@ -76,7 +76,7 @@ class Hub:
         self._stop = threading.Event()
 
     def _build(self) -> dict:
-        snap = view.snapshot(self.store.read_all(), defs=self.defs)
+        snap = view.store_snapshot(self.store, defs=self.defs)
         for s in snap["sessions"]:
             if s["session_id"] in self.desktop_ids:
                 s["desktop_id"] = self.desktop_ids[s["session_id"]]

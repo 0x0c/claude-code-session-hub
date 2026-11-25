@@ -177,7 +177,7 @@ def _snap(a):
     store = EventStore(a.store)
     if getattr(a, "pull", False):
         store.pull()
-    return view.snapshot(store.read_all(), defs=collections.load_definitions(store.root))
+    return view.store_snapshot(store, defs=collections.load_definitions(store.root))
 
 
 def cmd_attention(a):

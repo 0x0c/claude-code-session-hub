@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from . import collections, schema
+from . import collections, knowledge_store, schema
 
 STALE_MINUTES = 30
 
@@ -57,8 +57,9 @@ def session_view(events: list[dict], now: datetime | None = None,
 
 
 def snapshot(all_events: dict[str, list[dict]], now: datetime | None = None,
-             defs: list[dict] | None = None) -> dict:
-    """Return all dashboard data. defs holds collection definitions (built-ins alone when omitted)."""
+             defs: list[dict] | None = None, knowledge: list[dict] | None = None) -> dict:
+    """Return all dashboard data. defs holds collection definitions (built-ins alone when omitted);
+    knowledge holds the knowledge store's revisions, shaped as finding events."""
     sessions, events = [], []
     for sid, evs in all_events.items():
         # Bookkeeping alone (the child's file was deleted, or has not arrived) make no session
@@ -73,9 +74,15 @@ def snapshot(all_events: dict[str, list[dict]], now: datetime | None = None,
              "input": sum((s["usage"].get("input") or 0) for s in sessions),
              "output": sum((s["usage"].get("output") or 0) for s in sessions)}
     defs = defs if defs is not None else collections.load_definitions(None)
-    cols = collections.project_all(defs, events)
+    cols = collections.project_all(defs, events, knowledge)
     return {"generated_at": schema.now_iso(), "sessions": sessions, "events": events, "total": total,
             "collections": cols}
+
+
+def store_snapshot(store, now: datetime | None = None, defs: list[dict] | None = None) -> dict:
+    """Read the whole store (events and the knowledge store) and return the dashboard data."""
+    all_events = store.read_all()
+    return snapshot(all_events, now, defs, knowledge_store.load(store, all_events))
 
 
 def knowledge_lines(snap: dict, name: str = "knowledge", kinds: list[str] | None = None,

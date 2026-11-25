@@ -34,6 +34,7 @@ BUILTIN: list[dict] = [
         "label": {"en": "Knowledge", "ja": "ナレッジ"},
         "description": {"en": "Findings, caveats, and decisions that sub-sessions discovered while working",
                         "ja": "サブセッションが作業中に見つけた知見・注意点・決定事項"},
+        "source": "knowledge",
         "match": {"type": ["finding"]},
         "reduce": {"type": "aggregate", "payload": "finding", "key": ["key|title"]},
         "view": {
@@ -134,6 +135,21 @@ def _norm(v) -> str:
     return re.sub(r"[\s　]+", " ", str(v)).strip().lower()
 
 
+def entry_id(name: str) -> str:
+    """Name an item by a short hash of its normalized key, stable across runs and machines."""
+    return hashlib.sha1(_norm(name).encode("utf-8")).hexdigest()[:10]
+
+
+def _revision(ev: dict, data: dict) -> dict:
+    """One entry of an item's history: what the report said, and who sent it."""
+    rev = {k: data[k] for k in ("kind", "title", "body", "status") if data.get(k) not in (None, "")}
+    return {**rev, "ts": ev["ts"], "session_id": ev["session_id"], "event_id": ev["id"]}
+
+
+def _same_words(a: dict, b: dict) -> bool:
+    return all(a.get(k) == b.get(k) for k in ("kind", "title", "body", "status"))
+
+
 def _key(ev: dict, payload: dict, spec: list[str]) -> str:
     """Build the key from spec, an array of field names; 'a|b' falls back to b when a is empty."""
     parts = []
@@ -171,6 +187,7 @@ def project(defn: dict, events: list[dict]) -> list[dict]:
         if r["type"] == "latest" or cur is None:
             prev_sources = cur["sources"] if (cur and r["type"] == "aggregate") else []
             items[key] = {**data, "key": key, "sources": prev_sources + [_source(ev)],
+                          "history": [_revision(ev, data)] if r["type"] == "aggregate" else [],
                           "first_ts": cur["first_ts"] if cur else ev["ts"], "last_ts": ev["ts"],
                           "count": (cur["count"] + 1) if cur else 1}
             continue
@@ -184,11 +201,17 @@ def project(defn: dict, events: list[dict]) -> list[dict]:
             scopes.add(data["scope"])
         if scopes:
             merged["scopes"] = sorted(scopes)
+        rev = _revision(ev, {**{k: merged.get(k) for k in ("kind", "title", "body", "status")}})
+        history = cur["history"] if _same_words(rev, cur["history"][-1]) else cur["history"] + [rev]
         merged.update(key=key, sources=cur["sources"] + [_source(ev)], first_ts=cur["first_ts"],
-                      last_ts=ev["ts"], count=cur["count"] + 1)
+                      last_ts=ev["ts"], count=cur["count"] + 1, history=history)
         items[key] = merged
     out = log if r["type"] == "log" else list(items.values())
     for it in out:
+        if r["type"] == "aggregate":
+            it["entry"] = entry_id(it["key"])
+        else:
+            it.pop("history", None)
         it["reporters"] = sorted({s["session_id"] for s in it["sources"]})
         if it.get("scope") and "scopes" not in it:
             it["scopes"] = [it["scope"]]
@@ -196,10 +219,12 @@ def project(defn: dict, events: list[dict]) -> list[dict]:
     return out
 
 
-def project_all(defs: list[dict], events: list[dict]) -> dict:
+def project_all(defs: list[dict], events: list[dict], knowledge: list[dict] | None = None) -> dict:
+    """Project every collection. A collection with "source": "knowledge" reads the knowledge store's
+    revisions (shaped as finding events) when the caller passes them, and the events otherwise."""
     out = {}
     for d in defs:
-        items = project(d, events)
+        items = project(d, knowledge if knowledge is not None and d.get("source") == "knowledge" else events)
         out[d["name"]] = {
             "name": d["name"], "label": d["label"], "description": d.get("description", ""),
             "view": d["view"], "reduce": d["reduce"]["type"], "items": items,

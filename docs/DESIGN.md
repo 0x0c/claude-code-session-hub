@@ -337,8 +337,15 @@ example, "2 sessions / 2 reports". The count serves as a natural measure of impo
 same title with `status: obsolete` marks the item obsolete. An obsolete item leaves the default view
 and the `knowledge` output, but its history remains.
 
-**The built-in "knowledge" collection** aggregates the `finding` events that children send with
-`session-hub learn`.
+**The built-in "knowledge" collection** aggregates the findings that children send with
+`session-hub learn`. The full text lives in the **knowledge store**, `<store>/knowledge/`: one JSON Lines record per
+revision of an entry (`entry`, `event_id`, `session_id`, `ts`, `kind`, `title`, `body`, `tags`, `scope`, `key`,
+`status`), one writer per file (`<session-id>.jsonl`, `<session-id>@parent.jsonl`), so sharing the store
+through Git never conflicts. An entry's identifier is a short hash of the normalized key (the title when
+there is no key), so two sessions that report the same caveat append to the same entry, and an entry's
+revisions form its history. The timeline keeps a short `finding` notice (kind, title, key, status) that
+links to the revision through `event_id`. The server imports finding events that predate the store once, so
+a second start copies nothing.
 
 | `kind` | Display name (on-screen label) | What it records |
 |---|---|---|
@@ -433,7 +440,7 @@ label, it gives the English label and the Japanese label in parentheses.
 | The dashboard of `session-hub serve` | For humans. Reflects each push as it arrives (SSE) |
 | `session-hub export --out dashboard.html` | A standalone HyperText Markup Language (HTML) file with an embedded snapshot (for sharing and archiving; does not update) |
 | `GET /guide` (the **Status guide** link in the header) | What each status and state means |
-| `GET /knowledge` (the **Knowledge summary** link in the header) | Counts of the knowledge collection by kind, open issues, items that several sessions reported, the latest items, and tags |
+| `GET /knowledge` (the **Knowledge** link in the header) | Every knowledge item as a list with a search box and filters (kind, tag, scope, reported by several sessions, obsolete) and a sort. `#<entry>` opens one item: its full text, reporters, and revisions. The filters live in the query string |
 | `GET /playbook` (the **Playbook** link in the header) | Every dashboard component in every state, drawn from sample data |
 | The **Design system** link (in the header and the Playbook's menu, when `HUB_DESIGN_SYSTEM_URL` is set) | The design system page, in a new tab |
 | `GET /api/snapshot` | JSON for machines |
@@ -583,7 +590,8 @@ claude-code-session-hub/
     usage.py              Token totals from the transcript
     playbook.py           The playbook page
     guide.py              The status guide page
-    knowledge.py          The knowledge summary page
+    knowledge.py          The knowledge page
+    knowledge_store.py    The knowledge store (one record per revision of an entry)
     session_name.py       The session's name from the transcript
     pr_link.py            The session's linked PR from the transcript
     cli.py                The session-hub command
@@ -736,6 +744,8 @@ claude-code-session-hub/
 | sink | An extra destination for a collection (a Markdown or JSONL file) |
 | `collections.json` | The collection definitions at the root of the store. Used to add, override, or disable built-in collections |
 | Knowledge | The built-in collection. It gathers in one place the findings and caveats that sub-sessions uncover while working |
+| knowledge store | `<store>/knowledge/`: the durable records that hold each finding's full text and revisions |
+| entry | One knowledge item, named by a short hash of its normalized key (or title) |
 | finding | The event type that enters knowledge, sent with `session-hub learn` |
 | kind (of a finding) | The type of finding: caveat / issue (open issue) / decision / howto (how-to) / insight |
 | scope | Where a finding applies (a path, module, or service name). `knowledge --scope` uses it to read only the relevant findings |

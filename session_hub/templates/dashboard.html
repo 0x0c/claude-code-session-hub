@@ -425,7 +425,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       "btn.playbook": "Playbook", "btn.playbookTitle": "See every component of this dashboard in every state",
       "btn.designSystem": "Design system", "btn.designSystemTitle": "Open the design system page in a new tab",
       "btn.guide": "Status guide", "btn.guideTitle": "Read what each status and state means",
-      "btn.knowledge": "Knowledge summary", "btn.knowledgeTitle": "Read a summary of what the sub-sessions learned",
+      "btn.knowledge": "Knowledge", "btn.knowledgeTitle": "Search and read what the sub-sessions learned",
       "btn.theme": "Theme", "btn.themeTitle": "Switch between light and dark",
       "btn.lang": "日本語", "btn.langTitle": "表示を日本語に切り替える",
       "btn.byProject": "By project", "btn.byProjectTitle": "Group sessions by repository or project; turn off to group by status",
@@ -507,15 +507,21 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       "help.state.done": "The session reported that its work is complete.",
       "help.state.abandoned": "The session was given up before its work was complete.",
       "help.state.archived": "The session was put away. It asks for nothing.",
-      "kn.title": "Knowledge summary",
-      "kn.intro": "What the sub-sessions learned, counted from the knowledge collection. Obsolete items are left out.",
+      "kn.title": "Knowledge",
+      "kn.intro": "What the sub-sessions learned. Open an item to read its full text, its reporters, and its revisions.",
       "kn.error": "Could not read the hub. Check that it is running, then reload.",
       "kn.unauthorized": "The hub refused this page. Open it with ?token=<HUB_TOKEN> appended to the address.",
-      "kn.loading": "Loading…", "kn.none": "Nothing here.", "kn.open": "Open the knowledge tab",
-      "kn.active": "Active items", "kn.reporters": "Reporting sessions",
-      "kn.sec.totals": "Totals", "kn.sec.issues": "Open issues", "kn.sec.shared": "Reported by several sessions",
-      "kn.sec.latest": "Latest", "kn.sec.tags": "Tags",
-      "kn.sharedLead": "When several sessions report the same item, it likely matters beyond one session.",
+      "kn.loading": "Loading…",
+      "kn.active": "Items", "kn.reporters": "Reporting sessions",
+      "kn.search": "Search title, text, tags", "kn.allKinds": "All", "kn.allScopes": "All scopes",
+      "kn.sort.recent": "Newest first", "kn.sort.reporters": "Most reported first",
+      "kn.shared": "Reported by several sessions", "kn.clear": "Clear filters",
+      "kn.count": "{n} of {m} items", "kn.more": "Show {n} more",
+      "kn.pick": "Pick an item to read it.", "kn.notFound": "This item does not exist in the knowledge store.",
+      "kn.back": "← Back to the list", "kn.noBody": "(no text)",
+      "kn.reportedBy": "Reported by", "kn.history": "Revisions", "kn.rev": "Revision {n}",
+      "kn.filterTag": "Show items with this tag", "kn.filterScope": "Show items with this scope",
+      "kn.openSession": "Open this session on the dashboard",
       "guide.title": "Status guide",
       "guide.intro": "The dashboard sorts every session into one of four statuses. Each session also shows its state, which tells what it is doing or waiting for.",
       "guide.col.state": "State",
@@ -532,7 +538,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       "btn.playbook": "Playbook", "btn.playbookTitle": "ダッシュボードの部品をすべての状態で一覧する",
       "btn.designSystem": "デザインシステム", "btn.designSystemTitle": "デザインシステムのページを新しいタブで開く",
       "btn.guide": "ステータスの説明", "btn.guideTitle": "各ステータスと状態の意味を一覧する",
-      "btn.knowledge": "ナレッジのまとめ", "btn.knowledgeTitle": "サブセッションが得た知見のまとめを読む",
+      "btn.knowledge": "ナレッジ", "btn.knowledgeTitle": "サブセッションが得た知見を検索して読む",
       "btn.theme": "テーマ", "btn.themeTitle": "テーマ切替",
       "btn.lang": "English", "btn.langTitle": "Switch the display to English",
       "btn.byProject": "プロジェクト別", "btn.byProjectTitle": "リポジトリやプロジェクトごとにまとめます。オフにすると状態別になります",
@@ -612,15 +618,21 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       "help.state.done": "作業の完了が報告されました。",
       "help.state.abandoned": "作業を完了せずに取りやめました。",
       "help.state.archived": "片付けたセッションです。対応は不要です。",
-      "kn.title": "ナレッジのまとめ",
-      "kn.intro": "サブセッションが得た知見を、ナレッジコレクションから数えて示します。廃止された項目は含めません。",
+      "kn.title": "ナレッジ",
+      "kn.intro": "サブセッションが得た知見です。項目を開くと、全文、報告したセッション、改訂履歴を読めます。",
       "kn.error": "ハブを読み込めませんでした。ハブが動いているか確かめて、再読み込みしてください。",
       "kn.unauthorized": "ハブがこのページを拒否しました。アドレスに ?token=<HUB_TOKEN> を付けて開いてください。",
-      "kn.loading": "読み込み中…", "kn.none": "ありません。", "kn.open": "ナレッジタブを開く",
-      "kn.active": "有効な項目", "kn.reporters": "報告したセッション",
-      "kn.sec.totals": "件数", "kn.sec.issues": "未解決の問題", "kn.sec.shared": "複数のセッションが報告",
-      "kn.sec.latest": "最新", "kn.sec.tags": "タグ",
-      "kn.sharedLead": "複数のセッションが同じ項目を報告したら、1つのセッションを超えて重要な可能性があります。",
+      "kn.loading": "読み込み中…",
+      "kn.active": "項目", "kn.reporters": "報告したセッション",
+      "kn.search": "タイトル・本文・タグで検索", "kn.allKinds": "すべて", "kn.allScopes": "すべての対象範囲",
+      "kn.sort.recent": "新しい順", "kn.sort.reporters": "報告が多い順",
+      "kn.shared": "複数のセッションが報告", "kn.clear": "絞り込みを解除",
+      "kn.count": "{m} 件中 {n} 件", "kn.more": "さらに {n} 件を表示",
+      "kn.pick": "項目を選ぶと、全文を読めます。", "kn.notFound": "この項目はナレッジストアにありません。",
+      "kn.back": "← 一覧へ戻る", "kn.noBody": "（本文なし）",
+      "kn.reportedBy": "報告", "kn.history": "改訂履歴", "kn.rev": "改訂 {n}",
+      "kn.filterTag": "このタグの項目を表示", "kn.filterScope": "この対象範囲の項目を表示",
+      "kn.openSession": "ダッシュボードでこのセッションを開く",
       "guide.title": "ステータスの説明",
       "guide.intro": "ダッシュボードは、すべてのセッションを4つのステータスに分けます。各セッションには、何をしているか、何を待っているかを示す状態も表示します。",
       "guide.col.state": "状態",
@@ -2093,8 +2105,10 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
   // A link such as ./#col:knowledge (from the knowledge summary page) opens that tab on the first snapshot;
   // drop the hash so that a reconnect's snapshot does not switch the reader back to that tab
   function openHashedTab(initial) {
-    if (!initial || !location.hash.startsWith("#col:")) return;
-    setView(location.hash.slice(1));
+    if (!initial) return;
+    if (location.hash.startsWith("#col:")) setView(location.hash.slice(1));
+    else if (location.hash.startsWith("#session:")) selectSession(decodeURIComponent(location.hash.slice(9)));
+    else return;
     history.replaceState(null, "", location.pathname + location.search);
   }
 

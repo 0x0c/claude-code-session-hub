@@ -69,7 +69,7 @@ class SchemaTest(TmpMixin, unittest.TestCase):
         after = schema.apply_event(st, {**desktop_hint, "ts": "2999-01-01T00:00:00Z"})
         self.assertEqual(after["heartbeat"], st["heartbeat"])
         self.store.append("c", desktop_hint, writer="desktop")
-        self.assertEqual(view.snapshot(self.store.read_all())["sessions"], [])
+        self.assertEqual(view.store_snapshot(self.store)["sessions"], [])
 
     def test_cli_start_takes_the_parent_from_the_environment(self):
         env = {"HUB_STORE": str(self.store.root), "HUB_SESSION_ID": "kid", "HUB_PARENT_SESSION_ID": "mom",
@@ -114,7 +114,7 @@ class SchemaTest(TmpMixin, unittest.TestCase):
     def test_view_priority_and_timeline_diff(self):
         core.record(self.store, "a", {"type": "start", "title": "A"})
         core.record(self.store, "b", {"type": "fail", "last_error": "boom"})
-        snap = view.snapshot(self.store.read_all())
+        snap = view.store_snapshot(self.store)
         self.assertEqual([s["session_id"] for s in snap["sessions"]], ["b", "a"])
         self.assertEqual(view.attention_lines(snap), ["FL b boom"])
         start = next(e for e in snap["events"] if e["session_id"] == "a")
@@ -161,7 +161,7 @@ class ArchiveTest(TmpMixin, unittest.TestCase):
     def test_archive_events_alone_make_no_session(self):
         self.store.append("s", {"type": "archive", "actor": "parent"}, writer="parent")
         self.assertEqual(self.status()["archived"]["by"], "parent")
-        self.assertEqual(view.snapshot(self.store.read_all())["sessions"], [])
+        self.assertEqual(view.store_snapshot(self.store)["sessions"], [])
 
     def test_report_reopens_a_manual_archive_alone(self):
         for writer, reopened in (("parent", True), ("desktop", False)):
@@ -187,14 +187,14 @@ class CollectionsTest(TmpMixin, unittest.TestCase):
         self.learn("a", kind="caveat", title="Redis 6.2  の SCAN", body="詳細", tags=["CI"], scope="tests/")
         self.learn("b", kind="caveat", title="redis 6.2 の scan", tags=["redis"], scope="search/")
         self.learn("b", kind="decision", title="上限 120")
-        snap = view.snapshot(self.store.read_all())
+        snap = view.store_snapshot(self.store)
         items = snap["collections"]["knowledge"]["items"]
         self.assertEqual(len(items), 2)
         cav = next(i for i in items if i["kind"] == "caveat")
         self.assertEqual((cav["count"], cav["reporters"], cav["tags"]), (2, ["a", "b"], ["ci", "redis"]))
         self.assertEqual((cav["body"], cav["scopes"]), ("詳細", ["search/", "tests/"]))
         self.learn("a", kind="caveat", title="Redis 6.2 の SCAN", status="obsolete")
-        snap = view.snapshot(self.store.read_all())
+        snap = view.store_snapshot(self.store)
         self.assertEqual(snap["collections"]["knowledge"]["active"], 1)
         self.assertEqual(view.knowledge_lines(snap), ["[decision] 上限 120"])
 
@@ -209,7 +209,7 @@ class CollectionsTest(TmpMixin, unittest.TestCase):
         core.record(self.store, "a", {"type": "pr", "actor": "script", "pr": {"number": 1}})
         core.record(self.store, "a", {"type": "pr", "actor": "script", "pr": {"ci": "pass"}})
         self.learn("a", kind="howto", title="make up で起動")
-        snap = view.snapshot(self.store.read_all(), defs=defs)
+        snap = view.store_snapshot(self.store, defs=defs)
         self.assertEqual(len(snap["collections"]["pr"]["items"]), 1)
         written = collections.write_sinks(defs, snap["collections"], self.store.root)
         self.assertIn("make up で起動", (self.store.root / "out/K.md").read_text())
@@ -235,7 +235,7 @@ class LocalizationTest(TmpMixin, unittest.TestCase):
                          ["ci", "self_review", "tests_added", "description", "tasks"])
         self.assertEqual(codes[0]["value"], "unknown")
         self.assertEqual(schema.ready_gate(st)[0], "CI: unknown")
-        view_st = view.snapshot(self.store.read_all())["sessions"][0]
+        view_st = view.store_snapshot(self.store)["sessions"][0]
         self.assertEqual(view_st["gate_codes"], codes)
 
     def test_localized_display_strings(self):
@@ -253,7 +253,7 @@ class LocalizationTest(TmpMixin, unittest.TestCase):
                                             {"type": "markdown", "path": "K.ja.md", "lang": "ja"}]}]))
         defs = collections.load_definitions(self.store.root)
         core.record(self.store, "a", {"type": "finding", "finding": {"kind": "caveat", "title": "x"}})
-        snap = view.snapshot(self.store.read_all(), defs=defs)
+        snap = view.store_snapshot(self.store, defs=defs)
         collections.write_sinks(defs, snap["collections"], self.store.root)
         self.assertTrue((self.store.root / "K.en.md").read_text().startswith("# Knowledge\n"))
         self.assertIn("## Caveats", (self.store.root / "K.en.md").read_text())

@@ -33,7 +33,7 @@ class ScriptsTest(unittest.TestCase):
         for lang in demo.TEXT:
             store = EventStore(self.dir / lang)
             demo.seed(store, lang)
-            snap = view.snapshot(store.read_all())
+            snap = view.store_snapshot(store)
             self.assertEqual(sorted(view.state_code(s) for s in snap["sessions"]),
                              ["AR", "FL", "NH", "RR", "ST", "WK"], lang)
             self.assertEqual(snap["collections"]["knowledge"]["active"], 5, lang)

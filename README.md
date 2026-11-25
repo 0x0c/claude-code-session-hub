@@ -70,17 +70,18 @@ flowchart LR
    goes straight into the shared store and appears once the hub starts.
 2. **The hub appends the message to the event store**, the single source of truth. Each file has a
    single writer, so the store never needs merging.
-3. **Views and collections are projections** of the events: the session list, the timeline, and the
-   knowledge base. A new way to accumulate updates is a new collection definition, not new storage.
+3. **Views and collections are projections** of the events (and, for knowledge, of the knowledge store): the session list, the timeline, and the
+   knowledge base. The full text of each finding lives in the knowledge store (`knowledge/` in the
+   store); a new way to accumulate other updates is a new collection definition, not new storage.
 4. **The browser receives each change over SSE** and makes the affected cards glow for a few
    seconds. The parent reads the few lines of `session-hub attention` instead of transcripts.
 5. **The parent is woken only when it must act.** A sub-session sends its parent a one-line
    escalation notice for four transitions alone: needs a human, ready for review, failed, or done.
 
 The knowledge tab gathers what sub-sessions learned. When two sessions report the same caveat, the
-dashboard shows one card that lists both reporters. The **Knowledge summary** page (`/knowledge`, linked
-from the header) counts the items by kind and lists the open issues, the items that several sessions
-reported, the latest items, and the tags.
+dashboard shows one card that lists both reporters. The **Knowledge** page (`/knowledge`, linked
+from the header) lists every item with a search box and filters (kind, tag, scope, reported by several
+sessions), and opens one item to show its full text, its reporters, and its revisions at a stable address.
 
 ![The knowledge tab: findings grouped into caveats, open issues, decisions, how-tos, and insights](docs/images/knowledge-en.png)
 

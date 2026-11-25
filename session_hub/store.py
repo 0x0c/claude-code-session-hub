@@ -218,7 +218,8 @@ class EventStore:
         """Run commit, pull --rebase, and push; retry a failed push with exponential backoff."""
         if not self.is_git():
             return False
-        self._git("add", "events")
+        # git add fails on a path that does not exist, and the knowledge store appears with the first finding
+        self._git("add", *(d for d in ("events", "knowledge") if (self.root / d).exists()))
         if self._git("diff", "--cached", "--quiet").returncode != 0:
             self._git("commit", "--quiet", "-m", message)
         delay = backoff
