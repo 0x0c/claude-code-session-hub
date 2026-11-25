@@ -107,6 +107,24 @@ class KnowledgePageTest(unittest.TestCase):
         self.assertEqual(got["scopes"], ["search/"])
 
     @unittest.skipUnless(shutil.which("node"), "needs Node.js")
+    def test_an_active_filter_always_has_a_control(self):
+        tags = [{"entry": f"e{i}", "kind": "caveat", "tags": [f"t{i:02d}"] * 1 + ["common"], "scopes": ["a/"], "reporters": ["s"], "last_ts": "1"} for i in range(25)]
+        tags.append({"entry": "old", "kind": "caveat", "status": "obsolete", "tags": ["gone"], "scopes": ["old/"], "reporters": ["s"], "last_ts": "1"})
+        col = {"view": {}, "items": tags}
+
+        def run(flt):
+            return self.helpers(f"(() => {{ const f = {{...knDefaults(), ...{flt}}}; const c = knControls(knStats({json.dumps(col)}, f), f); "
+                                "return {tags: c.tags.map((t) => t.join(':')), scopes: c.scopes}; })()")
+        got = run("{}")
+        self.assertEqual(len(got["tags"]), 20)  # the top chips only
+        self.assertEqual(got["scopes"], ["a/"])
+        rare = [t for t in run("{tag: 't24'}")["tags"] if t.startswith("t24")]
+        self.assertEqual(rare, ["t24:1"])  # below the top 20 but in the pool: its real count, not 0
+        self.assertEqual([t for t in run("{tag: 'gone'}")["tags"] if t.startswith("gone")], ["gone:0"])  # obsolete item hidden
+        self.assertEqual(run("{scope: 'old/'}")["scopes"], ["a/", "old/"])
+        self.assertEqual(run("{obsolete: true, scope: 'old/'}")["scopes"], ["a/", "old/"])  # listed once
+
+    @unittest.skipUnless(shutil.which("node"), "needs Node.js")
     def test_a_malformed_hash_selects_nothing(self):
         js = template("knowledge.js")
         code = re.search(r"  const knEntry = .*?\n", js, re.S)[0]

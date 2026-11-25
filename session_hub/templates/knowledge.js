@@ -68,8 +68,18 @@
     return {
       total: pool.length, kinds, order: order.filter((k) => kinds.has(k)), groups: view.groups || {},
       reporters: new Set(pool.flatMap((it) => it.reporters || [])).size,
+      tagCounts: tags,
       tags: [...tags].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, KN_TAGS),
       scopes: [...scopes].sort(),
+    };
+  }
+  // The tag chips and scope options to draw: the stats' own, plus the active tag or scope when the
+  // pool does not list it (a rare tag below the top chips, an obsolete item's scope, a shared address),
+  // so that a filter that narrows the list always has a control that shows and undoes it
+  function knControls(s, f) {
+    return {
+      tags: f.tag && !s.tags.some(([tag]) => tag === f.tag) ? [...s.tags, [f.tag, s.tagCounts.get(f.tag) || 0]] : s.tags,
+      scopes: f.scope && !s.scopes.includes(f.scope) ? [...s.scopes, f.scope] : s.scopes,
     };
   }
   // ---- End of the pure helpers ----
@@ -172,10 +182,7 @@
     knKindChips.replaceChildren(el("button", { class: "iconbtn", "aria-pressed": String(!f.kind), onclick: () => knSet({ kind: "" }) }, `${t("kn.allKinds")} ${s.total}`),
       ...s.order.map((k) => el("button", { class: "iconbtn", "aria-pressed": String(f.kind === k), style: { "--kn-c": knKindColor(k) },
         onclick: () => knSet({ kind: f.kind === k ? "" : k }) }, `${L(s.groups[k]) || k} ${s.kinds.get(k)}`)));
-    // An active tag or scope that the pool does not list (a rare tag, an obsolete item's scope, a shared
-    // address) still gets its control, so that the filter can be seen and undone
-    const tagList = f.tag && !s.tags.some(([tag]) => tag === f.tag) ? [...s.tags, [f.tag, 0]] : s.tags;
-    const scopeList = f.scope && !s.scopes.includes(f.scope) ? [...s.scopes, f.scope] : s.scopes;
+    const { tags: tagList, scopes: scopeList } = knControls(s, f);
     knTagChips.replaceChildren(...tagList.map(([tag, n]) => el("button", { class: "chip kn-chip", "aria-pressed": String(f.tag === tag),
       onclick: () => knSet({ tag: f.tag === tag ? "" : tag }) }, `#${tag} ${n}`)));
 
