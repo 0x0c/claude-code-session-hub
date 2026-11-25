@@ -27,6 +27,10 @@ FIELDS = ("kind", "title", "body", "tags", "scope", "key", "status")
 NOTICE_FIELDS = ("kind", "title", "key", "status")  # what the timeline event keeps
 
 
+class Unwritable(OSError):
+    """The knowledge store cannot take a record from this writer; a retry will not help by itself."""
+
+
 def entry_id(finding: dict) -> str:
     """Name an entry by a short hash of its normalized key (or title)."""
     return collections.entry_id(finding.get("key") or finding.get("title") or "")
@@ -90,10 +94,13 @@ class KnowledgeStore:
         """Raise OSError when the store cannot take a record from this writer, so that a writer fails
         before it puts a notice on the timeline whose text it could not keep. A full disk is beyond
         the check."""
-        self.dir.mkdir(parents=True, exist_ok=True)
-        if not os.access(self.dir, os.W_OK):
-            raise PermissionError(f"the knowledge store is not writable: {self.dir}")
-        open(self._path(session_id, writer), "a", encoding="utf-8").close()  # the writer's own file, too
+        try:
+            self.dir.mkdir(parents=True, exist_ok=True)
+            if not os.access(self.dir, os.W_OK):
+                raise PermissionError(f"the knowledge store is not writable: {self.dir}")
+            open(self._path(session_id, writer), "a", encoding="utf-8").close()  # the writer's own file, too
+        except OSError as e:
+            raise Unwritable(str(e)) from e
 
     def read(self) -> list[dict]:
         """Return every revision record in time order; a corrupt line is skipped."""

@@ -345,6 +345,25 @@ class GitStoreTest(TmpCase):
         self.assertTrue(two.pull())
         self.assertEqual(sorted(e["id"] for e in two.read("a")), ["a#1", "a#2", "a@parent#1"])
 
+    def test_findings_and_their_deletion_travel_through_git(self):
+        from session_hub import view
+        self.git("init", "-q", "--bare", str(self.dir / "remote.git"))
+        one = self.clone("one")
+        one.append("seed", {"type": "start"})
+        self.git("-C", str(one.root), "add", "events")
+        self.git("-C", str(one.root), "commit", "-qm", "seed")
+        self.git("-C", str(one.root), "push", "-qu", "origin", "HEAD")
+        two = self.clone("two")
+        core.record(two, "a", {"type": "finding", "finding": {"kind": "caveat", "title": "Travels", "body": "the full text"}})
+        self.assertTrue(two.sync(retries=0))
+        self.assertTrue(one.pull())
+        (item,) = view.store_snapshot(one)["collections"]["knowledge"]["items"]
+        self.assertEqual(item["body"], "the full text")  # without the knowledge/ add, only a bodiless notice arrives
+        self.assertEqual(two.delete_session("a"), 2)  # the event and the record
+        self.assertTrue(two.sync(retries=0))
+        self.assertTrue(one.pull())
+        self.assertFalse(list((one.root / "knowledge").glob("a*.jsonl")))  # the deletion reached the other clone
+
     def test_a_failing_push_is_retried_with_a_growing_delay(self):
         (self.store.root / ".git").mkdir(parents=True)
         failed = subprocess.CompletedProcess([], 1)

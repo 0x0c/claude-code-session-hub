@@ -161,6 +161,20 @@ class KnowledgeStoreTest(unittest.TestCase):
         self.assertIn("507", str(cm.exception.code))
         self.assertEqual(len(outbox.read_text().splitlines()), 1)  # the live event was not spooled behind it
 
+    def test_another_write_failure_answers_500_and_stays_retryable(self):
+        import threading
+        from session_hub import client
+        from session_hub.server import make_server
+        srv, hub = make_server(self.store, port=0)
+        self.addCleanup(srv.server_close)
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        self.addCleanup(srv.shutdown)
+        url = f"http://127.0.0.1:{srv.server_address[1]}"
+        with mock.patch.object(type(self.store), "append", side_effect=OSError(28, "No space left on device")):
+            with self.assertRaises(client.PushError) as cm:  # the outbox keeps it: a full disk can heal
+                client.post(url, {"session_id": "a", "fields": {"type": "report", "summary": "x"}})
+        self.assertIn("500", str(cm.exception))
+
     def test_a_hook_survives_a_store_that_cannot_take_an_event(self):
         import io
         from contextlib import redirect_stderr
