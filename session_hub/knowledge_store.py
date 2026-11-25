@@ -104,15 +104,24 @@ class KnowledgeStore:
             if not os.access(self.dir, os.W_OK):
                 raise PermissionError(f"the knowledge store is not writable: {self.dir}")
             open(self._path(session_id, writer), "a", encoding="utf-8").close()  # the writer's own file, too
-            st = os.statvfs(self.dir)
-            if st.f_bavail * st.f_frsize < MIN_FREE_BYTES:
-                raise OSError(errno.ENOSPC, f"the disk of the knowledge store is full: {self.dir}")
+            full = self._nearly_full()
         except PermissionError as e:
             raise Unwritable(str(e)) from e
         except OSError as e:
             if e.errno in UNWRITABLE_ERRNOS:
                 raise Unwritable(str(e)) from e
             raise  # a full disk and the like may heal: the hub answers 500 and the client retries
+        if full:
+            raise OSError(errno.ENOSPC, f"the disk of the knowledge store is full: {self.dir}")
+
+    def _nearly_full(self) -> bool:
+        """True only when the filesystem reports blocks and under MIN_FREE_BYTES of them are free; a
+        filesystem that reports nothing (some network and FUSE mounts) never blocks a finding."""
+        try:
+            st = os.statvfs(self.dir)
+        except (OSError, AttributeError):
+            return False
+        return st.f_blocks > 0 and st.f_bavail * st.f_frsize < MIN_FREE_BYTES
 
     def read(self) -> list[dict]:
         """Return every revision record in time order; a corrupt line is skipped."""
