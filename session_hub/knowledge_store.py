@@ -5,7 +5,8 @@ here, under `<store>/knowledge/`. Each file has one writer, as in the event stor
 store through Git never produces a merge conflict: `<session-id>.jsonl` for a sub-session and
 `<session-id>@<writer>.jsonl` for the parent. The copies of events that predate the store go to
 `<session-id>@migrated.jsonl`, a file of their own, so that a machine that migrates never writes a
-file that another machine's writer also appends to.
+live writer's file. Machines that migrate the same events write the same lines, and read() skips a
+duplicate; clones that migrated different events can still conflict on this one transitional file.
 
 A line is one revision of one entry. The entry is named by a short hash of the finding's key (the
 title when no key is given), so two sessions that report the same caveat append to the same entry.
