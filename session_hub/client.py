@@ -142,7 +142,7 @@ def flush(url: str, token: str | None = None) -> int:
     if not path.exists():
         return 0
     lines = [ln for ln in path.read_text(encoding="utf-8").splitlines() if ln.strip()]
-    sent = 0
+    sent, kept = 0, []
     for i, line in enumerate(lines):
         try:
             payload = json.loads(line)
@@ -152,15 +152,20 @@ def flush(url: str, token: str | None = None) -> int:
         try:
             post(url, payload, token)
         except PushError:
-            path.write_text("\n".join(lines[i:]) + "\n", encoding="utf-8")
+            path.write_text("\n".join(kept + lines[i:]) + "\n", encoding="utf-8")
             return sent
-        except StoreError:  # the event is fine and the hub's store is not: keep it and everything after it
-            path.write_text("\n".join(lines[i:]) + "\n", encoding="utf-8")
-            return sent
+        except StoreError:
+            # The event is fine and the hub's store cannot take it yet: keep this one, send the rest, so
+            # that an old state of another session never lands after its newer one
+            kept.append(line)
+            continue
         except ValueError:
             pass  # Drop a payload the server rejects
         sent += 1
-    path.unlink()
+    if kept:
+        path.write_text("\n".join(kept) + "\n", encoding="utf-8")
+    else:
+        path.unlink()
     return sent
 
 

@@ -172,13 +172,17 @@
     knKindChips.replaceChildren(el("button", { class: "iconbtn", "aria-pressed": String(!f.kind), onclick: () => knSet({ kind: "" }) }, `${t("kn.allKinds")} ${s.total}`),
       ...s.order.map((k) => el("button", { class: "iconbtn", "aria-pressed": String(f.kind === k), style: { "--kn-c": knKindColor(k) },
         onclick: () => knSet({ kind: f.kind === k ? "" : k }) }, `${L(s.groups[k]) || k} ${s.kinds.get(k)}`)));
-    knTagChips.replaceChildren(...s.tags.map(([tag, n]) => el("button", { class: "chip kn-chip", "aria-pressed": String(f.tag === tag),
+    // An active tag or scope that the pool does not list (a rare tag, an obsolete item's scope, a shared
+    // address) still gets its control, so that the filter can be seen and undone
+    const tagList = f.tag && !s.tags.some(([tag]) => tag === f.tag) ? [...s.tags, [f.tag, 0]] : s.tags;
+    const scopeList = f.scope && !s.scopes.includes(f.scope) ? [...s.scopes, f.scope] : s.scopes;
+    knTagChips.replaceChildren(...tagList.map(([tag, n]) => el("button", { class: "chip kn-chip", "aria-pressed": String(f.tag === tag),
       onclick: () => knSet({ tag: f.tag === tag ? "" : tag }) }, `#${tag} ${n}`)));
 
     knSearch.placeholder = t("kn.search");
     knSort.replaceChildren(...["recent", "reporters"].map((v) => el("option", { value: v, ...(f.sort === v ? { selected: true } : {}) }, t("kn.sort." + v))));
     knScope.replaceChildren(el("option", { value: "" }, t("kn.allScopes")),
-      ...s.scopes.map((sc) => el("option", { value: sc, ...(f.scope === sc ? { selected: true } : {}) }, "@" + sc)));
+      ...scopeList.map((sc) => el("option", { value: sc, ...(f.scope === sc ? { selected: true } : {}) }, "@" + sc)));
     knSharedBox.checked = f.shared;
     knObsoleteBox.checked = f.obsolete;
     knSharedLabel.lastChild.textContent = t("kn.shared");

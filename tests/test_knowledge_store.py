@@ -152,9 +152,11 @@ class KnowledgeStoreTest(unittest.TestCase):
         payload = {"session_id": "a", "fields": {"type": "finding", "finding": {"kind": "caveat", "title": "queued", "body": "b"}}}
         with mock.patch.dict(os.environ, {"HUB_OUTBOX": str(outbox)}):
             client.spool(payload)
-            self.assertEqual(client.flush(url), 0)
+            client.spool({"session_id": "b", "fields": {"type": "report", "summary": "later"}})
+            self.assertEqual(client.flush(url), 1)  # the report goes ahead; only the finding waits
             self.assertTrue(outbox.exists())  # kept: the store may be fixed later
-            self.assertEqual(len(outbox.read_text().splitlines()), 1)
+            self.assertEqual([json.loads(ln)["session_id"] for ln in outbox.read_text().splitlines()], ["a"])
+            self.assertEqual([e["type"] for e in self.store.read("b")], ["report"])
             with mock.patch.dict(os.environ, {"HUB_URL": url, "HUB_SESSION_ID": "a"}), \
                     redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as cm:
                 cli.main(["learn", "--kind", "caveat", "--title", "live", "--body", "b"])
