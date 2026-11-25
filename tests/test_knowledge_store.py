@@ -115,6 +115,24 @@ class KnowledgeStoreTest(unittest.TestCase):
             self.learn("a", kind="caveat", title="second", body="b")
         self.assertEqual(self.store.read("a"), before)  # no notice stayed behind
 
+    @unittest.skipIf(os.geteuid() == 0, "root can write to any file")
+    def test_the_hub_answers_500_when_the_knowledge_store_cannot_take_a_record(self):
+        import threading
+        from session_hub import client
+        from session_hub.server import make_server
+        self.learn("a", kind="caveat", title="first", body="b")
+        path = self.store.root / "knowledge" / "a.jsonl"
+        path.chmod(0o444)
+        self.addCleanup(path.chmod, 0o644)
+        srv, _ = make_server(self.store, port=0)
+        self.addCleanup(srv.server_close)
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        self.addCleanup(srv.shutdown)
+        url = f"http://127.0.0.1:{srv.server_address[1]}"
+        with self.assertRaises(client.PushError) as cm:
+            client.post(url, {"session_id": "a", "fields": {"type": "finding", "finding": {"kind": "caveat", "title": "second", "body": "b"}}}, token=None)
+        self.assertIn("could not store", str(cm.exception))
+
     def test_a_record_survives_a_deletion_that_ran_while_it_waited_for_the_lock(self):
         ev = self.learn("a", kind="caveat", title="first", body="b")
         path = self.store.root / "knowledge" / "a.jsonl"

@@ -77,8 +77,9 @@ origin of its content.
 1. **Keep tokens cheap.** A parent learns the state of its sub-sessions from a few lines, never from
    their transcripts. Anything that wakes a parent or adds text to every turn needs a reason.
 2. **Never interrupt a session.** A hook exits 0 on any error and blocks a stop at most once.
-3. **The event store is the single source of truth.** Views, collections, and exported files are
-   projections of the append-only events.
+3. **The event store is the single source of truth, except for the full text of findings.** That text
+   lives in the knowledge store (`<store>/knowledge/`). Views, collections, and exported files are
+   projections of the append-only events and of the knowledge store.
 4. **Stay local.** The hub listens on the loopback interface; we do not expose a user's machine.
 
 ## Verify your work

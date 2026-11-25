@@ -72,9 +72,10 @@ what they cannot see.
    parent session, without a stated reason.
 2. **Never interrupt a session.** A hook exits 0 on any error and blocks a stop at most once. Flag a
    change that can make a hook exit non-zero, hang, block a stop twice, or loop.
-3. **The event store is the single source of truth.** Views, collections, and exported files are
-   projections of the append-only events. Flag state that lives anywhere else, or a projection that
-   cannot be rebuilt from the events.
+3. **The event store is the single source of truth, except for the full text of findings.** That text
+   lives in the knowledge store (`<store>/knowledge/`). Views, collections, and exported files are
+   projections of the append-only events and of the knowledge store. Flag state that lives anywhere
+   else, or a projection that cannot be rebuilt from those two.
 4. **Stay local.** The hub listens on the loopback interface. Flag anything that exposes the hub, or the
    user's machine, to the network.
 
