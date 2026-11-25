@@ -67,7 +67,7 @@ def record(store: EventStore, session_id: str, fields: dict, writer: str | None 
         probe = {"session_id": session_id, "seq": 1, "ts": schema.now_iso(), **fields}
         finding = schema.normalize_event(probe)["finding"]
         fields["finding"] = knowledge_store.notice(finding)
-        knowledge_store.KnowledgeStore(store.root).ensure_writable()  # fail before the notice exists
+        knowledge_store.KnowledgeStore(store.root).ensure_writable(session_id, writer)  # fail before the notice exists
     ev = store.append(session_id, fields, writer=writer)
     if finding:
         knowledge_store.KnowledgeStore(store.root).append(ev, finding)

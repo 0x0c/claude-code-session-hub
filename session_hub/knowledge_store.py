@@ -73,12 +73,14 @@ class KnowledgeStore:
         self._append_lines(ev["session_id"], ev.get("writer"), [rec])
         return rec
 
-    def ensure_writable(self) -> None:
-        """Raise OSError when the store cannot take a record, so that a writer fails before it
-        puts a notice on the timeline whose text it could not keep."""
+    def ensure_writable(self, session_id: str, writer: str | None = None) -> None:
+        """Raise OSError when the store cannot take a record from this writer, so that a writer fails
+        before it puts a notice on the timeline whose text it could not keep. A full disk is beyond
+        the check."""
         self.dir.mkdir(parents=True, exist_ok=True)
         if not os.access(self.dir, os.W_OK):
             raise PermissionError(f"the knowledge store is not writable: {self.dir}")
+        open(self._path(session_id, writer), "a", encoding="utf-8").close()  # the writer's own file, too
 
     def read(self) -> list[dict]:
         """Return every revision record in time order; a corrupt line is skipped."""

@@ -1,6 +1,7 @@
 """The knowledge store: the full text of every finding lives under <store>/knowledge/."""
 
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -92,6 +93,17 @@ class KnowledgeStoreTest(unittest.TestCase):
         with self.assertRaises(OSError):
             self.learn("a", kind="caveat", title="t", body="b")
         self.assertEqual(self.store.read_all(), {})  # no notice stayed behind
+
+    @unittest.skipIf(os.geteuid() == 0, "root can write to any file")
+    def test_a_read_only_writer_file_fails_before_the_notice(self):
+        self.learn("a", kind="caveat", title="first", body="b")
+        path = self.store.root / "knowledge" / "a.jsonl"
+        path.chmod(0o444)
+        self.addCleanup(path.chmod, 0o644)
+        before = self.store.read("a")
+        with self.assertRaises(OSError):
+            self.learn("a", kind="caveat", title="second", body="b")
+        self.assertEqual(self.store.read("a"), before)  # no notice stayed behind
 
     def test_a_change_under_knowledge_changes_the_signature(self):
         ev = self.learn("a", kind="caveat", title="t", body="b")

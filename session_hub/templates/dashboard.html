@@ -2102,8 +2102,8 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     openHashedTab(initial);
   }
 
-  // A link such as ./#col:knowledge (from the knowledge summary page) opens that tab on the first snapshot;
-  // drop the hash so that a reconnect's snapshot does not switch the reader back to that tab
+  // A link such as ./#col:knowledge opens that tab on the first snapshot, and ./#session:<id> (from the
+  // knowledge page) selects that session; drop the hash so that a reconnect's snapshot does not repeat it
   function openHashedTab(initial) {
     if (!initial) return;
     if (location.hash.startsWith("#col:")) setView(location.hash.slice(1));
