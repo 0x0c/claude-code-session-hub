@@ -341,7 +341,7 @@ and the `knowledge` output, but its history remains.
 
 **The built-in "knowledge" collection** aggregates the findings that children send with
 `session-hub learn`. The full text lives in the **knowledge store**, `<store>/knowledge/`: one JSON Lines record per
-revision of an entry (`entry`, `event_id`, `session_id`, `ts`, `kind`, `title`, `body`, `tags`, `scope`, `key`,
+revision of an entry (`entry`, `event_id`, `session_id`, `writer`, `ts`, `kind`, `title`, `body`, `tags`, `scope`, `key`,
 `status`), one writer per file (`<session-id>.jsonl`, `<session-id>@parent.jsonl`), so sharing the store
 through Git never conflicts. An entry's identifier is a short hash of the normalized key (the title when
 there is no key), so two sessions that report the same caveat append to the same entry, and an entry's
