@@ -311,8 +311,8 @@ information. Instead, we generalize "where received updates accumulate" into a *
 ```
              ┌─ match ──┐   ┌── reduce ───┐   ┌── view ──┐
 Event stream ┤ which    ├──►│ how to      ├──►│ how to   ├──► dashboard tab
-(sole source │ events   │   │ combine:    │   │ show:    │
- of truth)   │ to take  │   │ log/latest/ │   │ cards/   │
+(source of   │ events   │   │ combine:    │   │ show:    │
+ truth)      │ to take  │   │ log/latest/ │   │ cards/   │
              └──────────┘   │ aggregate   │   │ table    │──► sinks (written to Markdown / JSONL)
                             └─────────────┘   └──────────┘
 ```

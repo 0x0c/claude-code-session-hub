@@ -68,7 +68,7 @@ flowchart LR
    for meaningful changes (a question, a phase, a pull request), and the hooks send heartbeats,
    token usage, and task progress without spending model tokens. If the hub is down, the message
    goes straight into the shared store and appears once the hub starts.
-2. **The hub appends the message to the event store**, the single source of truth. Each file has a
+2. **The hub appends the message to the event store**, the single source of truth except for the full text of findings (see step 3). Each file has a
    single writer, so the store never needs merging.
 3. **Views and collections are projections** of the events (and, for knowledge, of the knowledge store): the session list, the timeline, and the
    knowledge base. The full text of each finding lives in the knowledge store (`knowledge/` in the
