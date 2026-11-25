@@ -52,8 +52,17 @@ class KnowledgeStore:
         if not records:
             return
         self.dir.mkdir(parents=True, exist_ok=True)
-        with open(self._path(session_id, writer), "a", encoding="utf-8") as f:
+        path = self._path(session_id, writer)
+        while True:
+            f = open(path, "a", encoding="utf-8")
             fcntl.flock(f, fcntl.LOCK_EX)
+            if os.fstat(f.fileno()).st_nlink > 0:
+                break
+            # delete_session() unlinked the file while we waited for the lock; reopen the path so
+            # that the record lands in a fresh file instead of vanishing with the unlinked one
+            fcntl.flock(f, fcntl.LOCK_UN)
+            f.close()
+        with f:
             try:
                 for r in records:
                     f.write(json.dumps(r, ensure_ascii=False, separators=(",", ":")) + "\n")

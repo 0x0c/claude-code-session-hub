@@ -5,6 +5,7 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from session_hub import collections, core, knowledge_store, schema, view
 from session_hub.store import EventStore
@@ -104,6 +105,27 @@ class KnowledgeStoreTest(unittest.TestCase):
         with self.assertRaises(OSError):
             self.learn("a", kind="caveat", title="second", body="b")
         self.assertEqual(self.store.read("a"), before)  # no notice stayed behind
+
+    def test_a_record_survives_a_deletion_that_ran_while_it_waited_for_the_lock(self):
+        ev = self.learn("a", kind="caveat", title="first", body="b")
+        path = self.store.root / "knowledge" / "a.jsonl"
+        real_flock, unlinked = knowledge_store.fcntl.flock, []
+
+        def flock(f, op):
+            real_flock(f, op)
+            if not unlinked:  # the first lock is taken just as delete_session unlinks the file
+                unlinked.append(path.unlink())
+
+        with mock.patch.object(knowledge_store.fcntl, "flock", flock):
+            self.ks.append(ev, {"kind": "caveat", "title": "second", "body": "kept"})
+        self.assertEqual([r["title"] for r in self.ks.read()], ["second"])  # in the new file, not the unlinked one
+
+    def test_a_stored_notice_without_a_record_shows_nothing(self):
+        # An event that claims "stored" but has no record is not an old event, so nothing copies it:
+        # the notice can mean that its record has not arrived yet
+        self.store.append("a", {"type": "finding", "finding": {"kind": "caveat", "title": "Claim", "body": "x", "stored": True}})
+        self.assertEqual(self.items(), [])
+        self.assertEqual(knowledge_store.migrate(self.store), 0)
 
     def test_a_change_under_knowledge_changes_the_signature(self):
         ev = self.learn("a", kind="caveat", title="t", body="b")
