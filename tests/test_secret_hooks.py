@@ -144,6 +144,28 @@ class SecretHooksTest(unittest.TestCase):
             self.assertEqual(r.returncode, 0, r.stderr)
             self.assertEqual(self.hooks_path(), ".githooks")
 
+    def test_setup_accepts_an_absolute_path_to_its_own_hooks_folder(self):
+        self.git("config", "core.hooksPath", str(self.dir / ".githooks"))
+        for args in (("scripts/setup.sh",), ("scripts/setup.sh", "--check")):
+            r = self.run_cmd(*args, GITLEAKS="/bin/echo")
+            self.assertEqual(r.returncode, 0, r.stderr)
+
+    def test_a_linked_worktree_accepts_the_main_checkouts_hooks_folder(self):
+        tree = self.dir / "linked"
+        self.git("worktree", "add", "-q", str(tree), "-b", "side")
+        self.git("config", "core.hooksPath", str(self.dir / ".githooks"))
+        for args in (("scripts/setup.sh",), ("scripts/setup.sh", "--check"), ("scripts/setup.sh", "--guard")):
+            r = self.run_cmd(*args, cwd=tree, GITLEAKS="/bin/echo")
+            self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(self.hooks_path(), str(self.dir / ".githooks"))  # left as it was
+
+    def test_a_linked_worktree_still_refuses_a_foreign_hooks_folder(self):
+        tree = self.dir / "linked"
+        self.git("worktree", "add", "-q", str(tree), "-b", "side")
+        self.git("config", "core.hooksPath", "/somewhere/else/.githooks")
+        self.assertNotEqual(self.run_cmd("scripts/setup.sh", cwd=tree, GITLEAKS="/bin/echo").returncode, 0)
+        self.assertNotEqual(self.run_cmd("scripts/setup.sh", "--check", cwd=tree, GITLEAKS="/bin/echo").returncode, 0)
+
     def test_setup_keeps_another_hooks_folder(self):
         self.git("config", "core.hooksPath", "other")
         r = self.run_cmd("scripts/setup.sh", GITLEAKS="/bin/echo")
