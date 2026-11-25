@@ -73,8 +73,9 @@ def record(store: EventStore, session_id: str, fields: dict, writer: str | None 
         try:
             knowledge_store.KnowledgeStore(store.root).append(ev, finding)
         except OSError as e:
-            # The notice is already on the timeline; fail loudly (the hub answers 507, which no client
-            # retries), so that the writer sends the finding again instead of an outbox resending it
+            # The notice is already on the timeline; fail loudly (the hub answers 507), so that a live
+            # writer sees it and sends the finding again. A finding already waiting in the outbox is
+            # resent by later flushes and may leave one more notice each time; the proposal accepts it
             raise knowledge_store.Unwritable(f"the text of the finding could not be stored: {e}") from e
     after = schema.fold(store.read(session_id))
 

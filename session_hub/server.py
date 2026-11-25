@@ -383,8 +383,8 @@ def make_handler(hub: Hub, token: str | None):
             except schema.SchemaError as e:
                 return self._send(400, _dumps({"error": str(e)}))
             except knowledge_store.Unwritable as e:
-                # 507, which the client does not retry: a permission error never heals by itself, and a text that
-                # could not be stored after its notice must reach the writer, not an outbox that would repeat the notice
+                # 507, which a live send does not spool: a permission error never heals by itself, and a text that
+                # could not be stored after its notice must reach the writer
                 return self._send(507, _dumps({"error": f"the hub could not store the event: {e}"}))
             except OSError as e:  # any other failure before the notice (a full disk, say) may heal: stay retryable
                 return self._send(500, _dumps({"error": f"the hub could not store the event: {e}"}))
