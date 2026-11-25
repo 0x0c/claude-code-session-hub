@@ -155,7 +155,7 @@ immediately**.
   it at once over Server-Sent Events (SSE) to every connected browser. **Neither the server nor the
   browser polls.**
 - **When delivery fails**: the child keeps the unsent events in an outbox (a local JSON Lines (JSONL) file) and
-  resends them first on the next send.
+  resends them first on the next send. When the hub answers 507 because the knowledge store cannot take a record, a live send fails with that message instead of spooling. A finding that already waits in the outbox stays there until the store works again, and the other events in the outbox still go out in order.
 - **Durability**: the store is append-only JSONL. When needed, the store can also be shared and
   archived through Git, as in A (the auxiliary `--pull-every` option).
 - **Escalation**: D, used only on transitions that should wake the parent (§3.3).
@@ -188,7 +188,8 @@ immediately**.
 
 - **Event sourcing**: the hub never stores state. The hub folds the append-only event sequence into
   the state on every read. The event sequence is also the source data of the timeline view, so a
-  reader can trace exactly what changed and when.
+  reader can trace exactly what changed and when. The full text of findings is the one exception: it
+  lives in the knowledge store (`knowledge/`), and the event keeps only a short notice.
 - **One file per writer**: `events/<session_id>.jsonl` holds the child's events, and
   `events/<session_id>@parent.jsonl` holds the parent's answers and instructions. Each file always
   has a single writer, so sharing the store through Git causes no conflicts.
@@ -198,8 +199,8 @@ immediately**.
   loopback interface alone. A hub that a hook started in the background stops the same way.
 - **Deleting a session**: the one exception to append-only writing. `session-hub delete` and the
   dashboard's delete button (in the timeline header) call
-  `DELETE /api/sessions/<session_id>`, which unlinks every file of that session under the files' write
-  locks and pushes the removal to every browser. The operation works on whole sessions alone, so the
+  `DELETE /api/sessions/<session_id>`, which unlinks every file of that session, in `events/` and in `knowledge/`, under the files' write
+  locks (the knowledge it recorded goes with it; other sessions' reports of the same item stay) and pushes the removal to every browser. The operation works on whole sessions alone, so the
   folded state of every other session stays intact
   ([SH-0002](../proposals/SH-0002-delete-session/SH-0002-delete-session.md)).
 - **Archiving a session**: `archive` and `unarchive` events set and clear the status field `archived`,
@@ -311,14 +312,15 @@ information. Instead, we generalize "where received updates accumulate" into a *
 ```
              ┌─ match ──┐   ┌── reduce ───┐   ┌── view ──┐
 Event stream ┤ which    ├──►│ how to      ├──►│ how to   ├──► dashboard tab
-(sole source │ events   │   │ combine:    │   │ show:    │
- of truth)   │ to take  │   │ log/latest/ │   │ cards/   │
+(source of   │ events   │   │ combine:    │   │ show:    │
+ truth)      │ to take  │   │ log/latest/ │   │ cards/   │
              └──────────┘   │ aggregate   │   │ table    │──► sinks (written to Markdown / JSONL)
                             └─────────────┘   └──────────┘
 ```
 
-- **The event store is the sole source of truth.** A collection is a projection on top of the
-  store. Changing a collection's definition rebuilds the collection from past events. Adding
+- **The event store is the sole source of truth, except for the full text of findings, which lives in the
+  knowledge store.** A collection is a projection on top of the stores. Changing a collection's
+  definition rebuilds the collection from past events (and, for findings, from the knowledge store). Adding
   another destination does not change how children send (the protocol).
 - **Definitions are declarative JSON** (`collections.json` at the root of the store). A user adds,
   overrides, or disables a collection without writing code.
@@ -328,7 +330,7 @@ Event stream ┤ which    ├──►│ how to      ├──►│ how to   �
 | `match` | Which events to collect: `type`, `kind`, `tags_any`, `session`, `status` | `{"type": ["finding"], "kind": ["decision"]}` |
 | `reduce` | How to combine: `log` (keep the time series), `latest` (the newest one per key), `aggregate` (merge into one per key) | Knowledge uses `aggregate` with the key `key\|title` (the title when no explicit key is given) |
 | `view` | How to display: `cards` (grouped by `group_by`), `table` (with the given `columns`) | Knowledge shows cards grouped by kind |
-| `sinks` | Extra destinations: `markdown` / `jsonl` (a path inside the store). A sink file is rewritten only when its content changes | Keep `KNOWLEDGE.md` up to date and publish it in a repository or a wiki |
+| `sinks` | Extra destinations: `markdown` / `jsonl` (a path inside the store). A sink file is rewritten only when its content changes | Keep `KNOWLEDGE.md` up to date and publish it in a repository or a wiki. Every collection item carries `entry`, a short hash of its key (a knowledge-store entry only where the key is the finding's key or title); an aggregate item also carries `history`, the revisions that changed its wording or status. The `jsonl` sink writes both. |
 
 **Merge rules for `aggregate`**: the latest report overwrites fields such as the body, but an empty
 value never overwrites. `tags` and `scope` become the union of all reports, and every reporter is
@@ -337,8 +339,17 @@ example, "2 sessions / 2 reports". The count serves as a natural measure of impo
 same title with `status: obsolete` marks the item obsolete. An obsolete item leaves the default view
 and the `knowledge` output, but its history remains.
 
-**The built-in "knowledge" collection** aggregates the `finding` events that children send with
-`session-hub learn`.
+**The built-in "knowledge" collection** aggregates the findings that children send with
+`session-hub learn`. The full text lives in the **knowledge store**, `<store>/knowledge/`: one JSON Lines record per
+revision of an entry (`entry`, `event_id`, `session_id`, `writer`, `ts`, `kind`, `title`, `body`, `tags`, `scope`, `key`,
+`status`), one writer per file (`<session-id>.jsonl`, `<session-id>@parent.jsonl`), so sharing the store
+through Git never conflicts. An entry's identifier is a short hash of the normalized key (the title when
+there is no key), so two sessions that report the same caveat append to the same entry, and an entry's
+revisions form its history. The timeline keeps a short `finding` notice (kind, title, key, status) that
+links to the revision through `event_id`. Every collection whose reduce reads the `finding` payload reads the store, not the events. The notice carries `stored: true`, so a reader never mistakes it for an old event. The server copies the
+finding events that predate the store (those without the mark) once, when it starts, into `<session-id>@migrated.jsonl` (never a live writer's file; machines that migrate the same events write the same lines, and a reader skips a duplicate), so a second
+start copies nothing. Reading never writes: a reader still shows the old events from memory, and a reader on another
+machine never creates files that belong to other writers.
 
 | `kind` | Display name (on-screen label) | What it records |
 |---|---|---|
@@ -433,7 +444,7 @@ label, it gives the English label and the Japanese label in parentheses.
 | The dashboard of `session-hub serve` | For humans. Reflects each push as it arrives (SSE) |
 | `session-hub export --out dashboard.html` | A standalone HyperText Markup Language (HTML) file with an embedded snapshot (for sharing and archiving; does not update) |
 | `GET /guide` (the **Status guide** link in the header) | What each status and state means |
-| `GET /knowledge` (the **Knowledge summary** link in the header) | Counts of the knowledge collection by kind, open issues, items that several sessions reported, the latest items, and tags |
+| `GET /knowledge` (the **Knowledge** link in the header) | Every knowledge item as a list with a search box and filters (kind, tag, scope, reported by several sessions, obsolete) and a sort. `#<entry>` opens one item: its full text, reporters, and revisions. The filters live in the query string |
 | `GET /playbook` (the **Playbook** link in the header) | Every dashboard component in every state, drawn from sample data |
 | The **Design system** link (in the header and the Playbook's menu, when `HUB_DESIGN_SYSTEM_URL` is set) | The design system page, in a new tab |
 | `GET /api/snapshot` | JSON for machines |
@@ -583,7 +594,8 @@ claude-code-session-hub/
     usage.py              Token totals from the transcript
     playbook.py           The playbook page
     guide.py              The status guide page
-    knowledge.py          The knowledge summary page
+    knowledge.py          The knowledge page
+    knowledge_store.py    The knowledge store (one record per revision of an entry)
     session_name.py       The session's name from the transcript
     pr_link.py            The session's linked PR from the transcript
     cli.py                The session-hub command
@@ -727,7 +739,7 @@ claude-code-session-hub/
 
 | Term | Meaning |
 |---|---|
-| Collection | A definition of which received updates to collect (match), how to combine them (reduce), how to show them (view), and where else to write them (sinks) — together with the result. A projection of the event store |
+| Collection | A definition of which received updates to collect (match), how to combine them (reduce), how to show them (view), and where else to write them (sinks) — together with the result. A projection of the event store (and, for findings, of the knowledge store) |
 | Projection | Data computed from the stored event sequence in a shape that fits a purpose. The original events stay unchanged |
 | match | The condition for an event to enter a collection |
 | reduce | How to combine: log (keep the time series) / latest (the newest one per key) / aggregate (merge into one per key) |
@@ -736,6 +748,8 @@ claude-code-session-hub/
 | sink | An extra destination for a collection (a Markdown or JSONL file) |
 | `collections.json` | The collection definitions at the root of the store. Used to add, override, or disable built-in collections |
 | Knowledge | The built-in collection. It gathers in one place the findings and caveats that sub-sessions uncover while working |
+| knowledge store | `<store>/knowledge/`: the durable records that hold each finding's full text and revisions |
+| entry | One knowledge item, named by a short hash of its normalized key (or title) |
 | finding | The event type that enters knowledge, sent with `session-hub learn` |
 | kind (of a finding) | The type of finding: caveat / issue (open issue) / decision / howto (how-to) / insight |
 | scope | Where a finding applies (a path, module, or service name). `knowledge --scope` uses it to read only the relevant findings |

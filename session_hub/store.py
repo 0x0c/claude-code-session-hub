@@ -122,15 +122,19 @@ class EventStore:
         return self._decorate(ev, path)
 
     def delete_session(self, session_id: str) -> int:
-        """Physically delete every file of a session and return how many events they held.
+        """Physically delete every file of a session and return how many records they held.
 
         This is the one exception to append-only writing (SH-0002). It removes the session's own
-        file and every `<session_id>@<writer>.jsonl` file. A return value of 0 means the store
-        held no such session.
+        file and every `<session_id>@<writer>.jsonl` file, in the event store and in the knowledge
+        store, so that text the session recorded does not outlive it. A return value of 0 means the
+        store held no such session.
         """
         _check_id(session_id, "session_id")
+        knowledge = self.root / "knowledge"
+        knowledge_files = [p for p in sorted(knowledge.glob("*.jsonl")) if p.stem == session_id
+                           or p.stem.startswith(session_id + "@")] if knowledge.exists() else []
         deleted = 0
-        for path in self._session_files(session_id):
+        for path in [*self._session_files(session_id), *knowledge_files]:
             try:
                 f = open(path, "r+", encoding="utf-8")
             except FileNotFoundError:
@@ -138,7 +142,7 @@ class EventStore:
             with f:
                 fcntl.flock(f, fcntl.LOCK_EX)
                 try:
-                    deleted += len(self._read_file(path))
+                    deleted += sum(1 for line in f if line.strip())
                     path.unlink(missing_ok=True)
                 finally:
                     fcntl.flock(f, fcntl.LOCK_UN)
@@ -193,12 +197,13 @@ class EventStore:
     def signature(self) -> tuple:
         """Return (name, size, mtime) per file, for change detection."""
         sig = []
-        for p in self._files():
+        knowledge = self.root / "knowledge"
+        for p in [*self._files(), *(sorted(knowledge.glob("*.jsonl")) if knowledge.exists() else [])]:
             try:
                 st = p.stat()
             except FileNotFoundError:
                 continue
-            sig.append((p.name, st.st_size, st.st_mtime_ns))
+            sig.append((f"{p.parent.name}/{p.name}", st.st_size, st.st_mtime_ns))
         return tuple(sig)
 
     # ---- Git sync ------------------------------------------------------
@@ -218,7 +223,8 @@ class EventStore:
         """Run commit, pull --rebase, and push; retry a failed push with exponential backoff."""
         if not self.is_git():
             return False
-        self._git("add", "events")
+        # git add fails on a path that does not exist, and the knowledge store appears with the first finding
+        self._git("add", *(d for d in ("events", "knowledge") if (self.root / d).exists()))
         if self._git("diff", "--cached", "--quiet").returncode != 0:
             self._git("commit", "--quiet", "-m", message)
         delay = backoff

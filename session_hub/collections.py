@@ -1,6 +1,9 @@
 """Collections: an abstraction over where received updates go, how they accumulate, and how they show.
 
-The event store is the single source of truth; a collection is merely a projection over it.
+The event store is the single source of truth, and a collection is merely a projection over it. The
+one exception is the full text of findings: it lives in the knowledge store (knowledge_store.py), and a
+collection that reads finding payloads (the built-in "knowledge", or any definition with
+"payload": "finding" or "source": "knowledge") projects that store instead of the event notices.
 Four parts define a collection, all declarative JSON with no code to add:
 
     match   which events to collect   {"type": [...], "kind": [...], "tags_any": [...], "session": [...]}
@@ -8,7 +11,7 @@ Four parts define a collection, all declarative JSON with no code to add:
     view    how to show them          {"type": "cards" | "table", "group_by": "kind", "columns": [...]}
     sinks   where else to write them  [{"type": "markdown" | "jsonl", "path": "knowledge.md"}]
 
-The built-in collection is "knowledge": it aggregates finding events by key and shows cards by kind.
+The built-in collection is "knowledge": it aggregates findings by key and shows cards by kind.
 A definition of the same shape in collections.json at the store root adds or overrides a collection.
 
 Reduce types:
@@ -34,6 +37,7 @@ BUILTIN: list[dict] = [
         "label": {"en": "Knowledge", "ja": "ナレッジ"},
         "description": {"en": "Findings, caveats, and decisions that sub-sessions discovered while working",
                         "ja": "サブセッションが作業中に見つけた知見・注意点・決定事項"},
+        "source": "knowledge",
         "match": {"type": ["finding"]},
         "reduce": {"type": "aggregate", "payload": "finding", "key": ["key|title"]},
         "view": {
@@ -134,6 +138,21 @@ def _norm(v) -> str:
     return re.sub(r"[\s　]+", " ", str(v)).strip().lower()
 
 
+def entry_id(name: str) -> str:
+    """Name an item by a short hash of its normalized key, stable across runs and machines."""
+    return hashlib.sha1(_norm(name).encode("utf-8")).hexdigest()[:10]
+
+
+def _revision(ev: dict, data: dict) -> dict:
+    """One entry of an item's history: what the report said, and who sent it."""
+    rev = {k: data[k] for k in ("kind", "title", "body", "status") if data.get(k) not in (None, "")}
+    return {**rev, "ts": ev["ts"], "session_id": ev["session_id"], "event_id": ev["id"]}
+
+
+def _same_words(a: dict, b: dict) -> bool:
+    return all(a.get(k) == b.get(k) for k in ("kind", "title", "body", "status"))
+
+
 def _key(ev: dict, payload: dict, spec: list[str]) -> str:
     """Build the key from spec, an array of field names; 'a|b' falls back to b when a is empty."""
     parts = []
@@ -171,6 +190,7 @@ def project(defn: dict, events: list[dict]) -> list[dict]:
         if r["type"] == "latest" or cur is None:
             prev_sources = cur["sources"] if (cur and r["type"] == "aggregate") else []
             items[key] = {**data, "key": key, "sources": prev_sources + [_source(ev)],
+                          "history": [_revision(ev, data)] if r["type"] == "aggregate" else [],
                           "first_ts": cur["first_ts"] if cur else ev["ts"], "last_ts": ev["ts"],
                           "count": (cur["count"] + 1) if cur else 1}
             continue
@@ -184,11 +204,18 @@ def project(defn: dict, events: list[dict]) -> list[dict]:
             scopes.add(data["scope"])
         if scopes:
             merged["scopes"] = sorted(scopes)
+        rev = _revision(ev, {**{k: merged.get(k) for k in ("kind", "title", "body", "status")}})
+        history = cur["history"] if _same_words(rev, cur["history"][-1]) else cur["history"] + [rev]
         merged.update(key=key, sources=cur["sources"] + [_source(ev)], first_ts=cur["first_ts"],
-                      last_ts=ev["ts"], count=cur["count"] + 1)
+                      last_ts=ev["ts"], count=cur["count"] + 1, history=history)
         items[key] = merged
     out = log if r["type"] == "log" else list(items.values())
     for it in out:
+        # A short hash of the item's key. It names a knowledge-store entry only where the key is the
+        # finding's key or title, as in the built-in knowledge collection; elsewhere it is just a stable id
+        it["entry"] = entry_id(it["key"])
+        if r["type"] != "aggregate":
+            it.pop("history", None)
         it["reporters"] = sorted({s["session_id"] for s in it["sources"]})
         if it.get("scope") and "scopes" not in it:
             it["scopes"] = [it["scope"]]
@@ -196,10 +223,14 @@ def project(defn: dict, events: list[dict]) -> list[dict]:
     return out
 
 
-def project_all(defs: list[dict], events: list[dict]) -> dict:
+def project_all(defs: list[dict], events: list[dict], knowledge: list[dict] | None = None) -> dict:
+    """Project every collection. A collection that reads finding payloads (the built-in knowledge, and
+    any definition with "payload": "finding" or "source": "knowledge") reads the knowledge store's
+    revisions, shaped as finding events, when the caller passes them; the others read the events."""
     out = {}
     for d in defs:
-        items = project(d, events)
+        items = project(d, knowledge if knowledge is not None and (
+            d.get("source") == "knowledge" or d["reduce"].get("payload") == "finding") else events)
         out[d["name"]] = {
             "name": d["name"], "label": d["label"], "description": d.get("description", ""),
             "view": d["view"], "reduce": d["reduce"]["type"], "items": items,

@@ -41,7 +41,7 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import resources
 
-from . import client, collections, core, desktop, schema, view
+from . import client, collections, core, desktop, knowledge_store, schema, view
 from .store import EventStore
 
 MAX_BODY = 64 * 1024
@@ -69,14 +69,16 @@ class Hub:
         self.write_lock = threading.Lock()  # serializes record-then-publish one event at a time
         self.clients: set[queue.Queue] = set()
         self.defs = collections.load_definitions(store.root)
+        knowledge_store.migrate(store)  # once, at start: a reader elsewhere must not write other writers' files
         self.snap = self._build()
         self._write_sinks(self.snap)
         self._event_index = self._index(self.snap)
+        self._col_sig = _dumps(self.snap["collections"])
         self._sig = store.signature()
         self._stop = threading.Event()
 
     def _build(self) -> dict:
-        snap = view.snapshot(self.store.read_all(), defs=self.defs)
+        snap = view.store_snapshot(self.store, defs=self.defs)
         for s in snap["sessions"]:
             if s["session_id"] in self.desktop_ids:
                 s["desktop_id"] = self.desktop_ids[s["session_id"]]
@@ -198,15 +200,18 @@ class Hub:
         with self.lock:
             changed = [e for e in snap["events"] if self._event_index.get(e["id"]) != index[e["id"]]]
             removed = [i for i in self._event_index if i not in index]
-            self.snap, self._event_index, self._sig = snap, index, self.store.signature()
-            if changed or removed or force:
+            # The knowledge store can change with no new event: its record lands after the notice
+            col_sig = _dumps(snap["collections"])
+            changed_cols = col_sig != self._col_sig
+            self.snap, self._event_index, self._sig, self._col_sig = snap, index, self.store.signature(), col_sig
+            if changed or removed or changed_cols or force:
                 self._broadcast("update", {"generated_at": snap["generated_at"],
                                            "sessions": snap["sessions"], "total": snap["total"],
                                            "collections": snap["collections"],
                                            "events": changed, "removed": removed})
-        if changed or removed:
+        if changed or removed or changed_cols:
             self._write_sinks(snap)
-        return bool(changed or removed)
+        return bool(changed or removed or changed_cols)
 
     def run(self) -> None:
         """Run periodic work: keepalive, time-based rechecks, and (auxiliary) file watching and Git pull."""
@@ -377,6 +382,12 @@ def make_handler(hub: Hub, token: str | None):
                 return self._send(400, _dumps({"error": "invalid json"}))
             except schema.SchemaError as e:
                 return self._send(400, _dumps({"error": str(e)}))
+            except knowledge_store.Unwritable as e:
+                # 507, which a live send does not spool: a permission error never heals by itself, and a text that
+                # could not be stored after its notice must reach the writer
+                return self._send(507, _dumps({"error": f"the hub could not store the event: {e}"}))
+            except OSError as e:  # any other failure before the notice (a full disk, say) may heal: stay retryable
+                return self._send(500, _dumps({"error": f"the hub could not store the event: {e}"}))
             self._send(201, _dumps(res))
 
         def do_DELETE(self):

@@ -77,8 +77,9 @@ origin of its content.
 1. **Keep tokens cheap.** A parent learns the state of its sub-sessions from a few lines, never from
    their transcripts. Anything that wakes a parent or adds text to every turn needs a reason.
 2. **Never interrupt a session.** A hook exits 0 on any error and blocks a stop at most once.
-3. **The event store is the single source of truth.** Views, collections, and exported files are
-   projections of the append-only events.
+3. **The event store is the single source of truth, except for the full text of findings.** That text
+   lives in the knowledge store (`<store>/knowledge/`). Views, collections, and exported files are
+   projections of the append-only events and of the knowledge store.
 4. **Stay local.** The hub listens on the loopback interface; we do not expose a user's machine.
 
 ## Verify your work
@@ -153,9 +154,12 @@ Each note states a fact we verified, why it matters, and what to do about it.
   `claude -p` child, it resumes the session with `claude -p --resume <session_id> "<line>"`.
 - **"Message" means one update from a sub-session to the hub.** A `[HUB/1]` line that a sub-session
   sends to its parent is an *escalation notice*, not a message.
-- **Knowledge is a collection, not a feature.** Collections (match, reduce, view, sinks) are
-  projections over the event store; the knowledge base is the built-in collection over `finding`
-  events. A new way to accumulate updates is a new collection definition, not new storage.
+- **Knowledge has its own store; the way it shows is still a collection.** The full text of every
+  finding lives in `<store>/knowledge/` (`session_hub/knowledge_store.py`), one record per revision
+  of an entry, with one writer per file. The timeline keeps a short `finding` notice. Collections
+  (match, reduce, view, sinks) stay projections, and the built-in knowledge collection projects the
+  knowledge store. A new way to accumulate other updates is a new collection definition, not new
+  storage. Findings recorded before the store existed are imported once, from their events.
 
 ### Claude Code hooks
 

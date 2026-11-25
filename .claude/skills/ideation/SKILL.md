@@ -32,8 +32,9 @@ proposing. Say so when an idea brushes against one of these rules, then reshape 
    never from their transcripts. Anything that wakes a parent or adds text to every turn needs a
    reason.
 2. **Never interrupt a session.** Hooks exit 0 on any error and block a stop at most once.
-3. **The event store is the single source of truth.** Views, collections, and files are projections
-   of the append-only events, so we can rebuild them from the events.
+3. **The event store is the single source of truth, except for the full text of findings,** which
+   lives in the knowledge store. Views, collections, and files are projections of the append-only
+   events and of the knowledge store, so we can rebuild them from those two.
 4. **Stay local.** The hub listens on the loopback interface; we do not expose a user's machine to
    the network.
 

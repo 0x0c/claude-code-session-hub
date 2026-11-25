@@ -38,7 +38,7 @@ def _record(args, fields: dict, writer: str | None = None, session: str | None =
     sid = session or _session(args)
     try:
         res, mode = deliver(sid, fields, writer=writer, store_root=args.store)
-    except ValueError as e:
+    except (ValueError, OSError) as e:  # a rejected event, or a store that cannot take the record
         sys.exit(f"session-hub: {e}")
     if mode == "outbox":
         print("session-hub: the hub is unreachable; saved the event to the outbox (it is resent on the next send)", file=sys.stderr)
@@ -177,7 +177,7 @@ def _snap(a):
     store = EventStore(a.store)
     if getattr(a, "pull", False):
         store.pull()
-    return view.snapshot(store.read_all(), defs=collections.load_definitions(store.root))
+    return view.store_snapshot(store, defs=collections.load_definitions(store.root))
 
 
 def cmd_attention(a):
@@ -311,7 +311,7 @@ def cmd_delete(a):
             print("session-hub: warning: git push failed (the files are deleted locally)", file=sys.stderr)
     if not deleted:
         sys.exit(f"session-hub: no such session: {a.target}")
-    print(f"deleted {a.target} ({deleted} events)")
+    print(f"deleted {a.target} ({deleted} records)")
 
 
 def _session_exists(a, sid: str) -> bool:

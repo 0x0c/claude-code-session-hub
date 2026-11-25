@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from . import schema
+from . import knowledge_store, schema
 from .store import EventStore
 
 PROTOCOL = "HUB/1"
@@ -61,7 +61,22 @@ def record(store: EventStore, session_id: str, fields: dict, writer: str | None 
         if not isinstance(updates, list) or not all(isinstance(u, str) for u in updates):
             raise schema.SchemaError("task_updates must be an array of strings")
         fields["tasks"] = merge_tasks(before["tasks"], updates)
+    finding = None
+    if fields.get("type") == "finding":
+        # The timeline keeps a short notice; the full text goes to the knowledge store
+        probe = {"session_id": session_id, "seq": 1, "ts": schema.now_iso(), **fields}
+        finding = schema.normalize_event(probe)["finding"]
+        fields["finding"] = knowledge_store.notice(finding)
+        knowledge_store.KnowledgeStore(store.root).ensure_writable(session_id, writer)  # fail before the notice exists
     ev = store.append(session_id, fields, writer=writer)
+    if finding:
+        try:
+            knowledge_store.KnowledgeStore(store.root).append(ev, finding)
+        except OSError as e:
+            # The notice is already on the timeline; fail loudly (the hub answers 507), so that a live
+            # writer sees it and sends the finding again. A finding already waiting in the outbox is
+            # resent by later flushes and may leave one more notice each time; the proposal accepts it
+            raise knowledge_store.Unwritable(f"the text of the finding could not be stored: {e}") from e
     after = schema.fold(store.read(session_id))
 
     escalate = None

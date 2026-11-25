@@ -46,7 +46,7 @@ them on a browser dashboard.
 
 Each sub-session is a separate Claude Code process. It reports to one hub server on the loopback
 interface, and the hub keeps every report as an append-only event. Everything you see is computed
-from those events.
+from those events, except the full text of findings, which the knowledge store holds.
 
 ```mermaid
 flowchart LR
@@ -57,7 +57,9 @@ flowchart LR
   A -- "session-hub report / ask / learn" --> H
   B -- "hooks: heartbeat, tokens, progress" --> H
   H["Hub server<br/>127.0.0.1:8765"] -- "append" --> ST[("Event store<br/>events/*.jsonl")]
+  H -- "append findings" --> KS[("Knowledge store<br/>knowledge/*.jsonl")]
   ST -- "project" --> V["Views and collections<br/>sessions, timeline, knowledge"]
+  KS -- "project" --> V
   V -- "SSE, real time" --> D["Browser dashboard"]
   V -- "session-hub attention<br/>a few lines" --> P["Parent session"]
   A -. "escalation notice<br/>needs human, ready for review, failed, done" .-> P
@@ -68,19 +70,20 @@ flowchart LR
    for meaningful changes (a question, a phase, a pull request), and the hooks send heartbeats,
    token usage, and task progress without spending model tokens. If the hub is down, the message
    goes straight into the shared store and appears once the hub starts.
-2. **The hub appends the message to the event store**, the single source of truth. Each file has a
+2. **The hub appends the message to the event store**, the single source of truth except for the full text of findings (see step 3). Each file has a
    single writer, so the store never needs merging.
-3. **Views and collections are projections** of the events: the session list, the timeline, and the
-   knowledge base. A new way to accumulate updates is a new collection definition, not new storage.
+3. **Views and collections are projections** of the events (and, for knowledge, of the knowledge store): the session list, the timeline, and the
+   knowledge base. The full text of each finding lives in the knowledge store (`knowledge/` in the
+   store); a new way to accumulate other updates is a new collection definition, not new storage.
 4. **The browser receives each change over SSE** and makes the affected cards glow for a few
    seconds. The parent reads the few lines of `session-hub attention` instead of transcripts.
 5. **The parent is woken only when it must act.** A sub-session sends its parent a one-line
    escalation notice for four transitions alone: needs a human, ready for review, failed, or done.
 
 The knowledge tab gathers what sub-sessions learned. When two sessions report the same caveat, the
-dashboard shows one card that lists both reporters. The **Knowledge summary** page (`/knowledge`, linked
-from the header) counts the items by kind and lists the open issues, the items that several sessions
-reported, the latest items, and the tags.
+dashboard shows one card that lists both reporters. The **Knowledge** page (`/knowledge`, linked
+from the header) lists every item with a search box and filters (kind, tag, scope, reported by several
+sessions), and opens one item to show its full text, its reporters, and its revisions at a stable address.
 
 ![The knowledge tab: findings grouped into caveats, open issues, decisions, how-tos, and insights](docs/images/knowledge-en.png)
 
@@ -273,7 +276,8 @@ To remove a finished session and every stored message of it, from the hub and th
 session-hub delete <session_id>
 ```
 
-The deletion cannot be undone. The dashboard offers the same operation: once you select a session,
+The deletion removes the session's events and the knowledge it recorded (its files under `events/` and
+`knowledge/`), and it cannot be undone. Other sessions' reports of the same knowledge item stay. The dashboard offers the same operation: once you select a session,
 **Delete session** appears in the timeline header and asks for a confirmation. A session that reports
 again after the deletion reappears with its new messages alone.
 
