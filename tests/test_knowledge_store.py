@@ -122,6 +122,18 @@ class KnowledgeStoreTest(unittest.TestCase):
         snap = view.store_snapshot(self.store, defs=[collections._validate(d) for d in defs])
         self.assertEqual(snap["collections"]["decisions"]["items"][0]["body"], "120 per minute")
 
+    def test_the_hub_publishes_a_record_that_lands_after_its_notice(self):
+        from session_hub.server import Hub
+        hub = Hub(self.store)
+        ev = self.store.append("a", {"type": "finding", "finding": {"kind": "caveat", "title": "Late", "stored": True}})
+        hub.publish()
+        sent = []
+        hub._broadcast = lambda event, data: sent.append(event)
+        self.ks.append(ev, {"kind": "caveat", "title": "Late", "body": "the text"})
+        self.assertTrue(hub.publish())  # no event changed, and the collection did
+        self.assertEqual(sent, ["update"])
+        self.assertEqual(hub.snap["collections"]["knowledge"]["items"][0]["body"], "the text")
+
     def test_the_hub_migrates_when_it_starts(self):
         from session_hub.server import Hub
         self.old_event()

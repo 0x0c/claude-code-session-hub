@@ -73,6 +73,7 @@ class Hub:
         self.snap = self._build()
         self._write_sinks(self.snap)
         self._event_index = self._index(self.snap)
+        self._col_sig = _dumps(self.snap["collections"])
         self._sig = store.signature()
         self._stop = threading.Event()
 
@@ -199,15 +200,18 @@ class Hub:
         with self.lock:
             changed = [e for e in snap["events"] if self._event_index.get(e["id"]) != index[e["id"]]]
             removed = [i for i in self._event_index if i not in index]
-            self.snap, self._event_index, self._sig = snap, index, self.store.signature()
-            if changed or removed or force:
+            # The knowledge store can change with no new event: its record lands after the notice
+            col_sig = _dumps(snap["collections"])
+            changed_cols = col_sig != self._col_sig
+            self.snap, self._event_index, self._sig, self._col_sig = snap, index, self.store.signature(), col_sig
+            if changed or removed or changed_cols or force:
                 self._broadcast("update", {"generated_at": snap["generated_at"],
                                            "sessions": snap["sessions"], "total": snap["total"],
                                            "collections": snap["collections"],
                                            "events": changed, "removed": removed})
-        if changed or removed:
+        if changed or removed or changed_cols:
             self._write_sinks(snap)
-        return bool(changed or removed)
+        return bool(changed or removed or changed_cols)
 
     def run(self) -> None:
         """Run periodic work: keepalive, time-based rechecks, and (auxiliary) file watching and Git pull."""
