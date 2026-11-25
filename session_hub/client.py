@@ -21,6 +21,14 @@ class PushError(RuntimeError):
     pass
 
 
+class StoreError(ValueError):
+    """The hub is up but its store cannot take the event (HTTP 507).
+
+    A live send fails loudly instead of spooling, because a retry would only jam the outbox; an
+    event that is already in the outbox stays there until the store is fixed.
+    """
+
+
 def hub_url() -> str | None:
     url = os.environ.get("HUB_URL")
     return url.rstrip("/") if url else None
@@ -42,9 +50,10 @@ def post(url: str, payload: dict, token: str | None = None) -> dict:
     except urllib.error.HTTPError as e:
         body = e.read().decode("utf-8", "replace")[:300]
         # 403 rejects the host name, not the payload: keep the event until the user fixes the setup
-        if (400 <= e.code < 500 and e.code != 403) or e.code == 507:
-            # A bad payload, an auth error, or a store that cannot take the event does not heal on
-            # retry, so skip the outbox; a retry would only jam every later event behind it
+        if e.code == 507:
+            raise StoreError(f"hub server could not store the event (507): {body}") from e
+        if 400 <= e.code < 500 and e.code != 403:
+            # A bad payload or an auth error does not heal on retry, so skip the outbox
             raise ValueError(f"hub server rejected ({e.code}): {body}") from e
         raise PushError(f"hub server error ({e.code}): {body}") from e
     except (urllib.error.URLError, TimeoutError, ConnectionError, OSError) as e:
@@ -143,6 +152,9 @@ def flush(url: str, token: str | None = None) -> int:
         try:
             post(url, payload, token)
         except PushError:
+            path.write_text("\n".join(lines[i:]) + "\n", encoding="utf-8")
+            return sent
+        except StoreError:  # the event is fine and the hub's store is not: keep it and everything after it
             path.write_text("\n".join(lines[i:]) + "\n", encoding="utf-8")
             return sent
         except ValueError:

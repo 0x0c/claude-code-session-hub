@@ -133,6 +133,34 @@ class KnowledgeStoreTest(unittest.TestCase):
             client.post(url, {"session_id": "a", "fields": {"type": "finding", "finding": {"kind": "caveat", "title": "second", "body": "b"}}}, token=None)
         self.assertIn("could not store", str(cm.exception))
 
+    @unittest.skipIf(os.geteuid() == 0, "root can write to any file")
+    def test_an_outbox_event_survives_a_507_and_a_live_send_fails_cleanly(self):
+        import io, threading
+        from contextlib import redirect_stderr
+        from session_hub import cli, client
+        from session_hub.server import make_server
+        self.learn("a", kind="caveat", title="first", body="b")
+        path = self.store.root / "knowledge" / "a.jsonl"
+        path.chmod(0o444)
+        self.addCleanup(path.chmod, 0o644)
+        srv, _ = make_server(self.store, port=0)
+        self.addCleanup(srv.server_close)
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        self.addCleanup(srv.shutdown)
+        url = f"http://127.0.0.1:{srv.server_address[1]}"
+        outbox = Path(self._tmp.name) / "outbox.jsonl"
+        payload = {"session_id": "a", "fields": {"type": "finding", "finding": {"kind": "caveat", "title": "queued", "body": "b"}}}
+        with mock.patch.dict(os.environ, {"HUB_OUTBOX": str(outbox)}):
+            client.spool(payload)
+            self.assertEqual(client.flush(url), 0)
+            self.assertTrue(outbox.exists())  # kept: the store may be fixed later
+            self.assertEqual(len(outbox.read_text().splitlines()), 1)
+            with mock.patch.dict(os.environ, {"HUB_URL": url, "HUB_SESSION_ID": "a"}), \
+                    redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as cm:
+                cli.main(["learn", "--kind", "caveat", "--title", "live", "--body", "b"])
+        self.assertIn("507", str(cm.exception.code))
+        self.assertEqual(len(outbox.read_text().splitlines()), 1)  # the live event was not spooled behind it
+
     def test_a_record_survives_a_deletion_that_ran_while_it_waited_for_the_lock(self):
         ev = self.learn("a", kind="caveat", title="first", body="b")
         path = self.store.root / "knowledge" / "a.jsonl"

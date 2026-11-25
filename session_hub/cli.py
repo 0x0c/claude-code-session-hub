@@ -38,7 +38,7 @@ def _record(args, fields: dict, writer: str | None = None, session: str | None =
     sid = session or _session(args)
     try:
         res, mode = deliver(sid, fields, writer=writer, store_root=args.store)
-    except ValueError as e:
+    except (ValueError, OSError) as e:  # a rejected event, or a store that cannot take the record
         sys.exit(f"session-hub: {e}")
     if mode == "outbox":
         print("session-hub: the hub is unreachable; saved the event to the outbox (it is resent on the next send)", file=sys.stderr)

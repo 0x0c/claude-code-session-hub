@@ -23,7 +23,8 @@ def store_configured(store_root=None) -> bool:
 def deliver(session_id: str, fields: dict, writer: str | None = None, store_root=None) -> tuple[dict | None, str]:
     """Return (recorded result or None, route "push" | "store" | "outbox").
 
-    If the server rejects the payload (4xx), the ValueError propagates unchanged.
+    If the server rejects the payload (4xx), or its store cannot take it (507), the ValueError propagates
+    unchanged.
     """
     if writer is None:
         transcript = local_state.load(session_id).get("transcript")

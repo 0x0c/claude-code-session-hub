@@ -155,7 +155,7 @@ immediately**.
   it at once over Server-Sent Events (SSE) to every connected browser. **Neither the server nor the
   browser polls.**
 - **When delivery fails**: the child keeps the unsent events in an outbox (a local JSON Lines (JSONL) file) and
-  resends them first on the next send.
+  resends them first on the next send. When the hub answers 507 because its store cannot take an event, a live send fails with that message instead of spooling, and events already in the outbox stay there until the store works again.
 - **Durability**: the store is append-only JSONL. When needed, the store can also be shared and
   archived through Git, as in A (the auxiliary `--pull-every` option).
 - **Escalation**: D, used only on transitions that should wake the parent (§3.3).
