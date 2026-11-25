@@ -36,6 +36,10 @@ This proposal reverses a recorded decision. [`AGENTS.md`](../../AGENTS.md) state
 - **Reading.** The server reads the store to build every collection that reads `finding` payloads, and its sinks. A change to any file under `knowledge/` counts as a change of the store, so a watching server rebuilds. The collection definition, `session-hub knowledge`, and `KNOWLEDGE.md` keep their shape.
 - **Migration.** When the server starts, it copies every `finding` event that predates the store into the store, keyed by the event identifier so that a second start copies nothing. A notice written by `learn` carries `stored: true`, so the server never copies it. Reading never writes: a reader still shows the old events from memory, so a reader on another machine creates no file that belongs to another writer.
 
+### Compatibility
+
+A machine that still runs an earlier version builds its knowledge collection from the timeline events alone, so it shows every new finding without its text, tags, or scope. We accept this break because the store is shared by machines that run one version, and because keeping the text in the notice as well would put it in two places.
+
 ### Page
 
 - **Detail.** `GET /knowledge#<entry>` opens one entry: the full text, kind, tags, scope, reporting sessions (each linking to that session on the dashboard), and the revision list. The title of every entry anywhere on the page links to its detail.

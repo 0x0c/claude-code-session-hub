@@ -2107,8 +2107,9 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
   function openHashedTab(initial) {
     if (!initial) return;
     if (location.hash.startsWith("#col:")) setView(location.hash.slice(1));
-    else if (location.hash.startsWith("#session:")) selectSession(decodeURIComponent(location.hash.slice(9)));
-    else return;
+    else if (location.hash.startsWith("#session:")) {
+      try { selectSession(decodeURIComponent(location.hash.slice(9))); } catch (e) { /* a malformed shared link selects nothing */ }
+    } else return;
     history.replaceState(null, "", location.pathname + location.search);
   }
 

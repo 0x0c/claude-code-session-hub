@@ -1,6 +1,9 @@
 """Collections: an abstraction over where received updates go, how they accumulate, and how they show.
 
-The event store is the single source of truth; a collection is merely a projection over it.
+The event store is the single source of truth, and a collection is merely a projection over it. The
+one exception is the full text of findings: it lives in the knowledge store (knowledge_store.py), and a
+collection that reads finding payloads (the built-in "knowledge", or any definition with
+"payload": "finding" or "source": "knowledge") projects that store instead of the event notices.
 Four parts define a collection, all declarative JSON with no code to add:
 
     match   which events to collect   {"type": [...], "kind": [...], "tags_any": [...], "session": [...]}
@@ -8,7 +11,7 @@ Four parts define a collection, all declarative JSON with no code to add:
     view    how to show them          {"type": "cards" | "table", "group_by": "kind", "columns": [...]}
     sinks   where else to write them  [{"type": "markdown" | "jsonl", "path": "knowledge.md"}]
 
-The built-in collection is "knowledge": it aggregates finding events by key and shows cards by kind.
+The built-in collection is "knowledge": it aggregates findings by key and shows cards by kind.
 A definition of the same shape in collections.json at the store root adds or overrides a collection.
 
 Reduce types:
