@@ -183,6 +183,9 @@ main.grid .kid::after { top: calc(20px + var(--space-8)); }
 main.grid .cards:has(> .family) { align-items: start; }
 .card.archived .title { font-weight: var(--fw-normal); color: var(--muted); }
 .card .row1 { display: flex; align-items: center; gap: var(--space-8); min-width: 0; }
+.card .openapp { flex: none; display: inline-flex; padding: var(--space-2); border-radius: var(--radius-md); color: var(--muted); }
+.card .openapp:hover, .card .openapp:focus-visible { color: var(--accent); background: var(--hover); }
+.card .openapp svg { display: block; width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.5; }
 .card .title { font-weight: var(--fw-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
 .card .meta { font-size: var(--fs-meta); color: var(--muted); display: flex; gap: var(--space-10); flex-wrap: wrap; margin-top: var(--space-2); }
 a.pr { color: var(--accent); }
@@ -461,6 +464,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       "card.progress": "{done}/{total} · ≈{rem} left", "card.threads": " · {n} open threads",
       "card.children": "{n} sub-sessions", "card.children_one": "1 sub-session", "card.childrenOf": "Sub-sessions of {name}",
       "card.showParent": "Show the parent session {name}",
+      "card.openApp": "Open {name} in Claude",
       "card.showTimeline": "Show the timeline of {name}", "card.working": "Working",
       "ask.blocking": " (blocked)", "ask.nonblocking": " (continuing with the default)",
       "ask.answer": "Answer: session-hub answer {sid} --qid {q} --value <value>", "gate.prefix": "Missing: ",
@@ -567,6 +571,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
       "card.progress": "{done}/{total} 残≈{rem}", "card.threads": " 指摘{n}",
       "card.children": "子 {n}", "card.childrenOf": "{name} の子セッション",
       "card.showParent": "親セッション {name} を表示",
+      "card.openApp": "{name} をClaudeで開く",
       "card.showTimeline": "{name} のタイムラインを表示", "card.working": "作業中",
       "ask.blocking": "（停止中）", "ask.nonblocking": "（既定値で継続中）",
       "ask.answer": "回答: session-hub answer {sid} --qid {q} --value <値>", "gate.prefix": "未達: ",
@@ -1001,6 +1006,24 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
     if (!opens) card.focus({ preventScroll: true }); // An opened panel took the focus
   }
 
+  // An icon-only link that opens the session in the desktop app; the card does not take its click
+  function openAppLink(s, name) {
+    const url = desktopUrl(s);
+    if (!url) return null;
+    const NS = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(NS, "svg");
+    svg.setAttribute("viewBox", "0 0 12 12");
+    svg.setAttribute("aria-hidden", "true");
+    const path = document.createElementNS(NS, "path");
+    path.setAttribute("d", "M5 2H2V10H10V7M7 1H11V5M11 1L5.5 6.5");
+    svg.append(path);
+    const label = t("card.openApp", { name });
+    return el("a", { class: "openapp", href: url, title: label, "aria-label": label,
+      onclick: (e) => e.stopPropagation(),
+      onkeydown: (e) => { if (e.key === "Enter" || e.key === " ") e.stopPropagation(); },
+    }, svg);
+  }
+
   function parentLink(parent) {
     const name = parent.title || parent.session_id;
     const label = t("card.showParent", { name });
@@ -1057,6 +1080,7 @@ table.ctable th { font-size: var(--fs-label); color: var(--muted); font-weight: 
           ? el("span", { class: "spinner", role: "img", "aria-label": t("card.working") })
           : el("span", { class: "dot", style: { background: laneColor(s.session_id) } }),
         el("span", { class: "title", title: s.session_id }, name),
+        openAppLink(s, name),
         // An archived session keeps showing how it ended
         s.archived ? el("span", { class: "chip" }, (STATE[s.state] || [s.state])[0]) : null,
         badge(stateKey(s)),

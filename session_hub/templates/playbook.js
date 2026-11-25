@@ -132,6 +132,7 @@
       ["Non-blocking question", () => sessionCard(pbSession("working", { attention: pbAsk(false) })), "narrow"],
       ["Pull request", () => sessionCard(pbSession("waiting_ci", { pr: { number: 45, url: "https://example.com/pull/45", ci: "pending", unresolved_threads: 2 } })), "narrow"],
       ["Long title", () => sessionCard(pbSession("working", { title: pbText("long") })), "narrow"],
+      ["Open in Claude", () => sessionCard(pbSession("working", { desktop_id: "local_pb-demo" })), "narrow"],
       ["Minimal", () => sessionCard({ session_id: "pb-minimal", state: "queued", heartbeat: pbAt(1) }), "narrow"],
       ["Selected", () => { const s = ui.session; ui.session = "pb-working"; const n = sessionCard(pbSession("working")); ui.session = s; return n; }, "narrow"],
     ]],
