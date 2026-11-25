@@ -383,7 +383,8 @@ def make_handler(hub: Hub, token: str | None):
             except schema.SchemaError as e:
                 return self._send(400, _dumps({"error": str(e)}))
             except OSError as e:  # e.g. a knowledge store that cannot take the record
-                return self._send(500, _dumps({"error": f"the hub could not store the event: {e}"}))
+                # 507, which the client does not retry: a permission error never heals by itself
+                return self._send(507, _dumps({"error": f"the hub could not store the event: {e}"}))
             self._send(201, _dumps(res))
 
         def do_DELETE(self):

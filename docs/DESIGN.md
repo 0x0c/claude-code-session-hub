@@ -188,7 +188,8 @@ immediately**.
 
 - **Event sourcing**: the hub never stores state. The hub folds the append-only event sequence into
   the state on every read. The event sequence is also the source data of the timeline view, so a
-  reader can trace exactly what changed and when.
+  reader can trace exactly what changed and when. The full text of findings is the one exception: it
+  lives in the knowledge store (`knowledge/`), and the event keeps only a short notice.
 - **One file per writer**: `events/<session_id>.jsonl` holds the child's events, and
   `events/<session_id>@parent.jsonl` holds the parent's answers and instructions. Each file always
   has a single writer, so sharing the store through Git causes no conflicts.

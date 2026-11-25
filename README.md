@@ -46,7 +46,7 @@ them on a browser dashboard.
 
 Each sub-session is a separate Claude Code process. It reports to one hub server on the loopback
 interface, and the hub keeps every report as an append-only event. Everything you see is computed
-from those events.
+from those events, except the full text of findings, which the knowledge store holds.
 
 ```mermaid
 flowchart LR
@@ -57,7 +57,9 @@ flowchart LR
   A -- "session-hub report / ask / learn" --> H
   B -- "hooks: heartbeat, tokens, progress" --> H
   H["Hub server<br/>127.0.0.1:8765"] -- "append" --> ST[("Event store<br/>events/*.jsonl")]
+  H -- "append findings" --> KS[("Knowledge store<br/>knowledge/*.jsonl")]
   ST -- "project" --> V["Views and collections<br/>sessions, timeline, knowledge"]
+  KS -- "project" --> V
   V -- "SSE, real time" --> D["Browser dashboard"]
   V -- "session-hub attention<br/>a few lines" --> P["Parent session"]
   A -. "escalation notice<br/>needs human, ready for review, failed, done" .-> P

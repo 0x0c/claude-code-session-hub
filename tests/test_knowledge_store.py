@@ -116,7 +116,7 @@ class KnowledgeStoreTest(unittest.TestCase):
         self.assertEqual(self.store.read("a"), before)  # no notice stayed behind
 
     @unittest.skipIf(os.geteuid() == 0, "root can write to any file")
-    def test_the_hub_answers_500_when_the_knowledge_store_cannot_take_a_record(self):
+    def test_the_hub_answers_507_when_the_knowledge_store_cannot_take_a_record(self):
         import threading
         from session_hub import client
         from session_hub.server import make_server
@@ -129,7 +129,7 @@ class KnowledgeStoreTest(unittest.TestCase):
         threading.Thread(target=srv.serve_forever, daemon=True).start()
         self.addCleanup(srv.shutdown)
         url = f"http://127.0.0.1:{srv.server_address[1]}"
-        with self.assertRaises(client.PushError) as cm:
+        with self.assertRaises(ValueError) as cm:  # not PushError: the outbox would retry it forever
             client.post(url, {"session_id": "a", "fields": {"type": "finding", "finding": {"kind": "caveat", "title": "second", "body": "b"}}}, token=None)
         self.assertIn("could not store", str(cm.exception))
 

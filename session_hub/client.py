@@ -42,8 +42,9 @@ def post(url: str, payload: dict, token: str | None = None) -> dict:
     except urllib.error.HTTPError as e:
         body = e.read().decode("utf-8", "replace")[:300]
         # 403 rejects the host name, not the payload: keep the event until the user fixes the setup
-        if 400 <= e.code < 500 and e.code != 403:
-            # A bad payload or an auth error does not heal on retry, so skip the outbox
+        if (400 <= e.code < 500 and e.code != 403) or e.code == 507:
+            # A bad payload, an auth error, or a store that cannot take the event does not heal on
+            # retry, so skip the outbox; a retry would only jam every later event behind it
             raise ValueError(f"hub server rejected ({e.code}): {body}") from e
         raise PushError(f"hub server error ({e.code}): {body}") from e
     except (urllib.error.URLError, TimeoutError, ConnectionError, OSError) as e:
