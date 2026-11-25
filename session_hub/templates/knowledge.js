@@ -201,11 +201,13 @@
     const shown = items.slice(0, f.limit);
     knList.replaceChildren(
       ...(shown.length ? shown.map((it) => knRow(it, s.groups, it.entry === entry)) : [el("div", { class: "kn-empty" }, t("col.emptyFiltered"))]),
-      items.length > shown.length ? el("button", { class: "iconbtn kn-more", onclick: () => { knFilters.limit += KN_PAGE; knDraw(); } },
-        t("kn.more", { n: Math.min(KN_PAGE, items.length - shown.length) })) : null);
+      ...(items.length > shown.length ? [el("button", { class: "iconbtn kn-more", onclick: () => { knFilters.limit += KN_PAGE; knDraw(); } },
+        t("kn.more", { n: Math.min(KN_PAGE, items.length - shown.length) }))] : []));
     knSplit.classList.toggle("kn-has-detail", Boolean(entry));
     if (picked) knShow(picked, s.groups);
-    else knDetail.replaceChildren(el("div", { class: "kn-empty" }, entry ? t("kn.notFound") : t("kn.pick")));
+    else knDetail.replaceChildren(el("div", { class: "kn-empty" }, entry ? t("kn.notFound") : t("kn.pick")),
+      // on a narrow window the list is hidden while a hash is set, so a missing entry needs a way back
+      ...(entry ? [el("a", { class: "iconbtn kn-back", href: "#", onclick: (e) => { e.preventDefault(); history.replaceState(null, "", location.pathname + location.search); knDraw(); } }, t("kn.back"))] : []));
   }
 
   async function knLoad() {
