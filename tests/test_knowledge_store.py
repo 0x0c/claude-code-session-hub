@@ -79,6 +79,15 @@ class KnowledgeStoreTest(unittest.TestCase):
         (item,) = self.items()
         self.assertEqual((item["body"], item["count"]), ("kept", 1))  # shown once, not as a copy and an event
 
+    def test_migrated_copies_go_to_their_own_file_and_keep_the_writer(self):
+        self.store.append("a", {"type": "finding", "finding": {"kind": "caveat", "title": "Old", "body": "kept"}}, writer="parent")
+        knowledge_store.migrate(self.store)
+        files = sorted(p.name for p in (self.store.root / "knowledge").glob("*.jsonl"))
+        self.assertEqual(files, ["a@migrated.jsonl"])  # never a@parent.jsonl, which another machine may write
+        self.assertEqual(self.ks.read()[0]["writer"], "parent")
+        self.store.delete_session("a")
+        self.assertEqual(list((self.store.root / "knowledge").glob("*.jsonl")), [])
+
     def test_a_snapshot_between_the_notice_and_its_record_loses_no_text(self):
         notice = {"type": "finding", "finding": {"kind": "caveat", "title": "Race", "stored": True}}
         ev = self.store.append("a", notice)  # core.record has written the notice, and not yet the record

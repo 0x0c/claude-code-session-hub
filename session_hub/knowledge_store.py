@@ -3,7 +3,9 @@
 The event store keeps a short `finding` notice on the timeline; the full text of the finding lives
 here, under `<store>/knowledge/`. Each file has one writer, as in the event store, so sharing the
 store through Git never produces a merge conflict: `<session-id>.jsonl` for a sub-session and
-`<session-id>@<writer>.jsonl` for the parent.
+`<session-id>@<writer>.jsonl` for the parent. The copies of events that predate the store go to
+`<session-id>@migrated.jsonl`, a file of their own, so that a machine that migrates never writes a
+file that another machine's writer also appends to.
 
 A line is one revision of one entry. The entry is named by a short hash of the finding's key (the
 title when no key is given), so two sessions that report the same caveat append to the same entry.
@@ -19,6 +21,7 @@ from pathlib import Path
 from . import collections
 from .store import EventStore, _check_id
 
+MIGRATED = "migrated"  # the writer name of the file that holds the copied legacy events
 FIELDS = ("kind", "title", "body", "tags", "scope", "key", "status")
 NOTICE_FIELDS = ("kind", "title", "key", "status")  # what the timeline event keeps
 
@@ -132,13 +135,14 @@ class KnowledgeStore:
     def import_events(self, all_events: dict[str, list[dict]]) -> int:
         """Copy the legacy finding events into the store; return how many were copied.
 
-        A second run copies nothing, because the copies are known by then.
+        A second run copies nothing, because the copies are known by then. The copies go to one
+        `<session-id>@migrated.jsonl` per session; each record keeps the writer that reported it.
         """
-        fresh: dict[tuple, list[dict]] = {}
+        fresh: dict[str, list[dict]] = {}
         for rec in self.legacy(all_events):
-            fresh.setdefault((rec["session_id"], rec.get("writer")), []).append(rec)
-        for (sid, writer), recs in fresh.items():
-            self._append_lines(sid, writer, recs)
+            fresh.setdefault(rec["session_id"], []).append(rec)
+        for sid, recs in fresh.items():
+            self._append_lines(sid, MIGRATED, recs)
         return sum(len(r) for r in fresh.values())
 
     @staticmethod
