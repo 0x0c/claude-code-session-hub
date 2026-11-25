@@ -181,6 +181,22 @@ class KnowledgePageTest(unittest.TestCase):
         # Only the first snapshot applies the hash, and it clears the hash so that a reconnect does not repeat it
         self.assertEqual(json.loads(out), [["view", "col:knowledge"], ["url", "/?x=1"]])
 
+    @unittest.skipUnless(shutil.which("node"), "needs Node.js")
+    def test_dashboard_selects_the_session_named_by_the_hash_once(self):
+        code = re.search(r"  function openHashedTab\(.*?\n  }\n", dashboard_html(), re.S)[0]
+        script = """
+          const calls = [];
+          const location = { hash: "#session:a%20b", pathname: "/", search: "" };
+          const history = { replaceState: (_s, _t, url) => { calls.push(["url", url]); location.hash = ""; } };
+          const setView = (v) => calls.push(["view", v]);
+          const selectSession = (id) => calls.push(["select", id]);
+          openHashedTab(false); openHashedTab(true); openHashedTab(true);
+          location.hash = "#session:%E0"; openHashedTab(true);  // malformed: selects nothing, throws nothing
+          console.log(JSON.stringify(calls));
+        """
+        out = subprocess.run(["node", "-e", code + script], capture_output=True, text=True, check=True).stdout
+        self.assertEqual(json.loads(out), [["select", "a b"], ["url", "/"], ["url", "/"]])
+
 
 if __name__ == "__main__":
     unittest.main()
