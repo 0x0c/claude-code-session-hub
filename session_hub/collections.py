@@ -220,11 +220,13 @@ def project(defn: dict, events: list[dict]) -> list[dict]:
 
 
 def project_all(defs: list[dict], events: list[dict], knowledge: list[dict] | None = None) -> dict:
-    """Project every collection. A collection with "source": "knowledge" reads the knowledge store's
-    revisions (shaped as finding events) when the caller passes them, and the events otherwise."""
+    """Project every collection. A collection that reads finding payloads (the built-in knowledge, and
+    any definition with "payload": "finding" or "source": "knowledge") reads the knowledge store's
+    revisions, shaped as finding events, when the caller passes them; the others read the events."""
     out = {}
     for d in defs:
-        items = project(d, knowledge if knowledge is not None and d.get("source") == "knowledge" else events)
+        items = project(d, knowledge if knowledge is not None and (
+            d.get("source") == "knowledge" or d["reduce"].get("payload") == "finding") else events)
         out[d["name"]] = {
             "name": d["name"], "label": d["label"], "description": d.get("description", ""),
             "view": d["view"], "reduce": d["reduce"]["type"], "items": items,

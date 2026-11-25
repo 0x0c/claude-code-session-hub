@@ -32,8 +32,8 @@ This proposal reverses a recorded decision. [`AGENTS.md`](../../AGENTS.md) state
 - **Location.** `<HUB_STORE>/knowledge/` holds JavaScript Object Notation (JSON) Lines files. Each file has one writer, as in the event store: `<session-id>.jsonl` for a sub-session and `<session-id>@parent.jsonl` for the parent, so sharing the store through Git never produces a merge conflict.
 - **Record.** One line is one revision of one entry: `entry` (identifier), `event_id` (the timeline notice it belongs to), `ts`, `kind`, `title`, `body`, `tags`, `scope`, `status` (`active` or `obsolete`), and the reporting `session_id`. An entry's current state is its latest revision, and the revisions that changed the wording or the status form its history. The reader derives the revision number from the order, so no writer has to count.
 - **Identifier.** The identifier is a short hash of the normalized `key`, or of the title when no `key` is given. Two sessions that report the same caveat therefore append to the same entry.
-- **Writing.** `session-hub learn` appends a revision to the store, then records a short `finding` event (kind, title, entry identifier) on the timeline. The timeline keeps its "a finding arrived" notice, and the full text lives in the store.
-- **Reading.** The server reads the store to build the knowledge collection and its sinks. The collection definition, `session-hub knowledge`, and `KNOWLEDGE.md` keep their shape.
+- **Writing.** `session-hub learn` first checks that the store can take a record, then records a short `finding` notice (kind, title, key, status, and `stored: true`) on the timeline, then appends the revision with the notice's event identifier. The check comes first so that a full or read-only disk fails the command before a notice exists whose text was lost. The timeline keeps its "a finding arrived" notice, and the full text lives in the store.
+- **Reading.** The server reads the store to build every collection that reads `finding` payloads, and its sinks. A change to any file under `knowledge/` counts as a change of the store, so a watching server rebuilds. The collection definition, `session-hub knowledge`, and `KNOWLEDGE.md` keep their shape.
 - **Migration.** When the server starts, it copies every `finding` event that predates the store into the store, keyed by the event identifier so that a second start copies nothing. A notice written by `learn` carries `stored: true`, so the server never copies it. Reading never writes: a reader still shows the old events from memory, so a reader on another machine creates no file that belongs to another writer.
 
 ### Page
@@ -41,7 +41,7 @@ This proposal reverses a recorded decision. [`AGENTS.md`](../../AGENTS.md) state
 - **Detail.** `GET /knowledge#<entry>` opens one entry: the full text, kind, tags, scope, reporting sessions (each linking to that session on the dashboard), and the revision list. The title of every entry anywhere on the page links to its detail.
 - **List.** The list replaces the fixed sections. It shows one row per entry (kind, title, a two-line excerpt, reporter count, last update) and 50 rows at first, with a control for more.
 - **Filters.** Kind chips (with counts), tag chips, a scope filter, a "reported by several sessions" toggle, a full-text search box, and a sort by last update or reporter count. The filter state lives in the address, so a filtered view can be shared.
-- **Summary.** The totals stay as one compact row above the list, and each count applies its kind as a filter.
+- **Summary.** The totals stay as one compact row above the list. The kind chips below it carry the counts and apply their kind as a filter.
 - **Layout.** Wide windows show the list beside the detail; narrow windows show one at a time. All labels exist in English and Japanese.
 
 ### Out of scope

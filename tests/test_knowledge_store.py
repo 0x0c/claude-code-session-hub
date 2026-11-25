@@ -86,6 +86,32 @@ class KnowledgeStoreTest(unittest.TestCase):
         (item,) = self.items()
         self.assertEqual(item["body"], "the text")
 
+    def test_a_store_that_cannot_take_a_record_fails_before_the_notice(self):
+        self.store.root.mkdir(parents=True)
+        (self.store.root / "knowledge").write_text("a file where the directory should be")
+        with self.assertRaises(OSError):
+            self.learn("a", kind="caveat", title="t", body="b")
+        self.assertEqual(self.store.read_all(), {})  # no notice stayed behind
+
+    def test_a_change_under_knowledge_changes_the_signature(self):
+        ev = self.learn("a", kind="caveat", title="t", body="b")
+        before = self.store.signature()
+        self.ks.append(ev, {"kind": "caveat", "title": "t", "body": "again"})
+        self.assertNotEqual(self.store.signature(), before)
+
+    def test_a_corrupt_file_does_not_break_reading(self):
+        self.learn("a", kind="caveat", title="t", body="b")
+        (self.store.root / "knowledge" / "bad.jsonl").write_bytes(b'\xff\xfe not json\n{"entry":"e","event_id":"x","ts":null,"title":"t","session_id":"s"}\n')
+        self.assertEqual(len(self.ks.read()), 1)
+        self.assertEqual(len(self.items()), 1)
+
+    def test_a_custom_collection_of_findings_reads_the_text_too(self):
+        defs = [{"name": "decisions", "match": {"type": ["finding"], "kind": ["decision"]},
+                 "reduce": {"type": "log", "payload": "finding"}, "view": {"type": "table"}}]
+        self.learn("a", kind="decision", title="Limit", body="120 per minute")
+        snap = view.store_snapshot(self.store, defs=[collections._validate(d) for d in defs])
+        self.assertEqual(snap["collections"]["decisions"]["items"][0]["body"], "120 per minute")
+
     def test_the_hub_migrates_when_it_starts(self):
         from session_hub.server import Hub
         self.old_event()

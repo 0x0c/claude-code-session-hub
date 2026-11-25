@@ -344,7 +344,7 @@ revision of an entry (`entry`, `event_id`, `session_id`, `ts`, `kind`, `title`, 
 through Git never conflicts. An entry's identifier is a short hash of the normalized key (the title when
 there is no key), so two sessions that report the same caveat append to the same entry, and an entry's
 revisions form its history. The timeline keeps a short `finding` notice (kind, title, key, status) that
-links to the revision through `event_id`. The notice carries `stored: true`, so a reader never mistakes it for an old event. The server copies the
+links to the revision through `event_id`. Every collection whose reduce reads the `finding` payload reads the store, not the events. The notice carries `stored: true`, so a reader never mistakes it for an old event. The server copies the
 finding events that predate the store (those without the mark) once, when it starts, so a second start copies
 nothing. Reading never writes: a reader still shows the old events from memory, and a reader on another
 machine never creates files that belong to other writers.

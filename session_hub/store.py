@@ -193,12 +193,13 @@ class EventStore:
     def signature(self) -> tuple:
         """Return (name, size, mtime) per file, for change detection."""
         sig = []
-        for p in self._files():
+        knowledge = self.root / "knowledge"
+        for p in [*self._files(), *(sorted(knowledge.glob("*.jsonl")) if knowledge.exists() else [])]:
             try:
                 st = p.stat()
             except FileNotFoundError:
                 continue
-            sig.append((p.name, st.st_size, st.st_mtime_ns))
+            sig.append((f"{p.parent.name}/{p.name}", st.st_size, st.st_mtime_ns))
         return tuple(sig)
 
     # ---- Git sync ------------------------------------------------------

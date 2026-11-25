@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import fcntl
 import json
+import os
 from pathlib import Path
 
 from . import collections
@@ -72,17 +73,25 @@ class KnowledgeStore:
         self._append_lines(ev["session_id"], ev.get("writer"), [rec])
         return rec
 
+    def ensure_writable(self) -> None:
+        """Raise OSError when the store cannot take a record, so that a writer fails before it
+        puts a notice on the timeline whose text it could not keep."""
+        self.dir.mkdir(parents=True, exist_ok=True)
+        if not os.access(self.dir, os.W_OK):
+            raise PermissionError(f"the knowledge store is not writable: {self.dir}")
+
     def read(self) -> list[dict]:
         """Return every revision record in time order; a corrupt line is skipped."""
         out, seen = [], set()
         for path in sorted(self.dir.glob("*.jsonl")) if self.dir.exists() else []:
-            with open(path, encoding="utf-8") as f:
+            with open(path, encoding="utf-8", errors="replace") as f:
                 for line in f:
                     try:
                         rec = json.loads(line)
                         key = (rec["event_id"], rec["entry"])
-                        rec["title"], rec["ts"], rec["session_id"]
-                    except (json.JSONDecodeError, KeyError, TypeError):
+                        if not all(isinstance(rec.get(k), str) for k in ("title", "ts", "session_id", "event_id", "entry")):
+                            continue
+                    except (ValueError, KeyError, TypeError, AttributeError):
                         continue
                     if key in seen:  # a duplicate line from a Git merge
                         continue
@@ -91,13 +100,13 @@ class KnowledgeStore:
         out.sort(key=lambda r: (r["ts"], r["event_id"]))
         return out
 
-    def legacy(self, all_events: dict[str, list[dict]]) -> list[dict]:
+    def legacy(self, all_events: dict[str, list[dict]], records: list[dict] | None = None) -> list[dict]:
         """Return the revisions of finding events that predate the store and that it does not hold.
 
         Such an event carries the full text and has no `stored` mark; a notice that a writer is
         about to match with its record has the mark, so it never counts as legacy.
         """
-        known = {r["event_id"] for r in self.read()}
+        known = {r["event_id"] for r in (self.read() if records is None else records)}
         return [self._record(ev, ev["finding"]) for evs in all_events.values() for ev in evs
                 if ev["type"] == "finding" and ev.get("finding") and not ev["finding"].get("stored")
                 and ev["id"] not in known]
@@ -129,7 +138,8 @@ def load(store: EventStore, all_events: dict[str, list[dict]]) -> list[dict]:
     other writers. The server copies the legacy events once, with migrate(), when it starts.
     """
     ks = KnowledgeStore(store.root)
-    return ks.as_events(sorted(ks.read() + ks.legacy(all_events), key=lambda r: (r["ts"], r["event_id"])))
+    records = ks.read()
+    return ks.as_events(sorted(records + ks.legacy(all_events, records), key=lambda r: (r["ts"], r["event_id"])))
 
 
 def migrate(store: EventStore) -> int:
