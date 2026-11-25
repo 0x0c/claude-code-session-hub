@@ -105,6 +105,16 @@ class KnowledgeStoreTest(unittest.TestCase):
         self.assertEqual(len(self.ks.read()), 1)
         self.assertEqual(len(self.items()), 1)
 
+    def test_a_field_of_the_wrong_type_is_dropped_and_the_snapshot_builds(self):
+        ev = self.learn("a", kind="caveat", title="t", body="b", scope="s/")
+        path = self.store.root / "knowledge" / "a.jsonl"
+        bad = {**json.loads(path.read_text().splitlines()[0]), "event_id": "a#9", "ts": "2999-01-01T00:00:00.000Z",
+               "scope": ["q"], "tags": [["x"]], "kind": 3}
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(bad) + "\n")
+        (item,) = self.items()
+        self.assertEqual((item["count"], item["scopes"], item["tags"]), (2, ["s/"], []))
+
     def test_a_custom_collection_of_findings_reads_the_text_too(self):
         defs = [{"name": "decisions", "match": {"type": ["finding"], "kind": ["decision"]},
                  "reduce": {"type": "log", "payload": "finding"}, "view": {"type": "table"}}]

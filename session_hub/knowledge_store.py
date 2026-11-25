@@ -93,6 +93,13 @@ class KnowledgeStore:
                             continue
                     except (ValueError, KeyError, TypeError, AttributeError):
                         continue
+                    # A hand edit or a Git merge can leave a field of the wrong type; drop that field
+                    # rather than let one line stop every snapshot
+                    for k in ("kind", "body", "scope", "key", "status"):
+                        if k in rec and not isinstance(rec[k], str):
+                            del rec[k]
+                    if not (isinstance(rec.get("tags", []), list) and all(isinstance(t, str) for t in rec.get("tags", []))):
+                        del rec["tags"]
                     if key in seen:  # a duplicate line from a Git merge
                         continue
                     seen.add(key)
