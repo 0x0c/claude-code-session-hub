@@ -189,13 +189,16 @@ class KnowledgePageTest(unittest.TestCase):
           const location = { hash: "#session:a%20b", pathname: "/", search: "" };
           const history = { replaceState: (_s, _t, url) => { calls.push(["url", url]); location.hash = ""; } };
           const setView = (v) => calls.push(["view", v]);
+          const ui = { layout: "list" };
           const selectSession = (id) => calls.push(["select", id]);
+          const openPanel = (id) => calls.push(["panel", id]);
           openHashedTab(false); openHashedTab(true); openHashedTab(true);
           location.hash = "#session:%E0"; openHashedTab(true);  // malformed: selects nothing, throws nothing
+          ui.layout = "grid"; location.hash = "#session:c"; openHashedTab(true);  // the grid opens the panel
           console.log(JSON.stringify(calls));
         """
         out = subprocess.run(["node", "-e", code + script], capture_output=True, text=True, check=True).stdout
-        self.assertEqual(json.loads(out), [["select", "a b"], ["url", "/"], ["url", "/"]])
+        self.assertEqual(json.loads(out), [["select", "a b"], ["url", "/"], ["url", "/"], ["panel", "c"], ["url", "/"]])
 
 
 if __name__ == "__main__":
