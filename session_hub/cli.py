@@ -311,7 +311,7 @@ def cmd_delete(a):
             print("session-hub: warning: git push failed (the files are deleted locally)", file=sys.stderr)
     if not deleted:
         sys.exit(f"session-hub: no such session: {a.target}")
-    print(f"deleted {a.target} ({deleted} events)")
+    print(f"deleted {a.target} ({deleted} records)")
 
 
 def _session_exists(a, sid: str) -> bool:

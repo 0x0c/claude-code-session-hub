@@ -562,14 +562,14 @@ class ServerTest(TmpMixin, unittest.TestCase):
             out = io.StringIO()
             with redirect_stdout(out):
                 cli.main(["delete", "c1"])  # Through the hub
-            self.assertEqual(out.getvalue().strip(), "deleted c1 (1 events)")
+            self.assertEqual(out.getvalue().strip(), "deleted c1 (1 records)")
             with redirect_stdout(io.StringIO()), self.assertRaises(SystemExit):
                 cli.main(["delete", "c1"])
         with mock.patch.dict(os.environ, {**env, "HUB_URL": "http://127.0.0.1:9"}):
             out = io.StringIO()
             with redirect_stdout(out), mock.patch("sys.stderr", io.StringIO()):
                 cli.main(["delete", "c2"])  # The hub is down: delete from the shared store
-            self.assertEqual(out.getvalue().strip(), "deleted c2 (1 events)")
+            self.assertEqual(out.getvalue().strip(), "deleted c2 (1 records)")
         self.assertEqual(self.store.session_ids(), [])
 
     def desktop_file(self, sid, archived, name="a", **fields):
