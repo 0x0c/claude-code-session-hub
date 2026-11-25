@@ -279,7 +279,7 @@ class KnowledgeStoreTest(unittest.TestCase):
         snap = view.store_snapshot(self.store, defs=[collections._validate(d) for d in defs])
         self.assertEqual(snap["collections"]["decisions"]["items"][0]["body"], "120 per minute")
 
-    def test_every_reduce_type_names_its_items_so_the_page_can_open_them(self):
+    def test_every_reduce_type_gives_its_items_an_entry_hash(self):
         self.learn("a", kind="decision", title="Limit", body="120 per minute")
         for reduce in ("log", "latest", "aggregate"):
             d = {"name": "k", "match": {"type": ["finding"]}, "view": {"type": "table"},

@@ -330,7 +330,7 @@ Event stream ┤ which    ├──►│ how to      ├──►│ how to   �
 | `match` | Which events to collect: `type`, `kind`, `tags_any`, `session`, `status` | `{"type": ["finding"], "kind": ["decision"]}` |
 | `reduce` | How to combine: `log` (keep the time series), `latest` (the newest one per key), `aggregate` (merge into one per key) | Knowledge uses `aggregate` with the key `key\|title` (the title when no explicit key is given) |
 | `view` | How to display: `cards` (grouped by `group_by`), `table` (with the given `columns`) | Knowledge shows cards grouped by kind |
-| `sinks` | Extra destinations: `markdown` / `jsonl` (a path inside the store). A sink file is rewritten only when its content changes | Keep `KNOWLEDGE.md` up to date and publish it in a repository or a wiki |
+| `sinks` | Extra destinations: `markdown` / `jsonl` (a path inside the store). A sink file is rewritten only when its content changes | Keep `KNOWLEDGE.md` up to date and publish it in a repository or a wiki. Every collection item carries `entry`, a short hash of its key (a knowledge-store entry only where the key is the finding's key or title); an aggregate item also carries `history`, the revisions that changed its wording or status. The `jsonl` sink writes both. |
 
 **Merge rules for `aggregate`**: the latest report overwrites fields such as the body, but an empty
 value never overwrites. `tags` and `scope` become the union of all reports, and every reporter is

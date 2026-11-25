@@ -211,7 +211,9 @@ def project(defn: dict, events: list[dict]) -> list[dict]:
         items[key] = merged
     out = log if r["type"] == "log" else list(items.values())
     for it in out:
-        it["entry"] = entry_id(it["key"])  # every item can be opened on the knowledge page
+        # A short hash of the item's key. It names a knowledge-store entry only where the key is the
+        # finding's key or title, as in the built-in knowledge collection; elsewhere it is just a stable id
+        it["entry"] = entry_id(it["key"])
         if r["type"] != "aggregate":
             it.pop("history", None)
         it["reporters"] = sorted({s["session_id"] for s in it["sources"]})
