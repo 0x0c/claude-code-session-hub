@@ -107,6 +107,14 @@ class KnowledgePageTest(unittest.TestCase):
         self.assertEqual(got["scopes"], ["search/"])
 
     @unittest.skipUnless(shutil.which("node"), "needs Node.js")
+    def test_a_malformed_hash_selects_nothing(self):
+        js = template("knowledge.js")
+        code = re.search(r"  const knEntry = .*?\n", js, re.S)[0]
+        out = subprocess.run(["node", "-e", f"const location = {{ hash: '#%E0%A4%A' }};\n{code}\nconsole.log(JSON.stringify(knEntry()))"],
+                             capture_output=True, text=True, check=True).stdout
+        self.assertEqual(json.loads(out), "")
+
+    @unittest.skipUnless(shutil.which("node"), "needs Node.js")
     def test_filters_round_trip_through_the_address(self):
         got = self.helpers("(() => { const f = knParse('?kind=issue&tag=ci&q=a%20b&sort=reporters&shared=1'); "
                            "return [f, knSerialize(f), knSerialize(knDefaults()), knParse('?sort=nonsense').sort]; })()")

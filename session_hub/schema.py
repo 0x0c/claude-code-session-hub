@@ -221,6 +221,7 @@ def normalize_event(ev: dict) -> dict:
             "scope": clip(fnd.get("scope"), "scope"),
             "key": clip(fnd.get("key"), "key"),
             "status": fnd.get("status", "active"),
+            "stored": True if fnd.get("stored") is True else None,  # the full text is in the knowledge store
         }.items() if v not in (None, "")}
 
     if ev["type"] == "ask" and not att:

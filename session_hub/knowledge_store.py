@@ -28,8 +28,12 @@ def entry_id(finding: dict) -> str:
 
 
 def notice(finding: dict) -> dict:
-    """Return the part of a finding that stays on the timeline."""
-    return {k: finding[k] for k in NOTICE_FIELDS if k in finding}
+    """Return the part of a finding that stays on the timeline.
+
+    The `stored` mark says that the full text is in the knowledge store, so that a reader never
+    mistakes the notice for an old event whose text still has to be copied.
+    """
+    return {**{k: finding[k] for k in NOTICE_FIELDS if k in finding}, "stored": True}
 
 
 class KnowledgeStore:
@@ -87,17 +91,25 @@ class KnowledgeStore:
         out.sort(key=lambda r: (r["ts"], r["event_id"]))
         return out
 
-    def import_events(self, all_events: dict[str, list[dict]]) -> int:
-        """Copy finding events that the store does not hold yet; return how many were copied.
+    def legacy(self, all_events: dict[str, list[dict]]) -> list[dict]:
+        """Return the revisions of finding events that predate the store and that it does not hold.
 
-        Events written before the store existed carry the full text, so a second run copies nothing.
+        Such an event carries the full text and has no `stored` mark; a notice that a writer is
+        about to match with its record has the mark, so it never counts as legacy.
         """
         known = {r["event_id"] for r in self.read()}
+        return [self._record(ev, ev["finding"]) for evs in all_events.values() for ev in evs
+                if ev["type"] == "finding" and ev.get("finding") and not ev["finding"].get("stored")
+                and ev["id"] not in known]
+
+    def import_events(self, all_events: dict[str, list[dict]]) -> int:
+        """Copy the legacy finding events into the store; return how many were copied.
+
+        A second run copies nothing, because the copies are known by then.
+        """
         fresh: dict[tuple, list[dict]] = {}
-        for evs in all_events.values():
-            for ev in evs:
-                if ev["type"] == "finding" and ev["id"] not in known and ev.get("finding"):
-                    fresh.setdefault((ev["session_id"], ev.get("writer")), []).append(self._record(ev, ev["finding"]))
+        for rec in self.legacy(all_events):
+            fresh.setdefault((rec["session_id"], rec.get("writer")), []).append(rec)
         for (sid, writer), recs in fresh.items():
             self._append_lines(sid, writer, recs)
         return sum(len(r) for r in fresh.values())
@@ -111,10 +123,18 @@ class KnowledgeStore:
 
 
 def load(store: EventStore, all_events: dict[str, list[dict]]) -> list[dict]:
-    """Import any finding events the store lacks, then return the revisions as finding events."""
+    """Return the revisions as finding events, legacy events included; this never writes.
+
+    Reading must not write: a reader on another machine would otherwise create files that belong to
+    other writers. The server copies the legacy events once, with migrate(), when it starts.
+    """
     ks = KnowledgeStore(store.root)
+    return ks.as_events(sorted(ks.read() + ks.legacy(all_events), key=lambda r: (r["ts"], r["event_id"])))
+
+
+def migrate(store: EventStore) -> int:
+    """Copy the finding events that predate the store into it; return how many were copied."""
     try:
-        ks.import_events(all_events)
+        return KnowledgeStore(store.root).import_events(store.read_all())
     except OSError:
-        pass  # a read-only store still shows what the store holds
-    return ks.as_events(ks.read())
+        return 0  # a read-only store keeps working: load() still shows the legacy events

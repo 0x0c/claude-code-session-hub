@@ -41,7 +41,7 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import resources
 
-from . import client, collections, core, desktop, schema, view
+from . import client, collections, core, desktop, knowledge_store, schema, view
 from .store import EventStore
 
 MAX_BODY = 64 * 1024
@@ -69,6 +69,7 @@ class Hub:
         self.write_lock = threading.Lock()  # serializes record-then-publish one event at a time
         self.clients: set[queue.Queue] = set()
         self.defs = collections.load_definitions(store.root)
+        knowledge_store.migrate(store)  # once, at start: a reader elsewhere must not write other writers' files
         self.snap = self._build()
         self._write_sinks(self.snap)
         self._event_index = self._index(self.snap)

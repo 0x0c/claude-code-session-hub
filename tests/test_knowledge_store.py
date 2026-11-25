@@ -58,15 +58,39 @@ class KnowledgeStoreTest(unittest.TestCase):
         self.assertTrue((self.store.root / "knowledge" / "a@parent.jsonl").exists())
         self.assertEqual(self.ks.read()[0]["writer"], "parent")
 
-    def test_events_from_before_the_store_are_imported_once(self):
+    def old_event(self):
         # An old event carries the full text, as every event did before the knowledge store existed
-        self.store.append("a", {"type": "finding", "finding": {"kind": "caveat", "title": "Old", "body": "kept", "tags": ["x"]}})
-        self.assertEqual(self.ks.read(), [])
+        return self.store.append("a", {"type": "finding", "finding": {"kind": "caveat", "title": "Old", "body": "kept", "tags": ["x"]}})
+
+    def test_reading_shows_old_events_and_writes_nothing(self):
+        self.old_event()
         (item,) = self.items()
         self.assertEqual((item["body"], item["tags"]), ("kept", ["x"]))
+        self.assertEqual(self.ks.read(), [])
+        self.assertFalse((self.store.root / "knowledge").exists())
+
+    def test_migrating_copies_old_events_once(self):
+        self.old_event()
+        self.assertEqual(knowledge_store.migrate(self.store), 1)
+        self.assertEqual(knowledge_store.migrate(self.store), 0)
         self.assertEqual(len(self.ks.read()), 1)
+        (item,) = self.items()
+        self.assertEqual((item["body"], item["count"]), ("kept", 1))  # shown once, not as a copy and an event
+
+    def test_a_snapshot_between_the_notice_and_its_record_loses_no_text(self):
+        notice = {"type": "finding", "finding": {"kind": "caveat", "title": "Race", "stored": True}}
+        ev = self.store.append("a", notice)  # core.record has written the notice, and not yet the record
+        knowledge_store.migrate(self.store)
         self.items()
-        self.assertEqual(len(self.ks.read()), 1)  # a second run copies nothing
+        self.ks.append(ev, {"kind": "caveat", "title": "Race", "body": "the text"})
+        (item,) = self.items()
+        self.assertEqual(item["body"], "the text")
+
+    def test_the_hub_migrates_when_it_starts(self):
+        from session_hub.server import Hub
+        self.old_event()
+        Hub(self.store)
+        self.assertEqual(len(self.ks.read()), 1)
 
     def test_a_corrupt_or_duplicated_line_is_skipped(self):
         self.learn("a", kind="insight", title="t", body="b")

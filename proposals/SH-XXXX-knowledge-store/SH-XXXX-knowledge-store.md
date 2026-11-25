@@ -34,7 +34,7 @@ This proposal reverses a recorded decision. [`AGENTS.md`](../../AGENTS.md) state
 - **Identifier.** The identifier is a short hash of the normalized `key`, or of the title when no `key` is given. Two sessions that report the same caveat therefore append to the same entry.
 - **Writing.** `session-hub learn` appends a revision to the store, then records a short `finding` event (kind, title, entry identifier) on the timeline. The timeline keeps its "a finding arrived" notice, and the full text lives in the store.
 - **Reading.** The server reads the store to build the knowledge collection and its sinks. The collection definition, `session-hub knowledge`, and `KNOWLEDGE.md` keep their shape.
-- **Migration.** On first start, the server imports every existing `finding` event into the store, keyed by the event identifier so that a second run imports nothing.
+- **Migration.** When the server starts, it copies every `finding` event that predates the store into the store, keyed by the event identifier so that a second start copies nothing. A notice written by `learn` carries `stored: true`, so the server never copies it. Reading never writes: a reader still shows the old events from memory, so a reader on another machine creates no file that belongs to another writer.
 
 ### Page
 

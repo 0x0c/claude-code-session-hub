@@ -78,7 +78,8 @@
   let knFailed = null; // why the first read failed (an HTTP status, or 0 for no answer); cleared on success
   let knNames = new Map(); // session id -> title, from the last snapshot
   let knFilters = knParse(location.search);
-  const knEntry = () => decodeURIComponent(location.hash.slice(1));
+  // The hash comes from a link that anyone may share, so a malformed one selects nothing
+  const knEntry = () => { try { return decodeURIComponent(location.hash.slice(1)); } catch (e) { return ""; } };
   const knName = (sid) => knNames.get(sid) || sid;
 
   // The search box and the toggles are made once, so a redraw never drops the reader's focus
