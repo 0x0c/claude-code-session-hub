@@ -317,8 +317,9 @@ Event stream ┤ which    ├──►│ how to      ├──►│ how to   �
                             └─────────────┘   └──────────┘
 ```
 
-- **The event store is the sole source of truth.** A collection is a projection on top of the
-  store. Changing a collection's definition rebuilds the collection from past events. Adding
+- **The event store is the sole source of truth, except for the full text of findings, which lives in the
+  knowledge store.** A collection is a projection on top of the stores. Changing a collection's
+  definition rebuilds the collection from past events (and, for findings, from the knowledge store). Adding
   another destination does not change how children send (the protocol).
 - **Definitions are declarative JSON** (`collections.json` at the root of the store). A user adds,
   overrides, or disables a collection without writing code.
@@ -737,7 +738,7 @@ claude-code-session-hub/
 
 | Term | Meaning |
 |---|---|
-| Collection | A definition of which received updates to collect (match), how to combine them (reduce), how to show them (view), and where else to write them (sinks) — together with the result. A projection of the event store |
+| Collection | A definition of which received updates to collect (match), how to combine them (reduce), how to show them (view), and where else to write them (sinks) — together with the result. A projection of the event store (and, for findings, of the knowledge store) |
 | Projection | Data computed from the stored event sequence in a shape that fits a purpose. The original events stay unchanged |
 | match | The condition for an event to enter a collection |
 | reduce | How to combine: log (keep the time series) / latest (the newest one per key) / aggregate (merge into one per key) |
